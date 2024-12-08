@@ -1,0 +1,45 @@
+[tool.basedpyright]
+typeCheckingMode = "standard"
+
+reportIncompatibleMethodOverride = false
+reportArgumentType = false
+reportCallIssue = false
+reportAttributeAccessIssue = "none"
+reportOptionalMemberAccess = "none"
+reportGeneralTypeIssues = "none"
+reportPrivateImportUsage = "none"
+reportOperatorIssue = "none"
+reportPossiblyUnboundVariable = "none"
+
+reportUnreachable = "none"
+reportUnusedParameter = "none"
+reportInvalidTypeForm = "warning"
+reportMissingImports = "warning"
+reportUndefinedVariable = "warning"
+reportAbstractUsage = "warning"
+reportAssertTypeFailure = "warning"
+reportAssignmentType = "none"
+reportInconsistentOverload = "warning"
+reportIndexIssue = "none"
+reportInvalidTypeArguments = "warning"
+reportNoOverloadImplementation = "warning"
+reportOptionalSubscript = "none"
+reportOptionalCall = "none"
+reportOptionalIterable = "none"
+reportOptionalContextManager = "none"
+reportOptionalOperand = "none"
+reportRedeclaration = "none"
+reportReturnType = "none"
+reportTypedDictNotRequiredAccess = "warning"
+reportUnboundVariable = "warning"
+reportUnhashable = "warning"
+reportUnusedCoroutine = "warning"
+reportUnusedExcept = "warning"
+
+extraPaths = [
+    "/Users/dhei/ai2/new-evals",
+    "/Users/dhei/ai2/new-evals/analysis",
+    "/Users/dhei/ai2/new-evals/generation",
+    "/Users/dhei/ai2/new-evals/olmo-repos/oe-eval-internal",
+    "/Users/dhei/ai2/new-evals/olmo-repos/olmo"
+]
