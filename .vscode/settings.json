@@ -1,0 +1,7 @@
+{
+    "editor.inlayHints.enabled": "off",
+    "python.analysis.extraPaths": [
+        "/Users/dhei/ai2/new-evals/oe-eval/oe-eval-internal",
+        "/Users/dhei/ai2/new-evals/oe-eval/oe-eval-internal/oe_eval"
+    ]
+}
