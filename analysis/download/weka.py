@@ -27,9 +27,10 @@ def download_file_with_progress(bucket_name, file_key, local_path):
             print(f"File already exists and matches size: {local_path}")
             return
 
-    with tqdm(total=s3_file_size, unit='B', unit_scale=True, desc="Downloading", ncols=80) as pbar:
+    print(f'Downloading weka://{bucket_name}/{file_key} -> {local_path}')
+    with tqdm(total=s3_file_size, unit='B', unit_scale=True, desc=f"Downloading", ncols=80) as pbar:
         def progress_hook(chunk):
-            pbar.update(len(chunk))
+            pbar.update(chunk)
 
         with open(local_path, 'wb') as f:
             S3.download_fileobj(
@@ -39,10 +40,10 @@ def download_file_with_progress(bucket_name, file_key, local_path):
                 Callback=progress_hook
             )
 
-def pull_predictions_from_weka():
+def pull_predictions_from_weka(name):
     bucket_name = 'oe-eval-default'
-    file_key = 'davidh/metaeval/analysis/data/all_aws_predictions.parquet'
-    local_path = f'{DATA_DIR}/all_aws_predictions.parquet'
+    file_key = f'davidh/metaeval/analysis/data/all_{name}_predictions.parquet'
+    local_path = f'{DATA_DIR}/all_{name}_predictions.parquet'
 
     # # List files
     # response = s3.list_objects_v2(Bucket=bucket_name)
