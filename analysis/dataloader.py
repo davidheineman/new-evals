@@ -41,18 +41,28 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
     """ Get an nd array of (COL, instances), sorted by overall performance """
     col = [col] if not isinstance(col, list) else col
     
+    use_max_step = False
+    if step == 'max':
+        use_max_step = True
+        step = None
+    
     slices = get_slice(df, mix, model, task, step)
 
     if len(slices) == 0:
         # raise RuntimeError(f'Encountered empty slice: {slices}')
         return [], np.array([])
 
-    if step == 'max': 
+    if use_max_step: 
         slices = get_max_k_step(slices)
     # elif step <= 10:
     #     slices = get_max_k_step(slices, step)
     #     assert len(set(slices['step'].unique())) == step, f'Did not get the requested number of steps: {step}. Do they exist in the df?'
     
+    duplicates_count = slices.duplicated(subset=['native_id'] + col).sum()
+    if duplicates_count > 0:
+        print(f"Warning: {duplicates_count} duplicate native_id-key pairs found for task='{task}'. Removing duplicates...")
+        slices = slices.drop_duplicates(subset=['native_id'] + col, keep='first')
+
     # Pivot the data to get mixes as columns and question_ids as rows
     pivoted = slices.pivot(index='native_id', columns=col, values=metric)
     columns = pivoted.columns

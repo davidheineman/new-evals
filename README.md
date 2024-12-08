@@ -2,8 +2,8 @@
 ```sh
 git clone git@github.com:allenai/oe-eval-internal.git olmo-repos/oe-eval-internal
 cd olmo-repos/olmo
-git branch paraphrase # get current project branch
-pip install -e .[dev]
+git checkout paraphrase # get current project branch
+pip install -e . # [dev]
 
 # (for vllm support) install nightly vllm
 mkdir .vllm-install && cd .vllm-install
@@ -55,7 +55,13 @@ nohup python preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 
 ### Install Ladder Model Code
 ```sh
-git clone https://github.com/allenai/OLMo/
-cd OLMo
+git clone https://github.com/allenai/OLMo/ olmo-repos/olmo
+cd olmo-repos/olmo
 git checkout ladder-1xC
+pip install -e .
+
+# Example: Run variance analysis + predictions
+python scripts/scaling/variance_analysis.py -k v2_main_variance -c scripts/scaling/final_variance.json -o figure/peteish-moreeval/variance.pdf --last_n_points 10 --run_prediction
+
+python scripts/scaling/step2.py -k v2_main -c scripts/scaling/step2.json -o figure/peteish-moreeval/step2_main.pdf --skip_perc 0.1 --moving_avg 5
 ```

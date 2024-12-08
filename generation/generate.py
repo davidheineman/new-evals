@@ -183,7 +183,7 @@ def main(transform):
 
     # save few shot sources
     # output_file = f'{DATA_DIR}/{transform}/fewshot_sources.json'
-    output_file = f'{ROOT_DIR}/oe-eval/oe-eval-internal/oe_eval/tasks/oe_eval_tasks/synthetic/fewshot_sources_{transform}.json'
+    output_file = f'{ROOT_DIR}/olmo-repos/oe-eval-internal/oe_eval/tasks/oe_eval_tasks/synthetic/fewshot_sources_{transform}.json'
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(NEW_FEWSHOT_SOURCES, f, indent=4, ensure_ascii=False)
 
