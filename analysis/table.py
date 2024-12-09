@@ -28,19 +28,22 @@ def display_task_variants(results, key, transpose=False, as_prct=True, inverse=F
     # Reshape to a (Task, Variant) df
     results = results.pivot(index='Task', columns='Variant', values=key)
     results.columns = results.columns.fillna('default rc')
-    results = results.fillna('--')
+    results = results.infer_objects(copy=False)
+    # results = results.fillna('--')
+    results = results.fillna(float('-inf'))
     results = results.sort_values(by='default rc', ascending=ascending)
 
     # Calculate difference from "default rc" setup, display as percentage
     def format_row(x, baseline):
+        diff = f' ({highlight(float(x) - baseline, as_prct=as_prct, inverse=inverse)})'
         if as_prct:
-            return f"{x*100:.1f}% ({highlight(float(x) - baseline, as_prct=as_prct, inverse=inverse)})"
+            return f"{x*100:.1f}%{diff}"
         else:
-            return f"{x:.2f} ({highlight(float(x) - baseline, as_prct=as_prct, inverse=inverse)})"
+            return f"{x:.2f}{diff}"
     for col in results.columns[1:]:
         results[col] = results.apply(
             lambda row: format_row(row[col], row['default rc'])
-            if row[col] != '--' else '--',
+            if row[col] != float('-inf') else '--',
             axis=1
         )
     results['default rc'] = results['default rc'].apply(
