@@ -154,7 +154,7 @@ def load_file(file_data):
     # E.g., ../peteish-moreeval-1B-0.5xC/step8145-unsharded-hf
     if len(path_parts) >= 2:
         if 'step' in path_parts[-1] and '-unsharded' in path_parts[-1]:
-            # Local OLMo runs
+            # Local OLMo runs (anything that ends in "stepXXX-unsharded")
             model_name = path_parts[-2]
             step_str = path_parts[-1]
         else:
