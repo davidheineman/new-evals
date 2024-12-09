@@ -1,6 +1,6 @@
-from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_INTERMEDIATE, MODEL_LIST_MIXES, OE_EVAL_OFFICIAL_MODELS
-from analysis.utils.constants_models import RC_TASKS_OLMES, PARA_TASKS_OLMES
-from analysis.utils.constants_models import WEKA_CLUSTERS
+from constants import MODEL_LADDER_LIST, MODEL_LIST_INTERMEDIATE, MODEL_LIST_MIXES, OE_EVAL_OFFICIAL_MODELS
+from constants import RC_TASKS_OLMES, PARA_TASKS_OLMES
+from constants import WEKA_CLUSTERS
 
 import os, time
 
@@ -18,9 +18,20 @@ TASK_LIST_ALL += SYNTHETIC_TASKS
 # # FOR TESTING
 # MODEL_LIST_ALL = [MODEL_LIST_ALL[0]] # <- only use first model!
 # TASK_LIST_ALL = SYNTHETIC_TASKS # <- only use synthetic tasks!
-MODEL_LIST_ALL = OE_EVAL_OFFICIAL_MODELS
-# TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' not in task]
-TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'arc' in task]
+# MODEL_LIST_ALL = OE_EVAL_OFFICIAL_MODELS
+# MODEL_LIST_ALL = [
+#     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf",
+# ]
+
+MODEL_LIST_ALL += OE_EVAL_OFFICIAL_MODELS
+
+TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' not in task]
+
+GPUS = 1
+MODEL_TYPE = 'hf'
+
+# GPUS = 2
+# MODEL_TYPE = 'vllm'
 
 def run_eval(model_list, task_list):
     if isinstance(task_list, list): 
@@ -31,7 +42,8 @@ def run_eval(model_list, task_list):
         --model {model_list} \
         --task {task_list} \
         --cluster {WEKA_CLUSTERS} \
-        --model-type hf \
+        --model-type {MODEL_TYPE} \
+        --gpus {GPUS} \
         --beaker-workspace ai2/davidh \
         --beaker-image davidh/oe-eval-metaeval \
         --gantry-secret-aws-access-key-id AWS_ACCESS_KEY_ID \

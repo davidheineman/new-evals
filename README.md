@@ -3,7 +3,7 @@
 git clone git@github.com:allenai/oe-eval-internal.git olmo-repos/oe-eval-internal
 cd olmo-repos/olmo
 git checkout paraphrase # get current project branch
-pip install -e . # [dev]
+pip install -e . # [dev] # --no-deps
 
 # (for vllm support) install nightly vllm
 mkdir .vllm-install && cd .vllm-install
