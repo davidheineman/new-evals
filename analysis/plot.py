@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_heatmap(ax: plt.Axes, values, mix_names, _type='p_values'):
+def plot_heatmap(ax: plt.Axes, values, mix_names, _type='p_values', alpha=0.01):
     """ Plot a pairwise heatmap of statistical significance """
     # Reorder values matrix according to sorted mixes
     mask = np.isnan(values)
@@ -12,7 +12,7 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, _type='p_values'):
         def custom_colormap(value):
             if np.isnan(value):
                 return (0, 0, 0, 0)
-            elif value < 0.05 or value > 0.95:
+            elif value < alpha or value > (1-alpha):
             # elif value < 0.05:
                 return (1, 1, 1, 0.05)
             else:
