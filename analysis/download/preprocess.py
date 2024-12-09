@@ -6,6 +6,7 @@ from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from multiprocessing import Pool
 from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import pandas as pd
 import psutil
@@ -29,6 +30,7 @@ METRICS_TO_KEEP = [
 MODEL_OUTPUT_TO_KEEP = [
     "sum_logits",
     "logits_per_char",
+    "logits_per_byte"
 ]
 
 SIZE_PREFIXES = [
@@ -118,7 +120,8 @@ def get_available_cpus(threshold=80):
 def load_df_parallel(data, usage_threshold=80):
     """ Load data as df w/ a CPU pool. Only use CPUs with usage below usage_threshold """
     available_cpus = get_available_cpus(threshold=usage_threshold)
-    num_partitions = len(available_cpus) # * 100
+    # num_partitions = len(available_cpus) * 100
+    num_partitions = len(data) // 10_000
 
     print(f'Distributing {num_partitions} chunks across {len(available_cpus)} CPUs')
     
@@ -131,7 +134,7 @@ def load_df_parallel(data, usage_threshold=80):
 
     print('Launching parallel processing...')
     
-    with Pool(processes=num_partitions) as pool:
+    with Pool(processes=len(available_cpus)) as pool:
         dataframes = list(tqdm(pool.imap(process_chunk, chunks), desc='Converting to Pandas dataframe', total=len(chunks)))
 
     # with Pool(processes=num_partitions) as pool:
@@ -153,7 +156,7 @@ def load_file(file_data):
     # Use last two folders as "path"/"step":
     # E.g., ../peteish-moreeval-1B-0.5xC/step8145-unsharded-hf
     if len(path_parts) >= 2:
-        if 'step' in path_parts[-1] and '-unsharded' in path_parts[-1]:
+        if 'step' in path_parts[-1]: # and ('-unsharded' in path_parts[-1] or '-hf' in path_parts[-1])
             # Local OLMo runs
             model_name = path_parts[-2]
             step_str = path_parts[-1]
@@ -207,11 +210,16 @@ def load_file(file_data):
     return preprocessed
 
 
+def process_files_chunk(files_chunk):
+    results = []
+    for file in files_chunk:
+        results.extend(load_file(file))
+    return results
+
+
 def recursive_pull(data_dir):
     predictions_data = nested_defaultdict()
     metrics_data = nested_defaultdict()
-
-    predictions_df = []
 
     all_files = [
         (root, file)
@@ -219,7 +227,7 @@ def recursive_pull(data_dir):
         for file in files if file.endswith('predictions.jsonl') or file.endswith('metrics.jsonl')
     ]
 
-    # all_files = all_files[:100]
+    # all_files = all_files[:1_000]
 
     # with tqdm(total=len(all_files), desc=f"Recursively loading files in {data_dir}") as pbar:
     #     with ThreadPoolExecutor() as exec:
@@ -227,14 +235,28 @@ def recursive_pull(data_dir):
     #             predictions_df += preprocessed
     #             pbar.update(1)
 
-    with tqdm(total=len(all_files), desc=f"Recursively loading files in {data_dir}") as pbar:
-        with ProcessPoolExecutor() as exec:
-            for preprocessed in exec.map(load_file, all_files):
-                predictions_df += preprocessed
-                pbar.update(1)
+    # all_preprocessed = []
+    # with tqdm(total=len(all_files), desc=f"Recursively loading files in {data_dir}") as pbar:
+    #     with ProcessPoolExecutor() as exec:
+    #         for preprocessed in exec.map(load_file, all_files):
+    #             all_preprocessed += preprocessed
+    #             pbar.update(1)
 
-    return predictions_df, None, None
-    # return predictions_df, predictions_data, metrics_data
+    chunk_size = 100
+    all_preprocessed = []
+    file_chunks = [all_files[i:i + chunk_size] for i in range(0, len(all_files), chunk_size)]
+    total_files = len(all_files)
+
+    with tqdm(total=total_files, desc=f"Recursively loading files in {data_dir}") as pbar:
+        with ProcessPoolExecutor(max_workers=len(get_available_cpus())) as executor:
+            futures = {executor.submit(process_files_chunk, chunk): len(chunk) for chunk in file_chunks}
+            for future in as_completed(futures):
+                all_preprocessed.extend(future.result())
+                pbar.update(futures[future])  # Update based on the chunk size
+        pbar.close()
+
+    return all_preprocessed, None, None
+    # return all_preprocessed, predictions_data, metrics_data
 
 
 def verify_df(df):
@@ -254,12 +276,9 @@ def verify_df(df):
             print(f"  - Model: {model}, Task: {task}")
 
 
-def main():
+def main(folder_name):
     data_dir = Path(DATA_DIR).resolve()
     data_dir.mkdir(exist_ok=True)
-
-    # folder_name = "aws"
-    folder_name = "consistent_ranking"
 
     aws_dir = data_dir / folder_name
 
@@ -305,4 +324,7 @@ def main():
     print('Done!')
 
 
-if __name__ == '__main__': main()
+if __name__ == '__main__': 
+    folder_name = "aws" # 30min
+    # folder_name = "consistent_ranking" # 3hr
+    main(folder_name)
