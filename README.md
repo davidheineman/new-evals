@@ -1,7 +1,7 @@
 ### Install Custom oe-eval 
 ```sh
 git clone git@github.com:allenai/oe-eval-internal.git olmo-repos/oe-eval-internal
-cd olmo-repos/olmo
+cd olmo-repos/oe-eval-internal/
 git checkout paraphrase # get current project branch
 pip install -e . # [dev]
 
@@ -39,18 +39,17 @@ conda activate metaeval
 /root/ai2/metaeval/convert_checkpoints_peteish.sh
 
 # Detatch from current session
-nohup /root/ai2/metaeval/convert_checkpoints_peteish.sh > out.out 2>&1 &
-tail -f out.out
+nohup /root/ai2/metaeval/convert_checkpoints_peteish.sh > out.out 2>&1 & tail -f out.out
 ```
 
 ### Launching & Processing Evals
 ```sh
 python scripts/launch_evals.py # launch evals on beaker
-python download/aws.py # sync from s3
-python download/preprocess.py # convert to .parquet
+python analysis/download/aws.py # sync from s3
+python analysis/download/preprocess.py # convert to .parquet
 
 # Detatch from current session
-nohup python preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
+nohup python analysis/download/preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 ```
 
 ### Install Ladder Model Code
@@ -64,4 +63,14 @@ pip install -e .
 python scripts/scaling/variance_analysis.py -k v2_main_variance -c scripts/scaling/final_variance.json -o figure/peteish-moreeval/variance.pdf --last_n_points 10 --run_prediction
 
 python scripts/scaling/step2.py -k v2_main -c scripts/scaling/step2.json -o figure/peteish-moreeval/step2_main.pdf --skip_perc 0.1 --moving_avg 5
+```
+
+```sh
+# A failed attempt to increase memory swap size
+free -h
+sudo fallocate -l 50G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+free -h
 ```
