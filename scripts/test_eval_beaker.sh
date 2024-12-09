@@ -5,18 +5,26 @@ ai2/saturn-cirrascale\
 "
 
 # Test configuration
-# TASK_LIST="\
-# arc_easy:enlarge::olmes:full \
-# arc_easy:distractors::olmes:full \
-# "
 TASK_LIST="\
-arc_easy:rc::olmes:full \
-arc_easy:rc::olmes:full \
+arc_easy:enlarge::olmes:full \
+arc_easy:distractors::olmes:full \
 "
+# TASK_LIST="\
+# arc_easy:rc::olmes:full \
+# arc_challenge:rc::olmes:full \
+# "
 MODEL_LIST="\
 weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-190M-1xC \
 weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-2xC \
 "
+
+# MODEL_LIST="\
+# weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf \
+# "
+
+# MODEL_LIST="\
+# llama3-70b \
+# "
 
 oe-eval \
     --task $TASK_LIST \
