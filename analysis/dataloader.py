@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import warnings
 
 def get_slice(df, mix=None, model=None, task=None, step=None):
@@ -55,32 +56,39 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
 
     if use_max_step: 
         slices = get_max_k_step(slices)
-    # elif step <= 10:
-    #     slices = get_max_k_step(slices, step)
-    #     assert len(set(slices['step'].unique())) == step, f'Did not get the requested number of steps: {step}. Do they exist in the df?'
     
     duplicates_count = slices.duplicated(subset=['native_id'] + col).sum()
     if duplicates_count > 0:
-        # warnings.simplefilter("once", UserWarning)
-        # warnings.warn(f"Warning: {duplicates_count}/{len(slices)} duplicate native_id-key pairs found for task='{task}'. Removing duplicates...", category=UserWarning, stacklevel=2)
+        warnings.simplefilter("once", UserWarning)
+        warnings.warn(f"Warning: {duplicates_count}/{len(slices)} duplicate native_id-key pairs found for task='{task}'. Removing duplicates...", category=UserWarning, stacklevel=2)
         slices = slices.drop_duplicates(subset=['native_id'] + col, keep='first')
 
     # Pivot the data to get mixes as columns and question_ids as rows
     pivoted = slices.pivot(index='native_id', columns=col, values=metric)
     columns = pivoted.columns
     scores = pivoted.to_numpy()
-        
-    # Create a new axis for each provided column
+
+    # If there are multiple cols, reshape the output nd array
     if len(col) > 1:
-        dims = [len(pivoted)]
-        for pivot_col in columns.levels:
-            dims += [max(1, len(pivot_col))]
-        scores = scores.reshape(*dims)
+        pivoted = pivoted.sort_index(axis=1)
+        expanded_columns = pivoted.columns.to_frame(index=False)
+        pivoted.columns = pd.MultiIndex.from_tuples(
+            [tuple(col) for col in expanded_columns.to_numpy()],
+            names=expanded_columns.columns.tolist()
+        )
+        scores = pivoted.to_numpy()
+        scores = scores.reshape(
+            (pivoted.shape[0], len(expanded_columns['mix'].unique()), len(expanded_columns['step'].unique()))
+        )
+
+    # # Add a new axis for dim=1 if necessary
+    # scores = np.expand_dims(scores, axis=1)
 
     # Move instances dim to final dim
     scores = np.moveaxis(scores, 0, -1)
 
     if sorted:
+        if len(col) > 1: raise NotImplementedError()
         # Sort by overall performance
         mix_sums = scores.sum(axis=1)
         sorted_indices = mix_sums.argsort()[::-1]
