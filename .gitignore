@@ -3,3 +3,6 @@ olmo-repos/
 data/
 *.DS_Store
 __pycache__/
+workspace/
+.vllm-install/
+vllm/

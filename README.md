@@ -5,18 +5,15 @@ cd olmo-repos/oe-eval-internal/
 git checkout paraphrase # get current project branch
 pip install -e . # [dev] # --no-deps
 
-# (for vllm support) install nightly vllm
-mkdir .vllm-install && cd .vllm-install
-git clone https://github.com/vllm-project/vllm.git
-cd vllm
-VLLM_USE_PRECOMPILED=1 pip install --editable .
+# (for vllm support) install nightly vllm=
+pip install https://vllm-wheels.s3.us-west-2.amazonaws.com/nightly/vllm-1.0.0.dev-cp38-abi3-manylinux1_x86_64.whl
 ```
 
 ### Converting OLMo Checkpoints
 ```sh
 # install olmo
-git clone git@github.com:allenai/OLMo.git olmo-repos/olmo
-cd olmo-repos/olmo
+git clone git@github.com:allenai/OLMo.git olmo-repos/OLMo
+cd olmo-repos/OLMo
 pip install -e .
 
 # install nightly transformers
@@ -49,7 +46,7 @@ python analysis/download/aws.py # sync from s3
 python analysis/download/preprocess.py # convert to .parquet
 
 # Detatch from current session
-nohup python analysis/download/preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
+nohup python analysis/download/aws.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 ```
 
 ### Install Ladder Model Code

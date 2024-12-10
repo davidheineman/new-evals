@@ -13,24 +13,31 @@ arc_easy:distractors::olmes:full \
 # arc_easy:rc::olmes:full \
 # arc_challenge:rc::olmes:full \
 # "
+# MODEL_LIST="\
+# weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-190M-1xC \
+# weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-2xC \
+# "
+
+# MODEL_LIST="\
+# weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm \
+# "
+
 MODEL_LIST="\
-weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-190M-1xC \
-weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-2xC \
+llama3-70b \
 "
 
-# MODEL_LIST="\
-# weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf \
-# "
+GPUS=4
+MODEL_TYPE=vllm
 
-# MODEL_LIST="\
-# llama3-70b \
-# "
+# GPUS=1
+# MODEL_TYPE=hf
 
 oe-eval \
     --task $TASK_LIST \
     --model $MODEL_LIST \
     --cluster $CLUSTER \
-    --model-type hf \
+    --model-type $MODEL_TYPE \
+    --gpus $GPUS \
     --beaker-workspace ai2/davidh \
     --beaker-image davidh/oe-eval-metaeval \
     --gantry-secret-aws-access-key-id AWS_ACCESS_KEY_ID \

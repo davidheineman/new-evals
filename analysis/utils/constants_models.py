@@ -1,6 +1,7 @@
 WEKA_CLUSTERS = ",".join(
-    ["ai2/jupiter-cirrascale-2", "ai2/neptune-cirrascale", "ai2/saturn-cirrascale"]
+    ["ai2/jupiter-cirrascale-2", "ai2/saturn-cirrascale"]
 )
+# "ai2/neptune-cirrascale", # L40s, can't load 70B+
 
 RC_TASKS_OLMES = [
     "arc_challenge:rc::olmes:full",
@@ -101,7 +102,7 @@ MODEL_LADDER_LIST = [
     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-10xC",
     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-3B-10xC",
     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish7/step928646-hf",
-    "weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm",
 ]
 
 # Varying the checkpoint at 1B 5xC (data mix is olmoe)
