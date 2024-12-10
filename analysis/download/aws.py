@@ -60,7 +60,8 @@ def mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100):
         for result in tqdm(executor.map(fetch_page, pages), desc="Listing S3 entries"):
             keys.extend(result)
 
-    with ProcessPoolExecutor(max_workers=max_threads) as executor:
+    # ProcessPoolExecutor seems not to work with AWS, so we use ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=max_threads) as executor:
         futures = {executor.submit(download_file, s3_client, bucket_name, key, local_dir): key for key in keys}
         with tqdm(total=len(futures), desc="Syncing download folder from S3", unit="file") as pbar:
             for _ in as_completed(futures):
