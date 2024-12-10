@@ -153,6 +153,7 @@ def compute_one_minus_pce(human_pairwise_p_vals, metric_pairwise_p_vals):
 
 
 def compute_deltas(seg_scores, num_permutations=1000, seed: int = 4):
+    """ Same as above but also return the null/test deltas """
     num_systems, num_segments = seg_scores.shape
 
     rng = np.random.default_rng(seed)
@@ -184,3 +185,43 @@ def compute_deltas(seg_scores, num_permutations=1000, seed: int = 4):
             p_vals[ii, jj] = np.sum(null_delta >= test_delta) / num_permutations
 
     return null_deltas, test_deltas, p_vals
+
+
+def compute_weighted_pairwise_p_values(seg_scores, weights=None, return_scores=False, num_permutations=1000, seed: int = 4):
+    """ Same code as above, but modified to weight each instance by the weights array """
+    num_systems, num_segments = seg_scores.shape
+
+    rng = np.random.default_rng(seed)
+    # initialize in range [0, 1)
+    two_m_minus_one = rng.random(size=(num_permutations, num_segments), dtype=np.float32)
+    # quantize to 0 or 1, in place
+    np.rint(two_m_minus_one, out=two_m_minus_one, casting='same_kind')
+    # scale and shift to get -1.0 and +1.0, in place
+    two_m_minus_one *= 2.0
+    two_m_minus_one -= 1.0
+
+    if weights is None:
+        # equal weight of instances
+        weights = np.ones(seg_scores.shape[1]) / np.ones(seg_scores.shape[1]).sum() 
+    else:
+        # weight instances
+        weights = weights / weights.sum() # normalize to 1
+        seg_scores = seg_scores * weights
+
+    seg_scores = seg_scores.astype(np.float32)  # shape: (num_systems, num_segments)
+    sys_scores = np.sum(seg_scores, axis=1)  # shape: (num_systems, )
+
+    partial = np.matmul(two_m_minus_one, seg_scores.T)  # shape: (num_permutations, num_systems)
+
+    # initialize p value matrix to NaN
+    p_vals = np.empty((num_systems, num_systems,)) * np.nan
+    # populate upper triangle
+    for ii in range(num_systems):
+        for jj in range(ii + 1, num_systems):
+            null_delta = partial[:, ii] - partial[:, jj]  # shape: (num_permutations, )
+            test_delta = sys_scores[ii] - sys_scores[jj]  # float
+            p_vals[ii, jj] = np.sum(null_delta >= test_delta) / num_permutations
+
+    if return_scores:
+        return p_vals, sys_scores, partial
+    return p_vals
