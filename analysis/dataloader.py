@@ -56,6 +56,9 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
 
     if use_max_step: 
         slices = get_max_k_step(slices)
+
+    # For native_ids which count up from 0, there are the same IDs across tasks. Append the task name.
+    slices['native_id'] = slices['native_id'] + '_' + slices['task'].astype(str)
     
     duplicates_count = slices.duplicated(subset=['native_id'] + col).sum()
     if duplicates_count > 0:
