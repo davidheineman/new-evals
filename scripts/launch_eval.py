@@ -31,10 +31,12 @@ TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' not in task] # exclud
 # MODEL_LIST_ALL = [
 #     "dclm-1b", "dclm-7b", "gemma-7b", "gemma2-9b", "llama2-7b",
 #     "llama3-70b", "llama3.1-70b", "olmo-7b-0424", "qwen2.5-32b", "qwen2.5-72b",
-#     "zamba2-7b", "llama-7b",
+#     "llama-7b",
 #     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm",
 # ]
 # MODEL_LIST_ALL = ['llama3-70b']
+
+# TODO: In practice, I'd want to eval peteish7, 13 on vLLM. Add this to the script so I can launch jobs easily
 
 GPUS = 1
 MODEL_TYPE = 'hf'

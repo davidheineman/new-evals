@@ -370,7 +370,7 @@ OE_EVAL_OFFICIAL_MODELS = [
     # "tulu-2-dpo-7b",
     # "xgen-7b-4k-base",
     # "xgen-7b-8k-inst",
-    "zamba2-7b",
+    # "zamba2-7b",
     # "zamba2-7b-instruct",
     "zephyr-7b-beta",
     # "gpt-3.5-turbo-0125",
