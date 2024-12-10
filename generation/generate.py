@@ -86,33 +86,59 @@ def _test_dataloader(task_name: str, task_cls: Task, config_name: str):
 
 def test_dataloader():
     """ Test whether the new datasets can be loaded in oe-eval """
-    # for task_name, task_cls in PARAPHRASED_TASK_REGISTRY.items():
-    for task_name, task_cls in SYNTHETIC_TASK_REGISTRY.items():
-        TASKS_TO_INCLUDE = ['arc_easy', 'arc_challenge'] # mmlu, mmlu_computer_security, 'boolq', 'openbookqa', 'winogrande'
-        if not any(task in task_name for task in TASKS_TO_INCLUDE): continue
+    # # for task_name, task_cls in PARAPHRASED_TASK_REGISTRY.items():
+    # for task_name, task_cls in SYNTHETIC_TASK_REGISTRY.items():
+    #     TASKS_TO_INCLUDE = ['arc_easy', 'arc_challenge'] # mmlu, mmlu_computer_security, 'boolq', 'openbookqa', 'winogrande'
+    #     if not any(task in task_name for task in TASKS_TO_INCLUDE): continue
 
+    #     task_root = task_name.split(':')[0]
+
+    #     # Find RC task equivalent
+    #     rc_task_name = task_root
+    #     rc_task_cls = TASK_REGISTRY[rc_task_name]
+    #     rc_task_name += ':rc'
+        
+    #     # Find MC task equivalent
+    #     mc_task_name = f'{task_root}:mc'
+    #     mc_task_cls = TASK_REGISTRY[mc_task_name]
+    #     mc_config_name = f'{mc_task_name}::olmes'
+
+    #     _test_dataloader(mc_task_name, mc_task_cls, mc_config_name)
+
+    #     for version in ['']: # , ':show_options', ':show_options:full_io'
+    #         rc_config_name = f'{rc_task_name}{version}::olmes'
+    #         _test_dataloader(rc_task_name, rc_task_cls, rc_config_name)
+
+    #     for version in ['prefix_para']: # 'prefix_para', 'suffix_para', 'full_io'
+    #         # Get Para task name
+    #         config_name = f'{task_name}:{version}::olmes'
+    #         _test_dataloader(task_name, task_cls, config_name)
+
+    # Test non-OLMES core9mcqa
+    for task_name, task_cls in TASK_REGISTRY.items():
+        task_cls = TASK_REGISTRY[task_name]
         task_root = task_name.split(':')[0]
 
-        # Find RC task equivalent
-        rc_task_name = task_root
-        rc_task_cls = TASK_REGISTRY[rc_task_name]
-        rc_task_name += ':rc'
-        
-        # Find MC task equivalent
-        mc_task_name = f'{task_root}:mc'
-        mc_task_cls = TASK_REGISTRY[mc_task_name]
-        mc_config_name = f'{mc_task_name}::olmes'
+        if 'zero_scrolls' in task_root: # long context benchmark (for tulu)
+            continue
 
-        _test_dataloader(mc_task_name, mc_task_cls, mc_config_name)
+        if 'bbh' in task_root:
+            # task_root = f'{task_root}:cot::olmes'
+            task_root = f'{task_root}:qa'
+            config_name = f'{task_root}::none'
+        elif 'mmlu_pro' in task_root:
+            # task_root = f'{task_root}:mc::tulu3'
+            task_root = f'{task_root}:mc'
+            config_name = f'{task_root}::none'
+        elif task_root in ['ifeval', 'truthfulqa', 'tydiqa_english', 'alpaca_eval'] or 'deepmind' in task_root:
+            config_name = f'{task_root}::tulu'
+        else:
+            config_name = f'{task_root}::olmes'
 
-        for version in ['']: # , ':show_options', ':show_options:full_io'
-            rc_config_name = f'{rc_task_name}{version}::olmes'
-            _test_dataloader(rc_task_name, rc_task_cls, rc_config_name)
-
-        for version in ['prefix_para']: # 'prefix_para', 'suffix_para', 'full_io'
-            # Get Para task name
-            config_name = f'{task_name}:{version}::olmes'
+        try:
             _test_dataloader(task_name, task_cls, config_name)
+        except KeyError as e:
+            print(f'Skipping: {task_name} {task_root} {config_name}. {e}')
 
 
 def main(transform):
