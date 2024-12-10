@@ -197,11 +197,16 @@ MODEL_LIST_LADDER=(
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-760M-1xC"
 )
 
+MODEL_LIST_CUSTOM=(
+    "/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848"
+)
+
 # Dolma 2 Tokenizer
 TOKENIZER_PATH=/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/latest/tokenizer.json
 
-for MODEL in "${MODEL_LIST_LADDER[@]}"; do
-    if [[ $MODEL == *"unsharded"* ]]; then
+# for MODEL in "${MODEL_LIST_LADDER[@]}"; do
+for MODEL in "${MODEL_LIST_CUSTOM[@]}"; do
+    if [[ $MODEL == *"step"* ]]; then
         # Option 1, use the provided model path
         MODEL_PATH=$MODEL
     else
@@ -219,7 +224,7 @@ for MODEL in "${MODEL_LIST_LADDER[@]}"; do
         continue
     fi
 
-    python scripts/convert_olmo2_to_hf.py \
+    python olmo-repos/OLMo/scripts/convert_olmo2_to_hf.py \
         --input_dir "$INPUT_DIR" \
         --output_dir "$OUTPUT_DIR" \
         --tokenizer_json_path "$TOKENIZER_PATH"

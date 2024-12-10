@@ -6,4 +6,4 @@ cp -r $DATA_DIR data && \
 docker build -t oe-eval-metaeval . -f Dockerfile_beaker  && \
 beaker image delete davidh/oe-eval-metaeval && \
 beaker image create --name oe-eval-metaeval --workspace ai2/davidh oe-eval-metaeval &&
-/root/ai2/metaeval/test_eval_beaker.sh
+/root/ai2/metaeval/scripts/test_eval_beaker.sh

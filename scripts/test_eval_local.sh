@@ -8,8 +8,8 @@ oe-eval \
     --output-dir $OUTPUT_DIR \
     --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing \
     --model \
-        llama3.2-1b \
-    --model-type hf \
+        /oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm \
+    --model-type vllm \
     --run-local \
     --recompute-metrics
 
