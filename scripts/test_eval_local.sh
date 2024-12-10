@@ -2,19 +2,18 @@ OUTPUT_DIR=/root/ai2/metaeval/workspace
 
 oe-eval \
     --task \
-        arc_easy:para::olmes:full \
-        arc_easy:enlarge::olmes:full \
-        arc_easy:distractors::olmes:full \
+        arc_easy:rc::olmes:full \
     --output-dir $OUTPUT_DIR \
     --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing \
     --model \
-        /oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm \
-    --model-type vllm \
+        /oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-190M-1xC \
+    --model-type hf \
     --run-local \
     --recompute-metrics
 
 # oe-eval --list-models
 
+# /oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm \
 # /oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-190M-1xC \
 # /oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-2xC \
 # /oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-5xC/step81352-unsharded-hf \

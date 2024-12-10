@@ -19,7 +19,7 @@ SYNTHETIC_TASKS = [
     "arc_challenge:distractors::olmes:full",
 ]
 TASK_LIST_ALL += SYNTHETIC_TASKS
-TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' not in task] # exclude mmlu
+TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' not in task] # exclude mmlu (long arg lists may crash beaker! https://github.com/allenai/beaker/issues/5530)
 
 # # FOR TESTING
 # MODEL_LIST_ALL = [MODEL_LIST_ALL[0]] # <- only use first model!
