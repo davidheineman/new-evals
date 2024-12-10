@@ -72,7 +72,108 @@ RC_TASKS_OLMES = [
     "mmlu_world_religions:rc::olmes:full",
 ]
 
+MC_TASKS_OLMES = [task.replace(":rc", ":mc") for task in RC_TASKS_OLMES]
 PARA_TASKS_OLMES = [task.replace(":rc", ":para") for task in RC_TASKS_OLMES]
+
+MC_TASKS_COPY_COLORS = [
+    "copycolors_2way:mc::none",
+    "copycolors_cyclic_2way:mc::none",
+    "copycolors_4way:mc::none",
+    "copycolors_cyclic_4way:mc::none",
+    "copycolors_8way:mc::none",
+    "copycolors_cyclic_8way:mc::none",
+]
+
+COT_TASKS_TULU_3 = [
+    # CoT (MC) -- same as OLMES Minevera
+    # "hendrycks_math_algebra::original",
+    # "hendrycks_math_counting_and_probability::original",
+    # "hendrycks_math_geometry::original",
+    # "hendrycks_math_intermediate_algebra::original",
+    # "hendrycks_math_number_theory::original",
+    # "hendrycks_math_prealgebra::original",
+    # "hendrycks_math_precalculus::original",
+
+    # CoT (exact match)
+    "tydiqa_english::tulu",
+    "ifeval::tulu",
+    "truthfulqa::tulu",
+    "alpaca_eval_v2::tulu",
+
+    # CoT Long Context (exact match)
+    # "zero_scrolls_gov_report::tulu",
+    # "zero_scrolls_summ_screen_fd::tulu",
+    # "zero_scrolls_qmsum::tulu",
+    # "zero_scrolls_qasper::tulu",
+    # "zero_scrolls_narrative_qa::tulu",
+    # "zero_scrolls_quality::tulu",
+
+    # Code benchmarks
+    "bigcodebench::tulu",
+    "bigcodebench_hard::tulu",
+    "codex_humaneval:temp0.1",
+    "codex_humaneval:temp0.8",
+    "codex_humaneval::tulu",
+    "codex_humanevalplus::tulu"
+]
+
+COT_TASKS_OLMES_EXTENDED = [
+    # Core generation-based benchmarks
+    "coqa::olmes:full",
+    "drop::olmes:full",
+    "gsm8k::olmes:full",
+    "jeopardy::olmes:full",
+    "naturalqs::olmes:full",
+    "squad::olmes:full",
+    "triviaqa::olmes:full",
+
+    # MC benchmarks
+    "agi_eval_lsat-ar::olmes:full",
+    "agi_eval_lsat-lr::olmes:full",
+    "agi_eval_lsat-rc::olmes:full",
+    "agi_eval_logiqa-en::olmes:full",
+    "agi_eval_sat-math::olmes:full",
+    "agi_eval_sat-en::olmes:full",
+    "agi_eval_aqua-rat::olmes:full",
+    "agi_eval_sat-en-without-passage::olmes:full",
+    "agi_eval_gaokao-english::olmes:full",
+    "minerva_math_algebra::olmes:full",
+    "minerva_math_counting_and_probability::olmes:full",
+    "minerva_math_geometry::olmes:full",
+    "minerva_math_intermediate_algebra::olmes:full",
+    "minerva_math_number_theory::olmes:full",
+    "minerva_math_prealgebra::olmes:full",
+    "minerva_math_precalculus::olmes:full",
+
+    # COT benchmarks (generation-based)
+    "bbh_boolean_expressions:cot::olmes:full",
+    "bbh_causal_judgement:cot::olmes:full",
+    "bbh_date_understanding:cot::olmes:full",
+    "bbh_disambiguation_qa:cot::olmes:full",
+    "bbh_dyck_languages:cot::olmes:full",
+    "bbh_formal_fallacies:cot::olmes:full",
+    "bbh_geometric_shapes:cot::olmes:full",
+    "bbh_hyperbaton:cot::olmes:full",
+    "bbh_logical_deduction_five_objects:cot::olmes:full",
+    "bbh_logical_deduction_seven_objects:cot::olmes:full",
+    "bbh_logical_deduction_three_objects:cot::olmes:full",
+    "bbh_movie_recommendation:cot::olmes:full",
+    "bbh_multistep_arithmetic_two:cot::olmes:full",
+    "bbh_navigate:cot::olmes:full",
+    "bbh_object_counting:cot::olmes:full",
+    "bbh_penguins_in_a_table:cot::olmes:full",
+    "bbh_reasoning_about_colored_objects:cot::olmes:full",
+    "bbh_ruin_names:cot::olmes:full",
+    "bbh_salient_translation_error_detection:cot::olmes:full",
+    "bbh_snarks:cot::olmes:full",
+    "bbh_sports_understanding:cot::olmes:full",
+    "bbh_temporal_sequences:cot::olmes:full",
+    "bbh_tracking_shuffled_objects_five_objects:cot::olmes:full",
+    "bbh_tracking_shuffled_objects_seven_objects:cot::olmes:full",
+    "bbh_tracking_shuffled_objects_three_objects:cot::olmes:full",
+    "bbh_web_of_lies:cot::olmes:full",
+    "bbh_word_sorting:cot::olmes:full",
+]
 
 # Varying the model size
 MODEL_LADDER_LIST = [
@@ -300,8 +401,8 @@ MODEL_LIST_MIXES = [
 # Officially supported models in oe-eval as of 12/6/2024
 OE_EVAL_OFFICIAL_MODELS = [
     # "amber-7b",
-    "dclm-1b",
-    "dclm-7b",
+    # "dclm-1b", # <- would be nice to have!
+    # "dclm-7b", # <- would be nice to have!
     # "dclm-7b-instruct",
     "deepseek-7b",
     # "deepseek-v2-lite-instruct",
@@ -372,14 +473,14 @@ OE_EVAL_OFFICIAL_MODELS = [
     # "xgen-7b-8k-inst",
     # "zamba2-7b",
     # "zamba2-7b-instruct",
-    "zephyr-7b-beta",
+    # "zephyr-7b-beta",
     # "gpt-3.5-turbo-0125",
     # "gpt-4o-mini-2024-07-18",
     # "gpt-4o-2024-08-06",
     # "claude-3-5-sonnet-20241022",
     # "claude-3-5-haiku-20241022",
     # "gemini-1.5-flash-002",
-    "llama-7b",
+    # "llama-7b", # <- would be nice to have!
     # "olmo-1.7-flanfix-7b",
     # "olmo-1.7-2.7T-S3-7b",
     # "olmo-1.7-2.75T-anneal-7b",
