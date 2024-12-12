@@ -110,8 +110,11 @@ def compute_significance(df, models, metric, last_n=1, tasks=None, alpha=0.05, d
 
     n_tasks = len(tasks)
     if do_plot: 
-        fig, axes = plt.subplots(n_tasks, 1, figsize=(10, 8*n_tasks))
-        if n_tasks == 1: axes = [axes]
+        if isinstance(do_plot, plt.Axes):
+            axes = [do_plot] # allow passing in an axes object for plotting
+        else:
+            fig, axes = plt.subplots(n_tasks, 1, figsize=(10, 8*n_tasks))
+            if n_tasks == 1: axes = [axes]
 
     for i, task in tqdm(enumerate(tasks), desc='Computing pairwise comparisons', total=len(tasks), disable=quiet):
         if last_n > 1:
@@ -149,9 +152,10 @@ def compute_significance(df, models, metric, last_n=1, tasks=None, alpha=0.05, d
             # Change task name
             task = 'olmes macro average'
         else:
-            # p_values = compute_pairwise_p_values(scores)
-            p_values = np.nan_to_num(compute_pairwise_p_values(scores), nan=0) + np.nan_to_num(compute_pairwise_p_values(scores[::-1]).T, nan=0)
-            np.fill_diagonal(p_values, np.nan)
+            p_values = compute_pairwise_p_values(scores)
+            
+            # p_values = np.nan_to_num(compute_pairwise_p_values(scores), nan=0) + np.nan_to_num(compute_pairwise_p_values(scores[::-1]).T, nan=0)
+            # np.fill_diagonal(p_values, np.nan)
 
             mix_scores = None
 
@@ -165,6 +169,7 @@ def compute_significance(df, models, metric, last_n=1, tasks=None, alpha=0.05, d
             axes[i].set_title(r'$p$' + f'-values for {task} (n={scores.shape[1]}) across data mixes at {("last " + str(last_n) + " steps" if last_n > 1 else "final checkpoint")} ({metric}), ' + r'$\alpha$=' + f'{alpha}', fontsize=10)
 
     if do_plot:
-        fig.tight_layout()
-        return sig_results, all_p_values, fig
+        if not isinstance(do_plot, plt.Axes):
+            fig.tight_layout()
+        return sig_results, all_p_values, axes
     return sig_results, all_p_values, None
