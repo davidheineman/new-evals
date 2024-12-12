@@ -5,7 +5,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 from utils.pce import compute_pairwise_p_values
-from plot import plot_heatmap
+from plot import plot_heatmap, plot_training
 from dataloader import get_nd_array
 
 
@@ -173,3 +173,25 @@ def compute_significance(df, models, metric, last_n=1, tasks=None, alpha=0.05, d
             fig.tight_layout()
         return sig_results, all_p_values, axes
     return sig_results, all_p_values, None
+
+
+def compute_total_variation(df, tasks, models, metric='acc_per_char', ax=None):
+    tv_results = pd.DataFrame(index=['total_variation'], columns=tasks)
+
+    for task in tasks:
+        step, scores = get_nd_array(df, 'step', metric, model=models, task=task)
+        acc = scores.mean(axis=1)
+
+        tv = calc_total_variation(acc, improvement=True) * 100
+
+        tv_results.loc['total_variation', task] = tv
+
+        if ax is not None:
+            _ = plot_training(
+                ax=ax, 
+                x=step, y=acc, 
+                xlabel='step', ylabel=metric, 
+                title=f'{task} (n={scores.shape[1]}) on {models}'
+            )
+
+    return tv_results, ax
