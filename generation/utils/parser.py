@@ -1,9 +1,15 @@
-def _parse_choices(response: str, n_choices: int):
+def _parse_choices(response: str, n_choices: int, sep='-'):
+    n_choices = [n_choices] if not isinstance(n_choices, list) else n_choices
     parsed = None
     try:
-        parsed = response.split('\n- ')
-        parsed[0] = '- '.join(parsed[0].split('- ')[1:])
-        assert len(parsed) == n_choices, f'Response length: {len(parsed)}'
+        parsed = response.split(f'\n{sep} ')
+        parsed[0] = f'{sep} '.join(parsed[0].split(f'{sep} ')[1:])
+
+        # If we extracted too many answers, remove empty answers
+        if len(parsed) > max(n_choices): 
+            parsed = [choice for choice in parsed if choice != '']
+
+        assert len(parsed) in n_choices, f'Response length: {len(parsed)}'
     except (IndexError, AttributeError, AssertionError) as e:
         print(f"Error parsing response: {e}\nResponse:\n{response}\nParsed choices: {parsed}")
         parsed = None
