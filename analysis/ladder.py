@@ -46,6 +46,10 @@ COLOR_MAP = {
 
 def get_ladder_data(df, task_name, train_models, eval_models):
     """ Get slices of df and convert to ladder prediction format """
+    if isinstance(task_name, list):
+        assert len(task_name), f'Task suite needs to be only one list: {task_name}'
+        task_name = task_name[0]
+
     data_by_name = defaultdict(dict)
 
     for model in train_models + eval_models:
@@ -87,11 +91,12 @@ def get_ladder_data(df, task_name, train_models, eval_models):
         #     print(size)
 
         if len(corr) == 0 or len(bpb) == 0 or len(acc) == 0: 
-            # if mode == 'eval':
-            #     raise RuntimeError(f'Eval point data not found: {model}')
-            continue
+            if mode == 'eval':
+                raise RuntimeError(f'Eval point data not found: {model}')
+            # continue
         
-        # print(acc.shape, acc.mean(axis=1), model)
+        # if isinstance(task_name, list):
+        #     print('Need to compute a weighted average here!!')
 
         # Get correct logprobs per char
         n_choices = bpb[0][0].shape
@@ -102,7 +107,7 @@ def get_ladder_data(df, task_name, train_models, eval_models):
                 if corr[i, j] == n_choices and 'enlarge' in task_name: 
                     # print(f'Warning: bpb has {n_choices} choices, but the correct label is {corr[i, j]} (did ChatGPT generate an incorrect ground truth?). re-indexing the correct label...')
                     corr[i, j] -= 1
-                correct_bpb[i, j] = bpb[i, j][corr[i, j]]
+                correct_bpb[i, j] = bpb[i, j][corr[i, j].astype(np.int32)]
 
         acc = acc.mean(axis=1)
         correct_bpb = correct_bpb.mean(axis=1)
@@ -121,7 +126,8 @@ def run_ladder_step_2(df, task_name, train_models, eval_models, ax=None, config_
     # Unfortunately there are local references, so we have to be in the OLMo repo
     os.chdir('/Users/dhei/ai2/new-evals/olmo-repos/OLMo')
 
-    task_root = task_name.split(':')[0] # arc_easy:enlarge => arc_easy
+    # arc_easy:enlarge => arc_easy
+    task_root = task_name.split(':')[0] if isinstance(task_name, str) else None
 
     data_by_name = get_ladder_data(df, task_name, train_models, eval_models)
 
@@ -143,10 +149,14 @@ def run_ladder_step_2(df, task_name, train_models, eval_models, ax=None, config_
                 paths=None, mode='eval', n=0, label=model, color=color, use_last_n_percentage=100
             )
 
-    task_key = TASK_KEY_MAP[task_root] # the task key is used to get min/max perf and plot title
+    task_key = TASK_KEY_MAP.get(task_root, None) # the task key is used to get min/max perf and plot title
+
+    _min, _max = None, None
+    if task_key is None:
+        _min, _max = 0, 1 # TODO: Use utils.constants_task to get correct values
 
     try:
-        coefficients, cov = fit_step2(data_by_name, task_key, None, use_log_sigmoid=False)
+        coefficients, cov = fit_step2(data_by_name, task_key, None, _min=_min, _max=_max, use_log_sigmoid=False)
 
         (
             predicted_data_by_name, plotted_predicted_data,

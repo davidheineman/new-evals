@@ -48,6 +48,21 @@ def compute_f1(gold_mixes, pred_mixes):
     return precision, recall, f1 # we really care about precision (minimize false negatives)
 
 
+def compute_f1_binary(gold_arr, pred_arr):
+    if len(gold_arr) != len(pred_arr):
+        raise ValueError("Input arrays must have the same length")
+    
+    tp = sum((g == 1 and p == 1) for g, p in zip(gold_arr, pred_arr))
+    fp = sum((g == 0 and p == 1) for g, p in zip(gold_arr, pred_arr))
+    fn = sum((g == 1 and p == 0) for g, p in zip(gold_arr, pred_arr))
+
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+    return precision, recall, f1
+
+
 def perc_significant(p_values, alpha=0.05):
     """ Calculate the % of statistically significant comparisons """
     return ((p_values > (1-alpha)).sum() + (p_values < alpha).sum()) / (~np.isnan(p_values)).sum()
@@ -113,7 +128,7 @@ def compute_significance(df, models, metric, last_n=1, tasks=None, alpha=0.05, d
         if isinstance(do_plot, plt.Axes):
             axes = [do_plot] # allow passing in an axes object for plotting
         else:
-            fig, axes = plt.subplots(n_tasks, 1, figsize=(10, 8*n_tasks))
+            fig, axes = plt.subplots(n_tasks, 1, figsize=(0.5*len(models), 0.4*len(models)*n_tasks))
             if n_tasks == 1: axes = [axes]
 
     for i, task in tqdm(enumerate(tasks), desc='Computing pairwise comparisons', total=len(tasks), disable=quiet):
@@ -150,7 +165,7 @@ def compute_significance(df, models, metric, last_n=1, tasks=None, alpha=0.05, d
             p_values, mix_scores, _ = compute_weighted_pairwise_p_values(scores, weights=weights, return_scores=True)
 
             # Change task name
-            task = 'olmes macro average'
+            task = 'olmes_macro_average'
         else:
             p_values = compute_pairwise_p_values(scores)
             
@@ -161,12 +176,16 @@ def compute_significance(df, models, metric, last_n=1, tasks=None, alpha=0.05, d
 
         sig_clusters = get_sig_clusters(p_values, alpha=alpha)
 
-        sig_results.loc['perc_sig', task] = perc_significant(p_values, alpha=alpha)
+        perc_sig = perc_significant(p_values, alpha=alpha)
+        sig_results.loc['perc_sig', task] = perc_sig
         all_p_values[task] = (mixes, scores, p_values)
 
         if do_plot:
             axes[i] = plot_heatmap(axes[i], p_values, mixes, mix_scores, sig_clusters, alpha=alpha)
-            axes[i].set_title(r'$p$' + f'-values for {task} (n={scores.shape[1]}) across data mixes at {("last " + str(last_n) + " steps" if last_n > 1 else "final checkpoint")} ({metric}), ' + r'$\alpha$=' + f'{alpha}', fontsize=10)
+            title = r'$p$' + f'-values for {task} (n={scores.shape[1]}) across data mixes at {("last " + str(last_n) + " steps" if last_n > 1 else "final checkpoint")} ({metric}), perc sig={perc_sig:.2f}%'
+            if len(models) < 15:
+                title = r'$p$' + f'-values for {task}, perc sig={perc_sig:.2f}%'
+            axes[i].set_title(title, fontsize=10)
 
     if do_plot:
         if not isinstance(do_plot, plt.Axes):
@@ -178,20 +197,39 @@ def compute_significance(df, models, metric, last_n=1, tasks=None, alpha=0.05, d
 def compute_total_variation(df, tasks, models, metric='acc_per_char', ax=None):
     tv_results = pd.DataFrame(index=['total_variation'], columns=tasks)
 
+    model_color = 'b'
+
     for task in tasks:
         step, scores = get_nd_array(df, 'step', metric, model=models, task=task)
         acc = scores.mean(axis=1)
 
         tv = calc_total_variation(acc, improvement=True) * 100
 
-        tv_results.loc['total_variation', task] = tv
+        task_name = task
+        if isinstance(task, list):
+            task_name = 'olmes_macro_average'
+
+        tv_results.loc['total_variation', task_name] = tv
 
         if ax is not None:
             _ = plot_training(
                 ax=ax, 
                 x=step, y=acc, 
                 xlabel='step', ylabel=metric, 
-                title=f'{task} (n={scores.shape[1]}) on {models}'
+                title=f'{task_name} (n={scores.shape[1]}) on {models}', color=model_color
             )
+
+            # Add total variation text
+            text = ''
+            text += f'\nTV-I={tv:.3f}'
+            text = text.lstrip('\n')
+            if text != '':
+                ax.text(
+                    x=step[-1], y=acc[-1], s=text, color=model_color, 
+                    va='center', ha='left', zorder=5, fontsize=10
+                )
+            
+                if metric != 'c4_loss' and metric != 'll_per_char': 
+                    ax.set_xlim(right=max(step) * 1.25)
 
     return tv_results, ax
