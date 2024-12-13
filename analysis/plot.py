@@ -49,7 +49,11 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=
     # Add colorbar only for the viridis range
     norm = plt.Normalize(0, 1)
     sm = plt.cm.ScalarMappable(cmap=plt.cm.viridis, norm=norm)
-    plt.colorbar(sm, ax=ax, fraction=0.05, pad=0.04)
+    cbar = plt.colorbar(sm, ax=ax, fraction=0.05, pad=0.04)
+    label = r'$p$' + f'-values (highlighted if not significant,' + r'$\alpha$=' + f'{alpha})'
+    if len(values) < 15:
+        label = r'$p$' + f'-values'
+    cbar.set_label(label)
 
     # Add value annotations with smaller font
     for i in range(values.shape[0]):
@@ -97,4 +101,44 @@ def plot_training(ax: plt.Axes, x, y, xlabel: str, ylabel: str, label=None, titl
 
         ax.plot(x_fit, y_fit, color=color, alpha=0.5, linestyle='dotted')
     
+    return ax
+
+
+def plot_simulation_results(results: dict, ax: plt.Axes):
+    results = sorted(results, key=lambda x: x[1])
+
+    # x_values = [np.log10(float(d[0])) for d in results]
+    labels        = [d[0] for d in results]
+    x_values      = [d[1] for d in results]
+    prec_values   = [d[2][0] for d in results]
+    recall_values = [d[2][1] for d in results]
+    f1_values     = [d[2][2] for d in results]
+
+    x_values = np.array(x_values, dtype=np.float64)
+
+    ax.plot(x_values, prec_values, label="Precision", marker='o')
+    ax.plot(x_values, recall_values, label="Recall", marker='s')
+    ax.plot(x_values, f1_values, label="F1 Score", marker='^')
+
+    ax.set_xlabel("Cumulative Compute")
+    ax.set_ylabel("Metric")
+    ax.legend()
+    ax.grid(True)
+
+    # # Add labels near each point
+    # texts = []
+    # for i, (x, y) in enumerate(zip(x_values, prec_values)):
+    #     texts += [ax.text(x, y*(1+(0.02*i)), f"{labels[i]}", fontsize=8, ha='right', va='bottom')]
+
+    # adjust_text(
+    #     texts,
+    #     arrowprops=dict(arrowstyle="->", color='gray', lw=0.5),
+    #     force_text=(1, 1),  # Stronger force to push text labels apart
+    #     expand_text=(1, 1),  # Increase spacing around text
+    #     lim=300  # Increase the iterations to ensure better optimization
+    # )
+
+    # Add log scale
+    ax.set_xscale('log')
+
     return ax
