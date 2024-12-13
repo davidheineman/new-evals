@@ -25,12 +25,15 @@ METRICS_TO_KEEP = [
     "predicted_index_per_char",
     "predicted_index_raw",
     "correct_choice",
+    "exact_match",
+    "f1",
+    "recall"
 ]
 
 MODEL_OUTPUT_TO_KEEP = [
     "sum_logits",
     "logits_per_char",
-    "logits_per_byte"
+    "logits_per_byte",
 ]
 
 SIZE_PREFIXES = [

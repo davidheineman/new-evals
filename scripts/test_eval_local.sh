@@ -21,6 +21,7 @@ oe-eval \
 # /oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/prox_fineweb_pro-1B-5xC \
 # /oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/prox_fineweb_pro-150M-5xC \
 
+# agi_eval_aqua-rat:perturb_cot::olmes \
 # arc_easy:rc::olmes:full \
 # arc_easy:mc::olmes:full \
 # arc_challenge:rc::olmes:full \
