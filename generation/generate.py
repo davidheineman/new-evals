@@ -124,7 +124,7 @@ def test_dataloader():
 
     # Test non-OLMES core9mcqa
     for task_name, task_cls in TASK_REGISTRY.items():
-        TASKS_TO_INCLUDE = ['perturb_cot'] # mmlu, mmlu_computer_security, 'boolq', 'openbookqa', 'winogrande'
+        TASKS_TO_INCLUDE = ['perturb_cot'] # perturb_cot, mmlu_pro, mmlu, mmlu_computer_security, 'boolq', 'openbookqa', 'winogrande'
         if not any(task in task_name for task in TASKS_TO_INCLUDE): continue
 
         task_cls = TASK_REGISTRY[task_name]
@@ -256,7 +256,7 @@ def main(transform):
             convert_mc_to_rc(task, limit=LIMIT)
             few_shot_f = convert_mc_to_rc_few_shot
         elif transform == 'perturb_cot':
-            # perturb_cot_task(task, cot_task, n_cots=4, limit=LIMIT)
+            perturb_cot_task(task, cot_task, n_cots=4, limit=LIMIT)
             few_shot_f = perturb_cot_task_few_shot
         else:
             raise ValueError(transform)

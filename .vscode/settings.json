@@ -5,6 +5,9 @@
         "/Users/dhei/ai2/new-evals/analysis",
         "/Users/dhei/ai2/new-evals/generation",
         "/Users/dhei/ai2/new-evals/olmo-repos/oe-eval-internal",
-        "/Users/dhei/ai2/new-evals/olmo-repos/olmo"
+        "/Users/dhei/ai2/new-evals/olmo-repos/olmo",
+        "/Users/dhei/ai2/new-evals/olmo-repos/OLMo",
+        "/Users/dhei/ai2/new-evals/olmo-repos/OLMo/scripts",
+        "/Users/dhei/ai2/new-evals/olmo-repos/OLMo/scripts/scaling"
     ]
 }
