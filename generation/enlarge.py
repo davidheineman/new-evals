@@ -12,7 +12,7 @@ from oe_eval.tasks.base_task import Task
 random.seed(42)
 
 
-LLM_PROMPT = """You are given examples of QUESTIONS, please generate a new question similar in difficulty and general topic to the given QUESTIONS, but make sure it tests some new knowledge not covered by the existing questions. Please provide the QUESTION, four answer CHOICES, and the index of the answer in ANSWER.
+LLM_PROMPT = """You are given examples of QUESTIONS, please generate a new question similar in difficulty and general topic to the given QUESTIONS, but make sure it tests some new knowledge not covered by the existing questions. Please provide the QUESTION, {n_choices} answer CHOICES, and the zero-indexed index of the answer in ANSWER.
 
 For example:
 
@@ -60,9 +60,12 @@ def _get_task_examples(docs: dict, n_examples=4):
     """ Randomly sample from docs dict """
     sampled_docs = random.sample(docs, n_examples)
 
-    questions = [doc['query'] for doc in sampled_docs]
-    choices   = [doc['choices'] for doc in sampled_docs]
-    answers   = [doc['gold'] for doc in sampled_docs]
+    try:
+        questions = [doc['query'] for doc in sampled_docs]
+        choices   = [doc['choices'] for doc in sampled_docs]
+        answers   = [doc['gold'] for doc in sampled_docs]
+    except KeyError as e:
+        raise KeyError(f'{e}: ' + str(sampled_docs[0]))
 
     choices   = ['\n- ' + '\n- '.join(c) for c in choices]
 
@@ -74,6 +77,14 @@ def _get_task_examples(docs: dict, n_examples=4):
 
 def _run_enlarge_task(n_new_instances: int, docs: dict):
     prompts = []
+
+    c1, c2 = str(34), str(35)
+    print(f'\033[{c1}mExample doc: \033[0m\033[{c2}m{docs[0]}\033[0m')
+
+    if 'choices' in docs[0]:
+        n_choices = len(docs[0]['choices'])
+    else:
+        raise KeyError(docs[0])
 
     for i in range(n_new_instances):
         # construct few show examples
@@ -87,11 +98,10 @@ def _run_enlarge_task(n_new_instances: int, docs: dict):
             ) for fs_q, fs_i, fs_a in zip(few_shot_question, few_shot_choices, few_shot_answers)
         ])
 
-        n_choices = 4
-
         # construct GPT prompt
         prompt = LLM_PROMPT.format(
             few_shot_examples=few_shot_text,
+            n_choices=n_choices
         )
 
         if i == 0: print("\033[94m" + prompt + "\033[0m")
@@ -119,6 +129,9 @@ def _run_enlarge_task(n_new_instances: int, docs: dict):
                 response_question = response_question.replace('\nAnswer:', '').rstrip() 
                 response_choices = response_choices.lstrip()
                 response_answer = int(response_answer.strip())
+
+                if response_answer >= len(response_choices):
+                    raise IndexError(f'Recieved answer index of {response_answer}, but there are only {response_choices} choices!')
 
                 # Parse answer choices
                 response_choices = _parse_choices(response_choices, n_choices=n_choices)

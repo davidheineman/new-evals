@@ -4,7 +4,9 @@ from tqdm import tqdm
 from openai import OpenAI, RateLimitError, InternalServerError
 from openai.types.chat import ChatCompletion
 
-DEFAULT_OPENAI_SECRET_PATH = '/Users/dhei/.OPENAI-SECRET'
+from .__init__ import ROOT_DIR
+
+DEFAULT_OPENAI_SECRET_PATH = os.path.join(ROOT_DIR, '.OPENAI-SECRET')
 
 DEFAULT_KWARGS_OPENAI = {
     'model': "gpt-4o-mini",
@@ -66,8 +68,9 @@ def generate_gpt(prompt: list[str], parallel: bool=True, **kwargs) -> list[str]:
     print(f'Generating {len(prompt)} examples with params {params}')
     
     if parallel:
-        # Query OpenAI using threading
-        with concurrent.futures.ThreadPoolExecutor() as exec:
+        # # Query OpenAI using threading
+        # with concurrent.futures.ThreadPoolExecutor() as exec:
+        with concurrent.futures.ProcessPoolExecutor() as exec:
             futures = [exec.submit(_call_openai, p, params) for p in prompt]
             cands = [f.result() for f in tqdm(futures, desc="Querying OpenAI")]
         cands = [c.choices[0].message.content for c in cands]

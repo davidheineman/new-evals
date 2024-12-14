@@ -13,7 +13,7 @@ def convert_mc_to_rc(task: Task, limit=None):
 
     docs = _run_convert_rc(task, docs)
 
-    filepath = f'{DATA_DIR}/cloze/{task.task_config["task_name"]}/{task.task_config["split"]}.json'
+    filepath = f'{DATA_DIR}/cloze/{task.task_config["task_name"]}:rc/{task.task_config["split"]}.json'
 
     # save reformatted benchmark
     Path(filepath).parent.mkdir(parents=True, exist_ok=True)
