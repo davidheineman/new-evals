@@ -182,9 +182,9 @@ def compute_significance(df, models, metric, last_n=1, tasks=None, alpha=0.05, d
 
         if do_plot:
             axes[i] = plot_heatmap(axes[i], p_values, mixes, mix_scores, sig_clusters, alpha=alpha)
-            title = r'$p$' + f'-values for {task} (n={scores.shape[1]}) across data mixes at {("last " + str(last_n) + " steps" if last_n > 1 else "final checkpoint")} ({metric}), perc sig={perc_sig:.2f}%'
+            title = r'$p$' + f'-values for {task} (n={scores.shape[1]}) across data mixes at {("last " + str(last_n) + " steps" if last_n > 1 else "final checkpoint")} ({metric}), perc sig={(perc_sig*100):.2f}%'
             if len(models) < 15:
-                title = r'$p$' + f'-values for {task}, perc sig={perc_sig:.2f}%'
+                title = r'$p$' + f'-values for {task}, perc sig={(perc_sig*100):.2f}%'
             axes[i].set_title(title, fontsize=10)
 
     if do_plot:
@@ -202,6 +202,24 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', ax=None):
     for task in tasks:
         step, scores = get_nd_array(df, 'step', metric, model=models, task=task)
         acc = scores.mean(axis=1)
+
+        if metric == 'logits_per_char' or metric == 'logits_per_byte':
+            # TMP: Code from model ladder to get the correct logits per char
+            _, corr = get_nd_array(df, 'step', 'correct_choice', model=models, task=task)
+            _, bpb  = get_nd_array(df, 'step', 'logits_per_byte', model=models, task=task)
+
+            # Get correct logprobs per char
+            n_choices = bpb[0][0].shape
+            correct_bpb = np.empty_like(corr, dtype=np.float64)
+            rows, cols = corr.shape
+            for i in range(rows):
+                for j in range(cols):
+                    if corr[i, j] == n_choices and 'enlarge' in task_name: 
+                        # print(f'Warning: bpb has {n_choices} choices, but the correct label is {corr[i, j]} (did ChatGPT generate an incorrect ground truth?). re-indexing the correct label...')
+                        corr[i, j] -= 1
+                    correct_bpb[i, j] = bpb[i, j][corr[i, j].astype(np.int32)]
+            correct_bpb = correct_bpb.mean(axis=1)
+            acc = correct_bpb
 
         tv = calc_total_variation(acc, improvement=True) * 100
 

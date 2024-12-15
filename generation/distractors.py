@@ -1,6 +1,7 @@
 import re
 import json
 import random
+import copy
 
 from pathlib import Path
 
@@ -162,6 +163,7 @@ def _run_add_distractors_task(n_new_distractors: int, docs: dict):
     N_RETRIES = 5
     
     # Attempt parsing responses, with retries on failure
+    new_docs = []
     for i, (prompt, response, doc) in enumerate(zip(prompts, responses, docs)):
         n_retries = 0
         while n_retries < N_RETRIES:
@@ -176,7 +178,7 @@ def _run_add_distractors_task(n_new_distractors: int, docs: dict):
                 def remove_reason_tags(text):
                     return re.sub(r'\[REASON\].*?\[/REASON\]', '', text, flags=re.DOTALL).rstrip()
                 response_choices = [remove_reason_tags(r) for r in response_choices]
-            except (IndexError, AttributeError, AssertionError, ValueError) as e:
+            except (IndexError, AttributeError, AssertionError, ValueError, TypeError) as e:
                 print(f"Error parsing response: {e}\nResponse:\n{repr(response)}")
                 response_choices = None
 
@@ -189,16 +191,20 @@ def _run_add_distractors_task(n_new_distractors: int, docs: dict):
             n_retries += 1
 
         if response_choices is not None:
+            new_doc = copy.deepcopy(docs[i])
+
             id, key = get_id(doc)
-            gold_choice = docs[i]['choices'][docs[i]['gold']]
-            new_choices = docs[i]['choices'] + response_choices
+            gold_choice = new_doc['choices'][new_doc['gold']]
+            new_choices = new_doc['choices'] + response_choices
 
             # reshuffle the distractors and gold choice
             random.shuffle(new_choices)
 
-            docs[i]['choices'] = new_choices
-            docs[i]['gold'] = new_choices.index(gold_choice)
-            docs[i][key] = f'distractors_{id}'
-            docs[i]['id'] = f'distractors_{id}'
+            new_doc['choices'] = new_choices
+            new_doc['gold'] = new_choices.index(gold_choice)
+            new_doc[key] = f'distractors_{id}'
+            new_doc['id'] = f'distractors_{id}'
 
-    return docs
+            new_docs += [new_doc]
+
+    return new_docs
