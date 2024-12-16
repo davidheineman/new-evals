@@ -9,7 +9,7 @@ def _parse_choices(response: str, n_choices: int, sep='-'):
         if len(parsed) > max(n_choices): 
             parsed = [choice for choice in parsed if choice != '']
 
-        assert len(parsed) in n_choices, f'Response length: {len(parsed)}'
+        assert len(parsed) in n_choices, f'Response length: {len(parsed)}, requested length: {n_choices}'
     except (IndexError, AttributeError, AssertionError) as e:
         print(f"Error parsing response: {e}\nResponse:\n{response}\nParsed choices: {parsed}")
         parsed = None

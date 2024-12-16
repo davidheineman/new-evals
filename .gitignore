@@ -7,3 +7,4 @@ workspace/
 .vllm-install/
 vllm/
 data-bak/
+.OPENAI-SECRET

@@ -1,6 +1,7 @@
 import re
 import json
 import random
+import copy
 
 from pathlib import Path
 
@@ -86,15 +87,41 @@ def add_distractors_task_few_shot(task: Task, few_shot_examples: list[dict], n_n
     return few_shot_examples
 
 
+def get_id(doc):
+    if 'ind' in doc:
+        key = 'ind'
+        id = doc['ind']
+    elif 'idx' in doc:
+        key = 'idx'
+        id = doc['idx']
+    elif 'index' in doc:
+        key = 'index'
+        id = doc['index']
+    elif 'id' in doc:
+        key = 'id'
+        id = doc['id']
+    else:
+        raise KeyError(doc)
+    return id, key
+
+
 def _run_add_distractors_task(n_new_distractors: int, docs: dict):
     prompts = []
 
+    c1, c2 = str(34), str(35)
+    print(f'\033[{c1}mExample doc: \033[0m\033[{c2}m{docs[0]}\033[0m')
+
     assert n_new_distractors == 4, 'Changing number of distractors not implemented yet'
+    # I'd need to change the number of distractors in the example and change the few_shot function input
 
     for i, doc in enumerate(docs):
-        question = doc['query']
-        choices = doc['choices']
-        answer = doc['gold']
+        try:
+            id, key = get_id(doc)
+            question = doc['query']
+            choices  = doc['choices']
+            answer   = doc['gold']
+        except KeyError as e:
+            raise KeyError(f'{e}: ' + str(doc))
 
         choice_text = '\n- ' + '\n- '.join(choices)
 
@@ -136,6 +163,7 @@ def _run_add_distractors_task(n_new_distractors: int, docs: dict):
     N_RETRIES = 5
     
     # Attempt parsing responses, with retries on failure
+    new_docs = []
     for i, (prompt, response, doc) in enumerate(zip(prompts, responses, docs)):
         n_retries = 0
         while n_retries < N_RETRIES:
@@ -150,7 +178,7 @@ def _run_add_distractors_task(n_new_distractors: int, docs: dict):
                 def remove_reason_tags(text):
                     return re.sub(r'\[REASON\].*?\[/REASON\]', '', text, flags=re.DOTALL).rstrip()
                 response_choices = [remove_reason_tags(r) for r in response_choices]
-            except (IndexError, AttributeError, AssertionError, ValueError) as e:
+            except (IndexError, AttributeError, AssertionError, ValueError, TypeError) as e:
                 print(f"Error parsing response: {e}\nResponse:\n{repr(response)}")
                 response_choices = None
 
@@ -163,6 +191,20 @@ def _run_add_distractors_task(n_new_distractors: int, docs: dict):
             n_retries += 1
 
         if response_choices is not None:
-            docs[i]['choices'] = docs[i]['choices'] + response_choices
+            new_doc = copy.deepcopy(docs[i])
 
-    return docs
+            id, key = get_id(doc)
+            gold_choice = new_doc['choices'][new_doc['gold']]
+            new_choices = new_doc['choices'] + response_choices
+
+            # reshuffle the distractors and gold choice
+            random.shuffle(new_choices)
+
+            new_doc['choices'] = new_choices
+            new_doc['gold'] = new_choices.index(gold_choice)
+            new_doc[key] = f'distractors_{id}'
+            new_doc['id'] = f'distractors_{id}'
+
+            new_docs += [new_doc]
+
+    return new_docs

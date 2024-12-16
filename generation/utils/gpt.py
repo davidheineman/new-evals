@@ -4,7 +4,9 @@ from tqdm import tqdm
 from openai import OpenAI, RateLimitError, InternalServerError
 from openai.types.chat import ChatCompletion
 
-DEFAULT_OPENAI_SECRET_PATH = '/Users/dhei/.OPENAI-SECRET'
+from .__init__ import ROOT_DIR
+
+DEFAULT_OPENAI_SECRET_PATH = os.path.join(ROOT_DIR, '.OPENAI-SECRET')
 
 DEFAULT_KWARGS_OPENAI = {
     'model': "gpt-4o-mini",
@@ -34,11 +36,11 @@ def openai_init(secret_path=DEFAULT_OPENAI_SECRET_PATH):
     CLIENT = OpenAI(api_key=api_key)
 
 
-def _call_openai(prompt: str, params, max_retries=7, base_delay=2) -> ChatCompletion:
+def _call_openai(client, prompt: str, params, max_retries=7, base_delay=2) -> ChatCompletion:
     retries = 0
     while retries < max_retries:
         try:
-            response = CLIENT.chat.completions.create(
+            response = client.chat.completions.create(
                 messages=[
                     { "role": "user", "content": prompt }
                 ],
@@ -66,16 +68,17 @@ def generate_gpt(prompt: list[str], parallel: bool=True, **kwargs) -> list[str]:
     print(f'Generating {len(prompt)} examples with params {params}')
     
     if parallel:
-        # Query OpenAI using threading
+        # Query OpenAI using concurrent
         with concurrent.futures.ThreadPoolExecutor() as exec:
-            futures = [exec.submit(_call_openai, p, params) for p in prompt]
+        # with concurrent.futures.ProcessPoolExecutor() as exec:
+            futures = [exec.submit(_call_openai, CLIENT, p, params) for p in prompt]
             cands = [f.result() for f in tqdm(futures, desc="Querying OpenAI")]
         cands = [c.choices[0].message.content for c in cands]
     else:
         # Query OpenAI sequentially
         cands = []
         for p in tqdm(prompt, desc="Querying OpenAI"):
-            resp: ChatCompletion = _call_openai(p, params)
+            resp: ChatCompletion = _call_openai(CLIENT, p, params)
             cands.append(resp.choices[0].message.content)
 
     duration = (datetime.datetime.now() - start_time).total_seconds()
