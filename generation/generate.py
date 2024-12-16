@@ -8,18 +8,19 @@ from enlarge import enlarge_task, enlarge_task_few_shot
 from distractors import add_distractors_task, add_distractors_task_few_shot
 from cloze import convert_mc_to_rc, convert_mc_to_rc_few_shot
 from cot_perturb import perturb_cot_task, perturb_cot_task_few_shot
+from rc_perturb import perturb_rc_task, perturb_rc_task_few_shot
 
 from oe_eval.tasks.base_task import Task
 from oe_eval.tasks.fewshot_sources import FEWSHOT_SOURCES
 from oe_eval.tasks.oe_eval_tasks.paraphrased import PARAPHRASED_TASK_REGISTRY
-from oe_eval.tasks.oe_eval_tasks.synthetic import SYNTHETIC_TASK_REGISTRY
+from oe_eval.tasks.oe_eval_tasks.synthetic import NEW_TASK_REGISTRY
 from oe_eval.tasks.oe_eval_tasks import TASK_REGISTRY
 from oe_eval.configs.tasks import TASK_CONFIGS
 
 import datasets
 
 ENLARGE_SIZE = 10_000
-LIMIT = 100
+LIMIT = None
 
 
 def sanity_check_length(task: Task):
@@ -42,6 +43,8 @@ def _test_dataloader(task_name: str, task_cls: Task, config_name: str):
     except KeyError as e:
         raise KeyError(f'{e} not found in task configs, seeing: {TASK_CONFIGS.keys()}')
 
+    # rm -rf ~/.cache/huggingface/datasets/_Users_*
+    # rm -rf ~/.cache/huggingface/datasets/dataloader/
     task: Task = task_cls(
         task_name = olmes_config['task_name'], 
         task_config = olmes_config,
@@ -124,11 +127,13 @@ def test_dataloader():
 
     # Test non-OLMES core9mcqa
     for task_name, task_cls in TASK_REGISTRY.items():
-        TASKS_TO_INCLUDE = ['perturb_cot'] # perturb_cot, mmlu_pro, mmlu, mmlu_computer_security, 'boolq', 'openbookqa', 'winogrande'
+        TASKS_TO_INCLUDE = ['perturb_rc'] # perturb_rc enlarge distractors perturb_cot, mmlu_pro, mmlu, mmlu_computer_security, 'boolq', 'openbookqa', 'winogrande'
         if not any(task in task_name for task in TASKS_TO_INCLUDE): continue
 
         task_cls = TASK_REGISTRY[task_name]
         task_root = task_name.split(':')[0]
+
+        task_root = task_root.replace('naturalqa_open', 'naturalqa') # exception for just this task
 
         if 'zero_scrolls' in task_root: # long context benchmark (for tulu)
             continue
@@ -139,11 +144,23 @@ def test_dataloader():
         elif 'bbh' in task_root:
             task_root = f'{task_root}:qa'
             config_name = f'{task_root}::none'
-        elif 'mmlu_pro' in task_root:
-            task_root = f'{task_root}:mc'
-            config_name = f'{task_root}::none'
+        elif 'mmlu_pro_' in task_root:
+            if ':mc' in task_name:
+                task_root = f'{task_root}:mc'
+                config_name = f'{task_root}::none'
+            elif ':rc' in task_name:
+                task_root = f'{task_root}:rc'
+                config_name = f'{task_root}::none'
+            else:
+                continue
         elif task_root in ['ifeval', 'truthfulqa', 'tydiqa_english', 'alpaca_eval'] or 'deepmind' in task_root:
             config_name = f'{task_root}::tulu'
+        elif 'enlarge' in task_name:
+            config_name = f'{task_root}:enlarge::olmes'
+        elif 'distractors' in task_name:
+            config_name = f'{task_root}:distractors::olmes'
+        elif 'perturb_rc' in task_name:
+            config_name = f'{task_root}:perturb_rc::olmes'
         else:
             config_name = f'{task_root}::olmes'
 
@@ -152,6 +169,34 @@ def test_dataloader():
         except KeyError as e:
             # print(f'Skipping: {task_name} {task_root} {config_name}. {e}')
             raise KeyError(f'{task_name} {task_root} {config_name}.')
+
+
+def get_few_shot_examples(task_name, config, transform):
+    # Manual overrides to get the correct few shot example set
+    if 'bbh' in task_name:
+        new_few_shot_name = task_name.split(':')[0]
+        examples = FEWSHOT_SOURCES[f'STD:{new_few_shot_name}']
+    elif 'agi_eval' in task_name:
+        new_few_shot_name = task_name.split(':')[0]
+        new_few_shot_name = new_few_shot_name[::-1].replace('_', ':', 1)[::-1] # replace last _ with : (agi_eval_sat-math -> agi_eval:sat-math)
+        examples = FEWSHOT_SOURCES[new_few_shot_name]
+    elif 'minerva' in task_name:
+        new_few_shot_name = task_name
+        examples = FEWSHOT_SOURCES['Minerva:MATH:fixed']
+    elif 'gsm' in task_name and transform == 'perturb_cot':
+        new_few_shot_name = task_name
+        examples = FEWSHOT_SOURCES['STD:GSM8k']
+    elif 'gsm' in task_name and transform == 'perturb_rc':
+        new_few_shot_name = 'STD:GSM8k'
+        examples = FEWSHOT_SOURCES['STD:GSM8k']
+    elif 'ifeval' in task_name:
+        raise NotImplementedError()
+    elif 'coqa' in task_name:
+        raise NotImplementedError('Coqa does not have few shot examples?')
+    else:
+        new_few_shot_name = config['fewshot_source'].replace(f':{transform.capitalize()}', '')
+        examples = FEWSHOT_SOURCES[new_few_shot_name]
+    return new_few_shot_name, examples
 
 
 def main(transform):
@@ -163,13 +208,17 @@ def main(transform):
         task_registry = PARAPHRASED_TASK_REGISTRY
     elif transform == 'enlarge':
         task_registry = TASK_REGISTRY
-        TASKS_TO_INCLUDE = ['arc_easy', 'arc_challenge']
+        TASKS_TO_INCLUDE = ["arc_challenge", "arc_easy", "boolq", "csqa", "hellaswag", "piqa", "socialiqa", "openbookqa"] # "winogrande"
     elif transform == 'distractors':
         task_registry = TASK_REGISTRY
-        TASKS_TO_INCLUDE = ['arc_easy', 'arc_challenge']
+        TASKS_TO_INCLUDE = ["arc_challenge", "arc_easy", "boolq", "csqa", "hellaswag", "piqa", "socialiqa", "openbookqa"] # "winogrande"
     elif transform == 'cloze':
         task_registry = TASK_REGISTRY
         TASKS_TO_INCLUDE = ['mmlu_pro_']
+    elif transform == 'perturb_rc':
+        task_registry = TASK_REGISTRY
+        TASKS_TO_INCLUDE = ['drop', 'gsm8k', 'jeopardy', 'naturalqs', 'squad', 'triviaqa'] # 'coqa'
+        # TASKS_TO_INCLUDE = ['coqa']
     elif transform == 'perturb_cot':
         task_registry = TASK_REGISTRY
         TASKS_TO_INCLUDE = ['gsm', 'agi_eval', 'minerva', 'bbh'] # ifeval, humaneval, bigcodebench
@@ -190,10 +239,12 @@ def main(transform):
         elif transform == 'cloze':
             if ':' in task_name: continue # only one root of the task
 
-            if 'bbh' in task_name: 
+            if 'mmlu_pro_' in task_name: 
+                # olmes_config = TASK_CONFIGS[f'{task_name}:mc::none']
+                olmes_config = TASK_CONFIGS[f'{task_name}:rc::none']
+                raise NotImplementedError('RC is now implemented natively.')
+            elif 'bbh' in task_name: 
                 olmes_config = TASK_CONFIGS[f'{task_name}:qa::none']
-            elif 'mmlu_pro' in task_name: 
-                olmes_config = TASK_CONFIGS[f'{task_name}:mc::none']
             else: 
                 raise ValueError(task)
             
@@ -218,6 +269,16 @@ def main(transform):
                 olmes_config = TASK_CONFIGS[f'{task_name}::olmes']
             else:
                 raise ValueError(task_name)
+        elif transform == 'perturb_rc':
+            if ':' in task_name: continue # only one root of the task
+            if '_selfc' in task_name: continue # no self-consistency tasks
+
+            if 'naturalqs' in task_name:
+                task_name = task_name.replace('naturalqs_open', 'naturalqs')
+            elif 'squad2' in task_name:
+                continue # only squad 1 for now
+
+            olmes_config = TASK_CONFIGS[f'{task_name}::olmes']
         else:
             raise ValueError(transform)
 
@@ -258,6 +319,9 @@ def main(transform):
         elif transform == 'perturb_cot':
             perturb_cot_task(task, cot_task, n_cots=4, limit=LIMIT)
             few_shot_f = perturb_cot_task_few_shot
+        elif transform == 'perturb_rc':
+            # perturb_rc_task(task, n_choices=4, limit=LIMIT, process_docs=('coqa' in task_name))
+            few_shot_f = perturb_rc_task_few_shot
         else:
             raise ValueError(transform)
 
@@ -267,7 +331,7 @@ def main(transform):
             docs = few_shot_f(task, examples)
             if 'mmlu_pro_' in task_name:
                 file_name = 'val' 
-                task_name = task_name.replace(':mc', '')
+                task_name = task_name.replace(':mc', ':rc')
             else:
                 file_name = 'dev' 
             filepath = f'{DATA_DIR}/{transform}/{task_name}/{file_name}.json'
@@ -275,33 +339,14 @@ def main(transform):
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(docs, f, ensure_ascii=False, indent=4)
         else:
-            # Manual overrides to get the correct few shot examples
-            if 'bbh' in task_name:
-                orig_few_shot_name = task_name.split(':')[0]
-                examples = FEWSHOT_SOURCES[f'STD:{orig_few_shot_name}']
-            elif 'agi_eval' in task_name:
-                orig_few_shot_name = task_name.split(':')[0]
-                orig_few_shot_name = orig_few_shot_name[::-1].replace('_', ':', 1)[::-1] # replace last _ with : (agi_eval_sat-math -> agi_eval:sat-math)
-                examples = FEWSHOT_SOURCES[orig_few_shot_name]
-            elif 'minerva' in task_name:
-                orig_few_shot_name = task_name
-                examples = FEWSHOT_SOURCES['Minerva:MATH:fixed']
-            elif 'gsm' in task_name:
-                orig_few_shot_name = task_name
-                examples = FEWSHOT_SOURCES['STD:GSM8k']
-            elif 'ifeval' in task_name:
-                continue
-            else:
-                orig_few_shot_name = olmes_config['fewshot_source'].replace(f':{transform.capitalize()}', '')
-                examples = FEWSHOT_SOURCES[orig_few_shot_name]
+            new_few_shot_name, examples = get_few_shot_examples(task_name, olmes_config, transform)
 
             if transform == 'perturb_cot':
                 few_shot = few_shot_f(task, cot_task, examples)
-                # few_shot = None # we should just use the existing CoT examples right?
             else:
                 few_shot = few_shot_f(task, examples)
 
-            NEW_FEWSHOT_SOURCES[f'{orig_few_shot_name}:{transform.capitalize()}'] = few_shot
+            NEW_FEWSHOT_SOURCES[f'{new_few_shot_name}:{transform.capitalize()}'] = few_shot
 
     # save few shot sources
     output_files = [
@@ -319,9 +364,6 @@ if __name__ == '__main__':
     # main(transform='distractors')
     # main(transform='cloze')
     # main(transform='perturb_cot')
+    # main(transform='perturb_rc')
 
     test_dataloader()
-
-    # task_name = 'triviaqa'
-    # task_cls = TASK_REGISTRY[task_name]
-    # _test_dataloader(task_name, task_cls, config_name='triviaqa::none')
