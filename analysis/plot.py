@@ -104,10 +104,15 @@ def plot_training(ax: plt.Axes, x, y, xlabel: str, ylabel: str, label=None, titl
     return ax
 
 
-def plot_simulation_results(results: dict, ax: plt.Axes):
+def plot_simulation_results(results: dict, ax: plt.Axes, f1_only: bool=False, f1_label: str="F1 Score"):
+    ax.grid(True)
+    
     results = sorted(results, key=lambda x: x[1])
 
-    # x_values = [np.log10(float(d[0])) for d in results]
+    # Extract the gold entry
+    gold_entry = next((x for x in results if x[0] == 'gold'), None)
+    results = [x for x in results if x[0] != 'gold']
+
     labels        = [d[0] for d in results]
     x_values      = [d[1] for d in results]
     prec_values   = [d[2][0] for d in results]
@@ -116,14 +121,28 @@ def plot_simulation_results(results: dict, ax: plt.Axes):
 
     x_values = np.array(x_values, dtype=np.float64)
 
-    ax.plot(x_values, prec_values, label="Precision", marker='o')
-    ax.plot(x_values, recall_values, label="Recall", marker='s')
-    ax.plot(x_values, f1_values, label="F1 Score", marker='^')
+    # Add gold compute
+    if gold_entry is not None:
+        _, x_val, (p, r, f1) = gold_entry
+
+        # Only add a label if it doesn't exist yet in the table
+        label = None
+        handles, labels = ax.get_legend_handles_labels()
+        if '1B Compute' not in labels:
+            label = '1B Compute'
+
+        ax.axvline(x=x_val, color='black', linestyle='--', label=label, alpha=0.8)
+        ax.scatter(x_val, f1, color='gold', marker='*', s=100, edgecolor='black')
+
+    if not f1_only:
+        ax.plot(x_values, prec_values, label="Precision", marker='o', alpha=0.8)
+        ax.plot(x_values, recall_values, label="Recall", marker='s', alpha=0.8)
+    ax.plot(x_values, f1_values, label=f1_label, marker='^', alpha=0.8)
 
     ax.set_xlabel("Cumulative Compute")
     ax.set_ylabel("Metric")
+    ax.set_ylim(-0.1, 1.1)
     ax.legend()
-    ax.grid(True)
 
     # # Add labels near each point
     # texts = []
