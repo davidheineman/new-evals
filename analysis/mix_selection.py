@@ -88,7 +88,7 @@ def simulate_mix_selection(df, method, sizes, models, mixes, task, mult=None, to
     return pred_mixes, cumulative_compute
 
 
-def run_simulations(df, sorted_sizes, task, models, mixes, top_n_clusters, top_n_clusters_eval, alpha, last_n, model_pool='prefix', quiet=True):
+def run_simulations(df, sorted_sizes, task, models, mixes, top_n_clusters, top_n_clusters_eval, alpha, alpha_eval, last_n, model_pool='prefix', quiet=True):
     """ Run many different simulations on different compute setups and compute the F1 of predicting target mixes """
     results = []
 
@@ -102,10 +102,10 @@ def run_simulations(df, sorted_sizes, task, models, mixes, top_n_clusters, top_n
         task=task, 
         mult=5, 
         top_n_clusters=top_n_clusters_eval, 
-        alpha=alpha,
+        alpha=alpha_eval,
         last_n=last_n,
     )
-    results += [(['1B'], gold_compute, (1, 1, 1))]
+    results += [('gold', gold_compute, (1, 1, 1))]
 
     if model_pool == 'prefix':
         # Get prefixes of model sizes (n runs)
