@@ -5,43 +5,55 @@ parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
 
 from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_INTERMEDIATE, MODEL_LIST_MIXES, OE_EVAL_OFFICIAL_MODELS
-from analysis.utils.constants_models import MC_TASKS_COPY_COLORS
-from analysis.utils.constants_models import RC_TASKS_OLMES, PARA_TASKS_OLMES
-from analysis.utils.constants_models import GEN_TASKS_OLMES, GEN_TASKS_EXTENDED, BBH_QA, PERTURB_COT_TASKS
 from analysis.utils.constants_models import WEKA_CLUSTERS
+from analysis.utils.constants_tasks import MC_TASKS_COPY_COLORS
+
+# OLMES Classic Tasks
+from analysis.utils.constants_tasks import RC_TASKS_OLMES, PARA_TASKS_OLMES, ENLARGE_TASKS_OLMES, DISTRACTORS_TASKS_OLMES
+
+# OLMES Gen Tasks
+from analysis.utils.constants_tasks import GEN_TASKS_OLMES, GEN_TASKS_OLMES_PERTURB_RC
+
+# CoT tasks (mainly Tulu tasks)
+from analysis.utils.constants_tasks import AGI_EVAL_MC, AGI_EVAL_COT
+from analysis.utils.constants_tasks import MMLU_PRO_MC, MMLU_PRO_RC, MMLU_PRO_COT
+from analysis.utils.constants_tasks import MINERVA_MC, MINERVA_COT
+from analysis.utils.constants_tasks import BBH_MC, BBH_COT
+from analysis.utils.constants_tasks import PERTURB_COT_TASKS
 
 MODEL_LIST_ALL = MODEL_LADDER_LIST + MODEL_LIST_INTERMEDIATE + MODEL_LIST_MIXES
 MODEL_LIST_ALL += OE_EVAL_OFFICIAL_MODELS
 
 TASK_LIST_ALL = []
 
-# TASK_LIST_ALL += RC_TASKS_OLMES + PARA_TASKS_OLMES
-# SYNTHETIC_TASKS = [
-#     "arc_easy:enlarge::olmes:full",
-#     "arc_challenge:enlarge::olmes:full",
-#     "arc_easy:distractors::olmes:full",
-#     "arc_challenge:distractors::olmes:full",
-# ]
-# TASK_LIST_ALL += SYNTHETIC_TASKS
+# TASK_LIST_ALL += RC_TASKS_OLMES
+# TASK_LIST_ALL += PARA_TASKS_OLMES
+# TASK_LIST_ALL += ENLARGE_TASKS_OLMES
+# TASK_LIST_ALL += DISTRACTORS_TASKS_OLMES
 
+# TASK_LIST_ALL += MC_TASKS_COPY_COLORS
+# TASK_LIST_ALL += GEN_TASKS_OLMES
+# TASK_LIST_ALL += GEN_TASKS_EXTENDED + BBH_QA
+# TASK_LIST_ALL += MMLU_PRO_MC 
+TASK_LIST_ALL += AGI_EVAL_COT + MMLU_PRO_COT # Currently using :cot::none!
 
-# TASK_LIST_ALL += MC_TASKS_COPY_COLORS + GEN_TASKS_OLMES
-# TASK_LIST_ALL += GEN_TASKS_EXTENDED
-TASK_LIST_ALL += PERTURB_COT_TASKS
-# TASK_LIST_ALL += BBH_QA
+# TASK_LIST_ALL += MMLU_PRO_RC
+# TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
+# TASK_LIST_ALL += PERTURB_COT_TASKS
 
 
 # # FOR TESTING
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' not in task] # exclude MMLU (long arg lists may crash beaker! https://github.com/allenai/beaker/issues/5530)
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' in task] # <- MMLU only
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' in task and ':para' in task] # <- MMLU:para only
-# MODEL_LIST_ALL = [MODEL_LIST_ALL[0]] # <- only use first model!
+# TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'coqa:' not in task] # <- coqa is not setup properly
+# MODEL_LIST_ALL = [MODEL_LIST_ALL[1]] # <- only use first model!
 # TASK_LIST_ALL = SYNTHETIC_TASKS # <- only use synthetic tasks!
 
 
 def run_eval(model_list, task_list, model_type='hf', gpus=1):
     if isinstance(task_list, list): 
-        task_list = ' '.join(task_list)
+        task_list = ' '.join([f'"{task}"' for task in task_list])
 
     command = f"""
     oe-eval \
@@ -51,12 +63,13 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1):
         --model-type {model_type} \
         --gpus {gpus} \
         --beaker-workspace ai2/davidh \
-        --beaker-image davidh/oe-eval-metaeval \
+        --beaker-image davidh/oe-eval-metaeval-3 \
         --gantry-secret-aws-access-key-id AWS_ACCESS_KEY_ID \
         --gantry-secret-aws-secret-access AWS_SECRET_ACCESS_KEY \
         --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
         --recompute-metrics \
-        --beaker-priority normal
+        --beaker-priority normal \
+        --limit 10000
     """
     command = command.replace('  ', '') # remove extra spacing!
     mb = len(command.encode('utf-8')) / (1024 * 1024) # compute size of command
@@ -68,6 +81,7 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1):
 
 
 def main():
+    print('Note! I added a 10K instance limit')
     print(f'Launching {len(MODEL_LIST_ALL)} models on {len(TASK_LIST_ALL)} tasks (10 second sleep to confirm...)')
     time.sleep(10)
 

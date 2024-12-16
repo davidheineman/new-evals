@@ -9,50 +9,31 @@ ai2/saturn-cirrascale\
 # arc_easy:enlarge::olmes:full \
 # arc_easy:distractors::olmes:full \
 # "
+# TASK_LIST="\
+# drop:perturb_rc::olmes:full \
+# gsm8k:perturb_rc::olmes:full \
+# jeopardy:perturb_rc::olmes:full \
+# naturalqs:perturb_rc::olmes:full \
+# squad:perturb_rc::olmes:full \
+# triviaqa:perturb_rc::olmes:full \
+# mmlu_pro_math:rc::none \
+# mmlu_pro_history:rc::none \
+# mmlu_pro_math:mc::none \
+# mmlu_pro_history:mc::none \
+# "
+# TASK_LIST="\
+# minerva_math_algebra::tulu \
+# minerva_math_intermediate_algebra::tulu \
+# agi_eval_lsat-ar:0shot_cot::tulu3 \
+# agi_eval_sat-math:0shot_cot::tulu3 \
+# mmlu_pro_math:cot::llama3.1 \
+# mmlu_pro_psychology:cot::llama3.1 \
+# "
 TASK_LIST="\
-agi_eval_aqua-rat:perturb_cot::olmes \
-agi_eval_gaokao-english:perturb_cot::olmes \
-agi_eval_logiqa-en:perturb_cot::olmes \
-agi_eval_lsat-ar:perturb_cot::olmes \
-agi_eval_lsat-lr:perturb_cot::olmes \
-agi_eval_lsat-rc:perturb_cot::olmes \
-agi_eval_sat-en-without-passage:perturb_cot::olmes \
-agi_eval_sat-en:perturb_cot::olmes \
-agi_eval_sat-math:perturb_cot::olmes \
-bbh_boolean_expressions:perturb_cot::olmes \
-bbh_causal_judgement:perturb_cot::olmes \
-bbh_date_understanding:perturb_cot::olmes \
-bbh_disambiguation_qa:perturb_cot::olmes \
-bbh_dyck_languages:perturb_cot::olmes \
-bbh_formal_fallacies:perturb_cot::olmes \
-bbh_geometric_shapes:perturb_cot::olmes \
-bbh_hyperbaton:perturb_cot::olmes \
-bbh_logical_deduction_five_objects:perturb_cot::olmes \
-bbh_logical_deduction_seven_objects:perturb_cot::olmes \
-bbh_logical_deduction_three_objects:perturb_cot::olmes \
-bbh_movie_recommendation:perturb_cot::olmes \
-bbh_multistep_arithmetic_two:perturb_cot::olmes \
-bbh_navigate:perturb_cot::olmes \
-bbh_object_counting:perturb_cot::olmes \
-bbh_penguins_in_a_table:perturb_cot::olmes \
-bbh_reasoning_about_colored_objects:perturb_cot::olmes \
-bbh_ruin_names:perturb_cot::olmes \
-bbh_salient_translation_error_detection:perturb_cot::olmes \
-bbh_snarks:perturb_cot::olmes \
-bbh_sports_understanding:perturb_cot::olmes \
-bbh_temporal_sequences:perturb_cot::olmes \
-bbh_tracking_shuffled_objects_five_objects:perturb_cot::olmes \
-bbh_tracking_shuffled_objects_seven_objects:perturb_cot::olmes \
-bbh_tracking_shuffled_objects_three_objects:perturb_cot::olmes \
-bbh_web_of_lies:perturb_cot::olmes \
-bbh_word_sorting:perturb_cot::olmes \
-gsm8k:perturb_cot::olmes \
-minerva_math_algebra:perturb_cot::olmes \
-minerva_math_counting_and_probability:perturb_cot::olmes \
-minerva_math_geometry:perturb_cot::olmes \
-minerva_math_intermediate_algebra:perturb_cot::olmes \
-minerva_math_number_theory:perturb_cot::olmes \
-minerva_math_prealgebra:perturb_cot::olmes \
+agi_eval_lsat-ar:cot::none \
+agi_eval_sat-math:cot::none \
+mmlu_pro_math:cot::none \
+mmlu_pro_psychology:cot::none \
 "
 MODEL_LIST="\
 weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-190M-1xC \
