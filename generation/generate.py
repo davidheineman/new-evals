@@ -77,19 +77,19 @@ def _test_dataloader(task_name: str, task_cls: Task, config_name: str):
         # Color the data examples
         if ':para' in task_name:
             c1, c2 = str(34), str(35)
-        elif ':rc' in task_name:
+        elif ':rc' in task_name or ':perturb_' in task_name:
             c1, c2 = str(36), str(31)
         elif ':mc' in task_name or ':qa' in task_name:
             c1, c2 = str(32), str(31)
         elif ':cot' in task_name:
             c1, c2 = str(31), str(32)
         else:
-            c1, c2 = str(34), str(35)
+            c1, c2 = str(31), str(36)
 
         if example_instance.request_type == 'loglikelihood':
             print(f'EXAMPLE REQUEST ({task_name}):\n\033[{c1}m{example_instance.request.context}\033[0m\033[{c2}m{example_instance.request.continuation}\033[0m')
         elif example_instance.request_type == 'generate_until':
-            print(f'EXAMPLE REQUEST ({task_name}):\n\033[{c1}m{example_instance.request.context}\033[0m\033[{c2}m{example_instance.label}\033[0m')
+            print(f'EXAMPLE REQUEST ({task_name}):\n\033[{c1}m{example_instance.request.context}\033[0m\033[{c2}m {example_instance.label}\033[0m')
             
     except Exception as e:
         raise RuntimeError(f"{task_name} failed on error: {e}")
@@ -127,8 +127,9 @@ def test_dataloader():
 
     # Test non-OLMES core9mcqa
     for task_name, task_cls in TASK_REGISTRY.items():
-        TASKS_TO_INCLUDE = ['perturb_rc'] # perturb_rc enlarge distractors perturb_cot, mmlu_pro, mmlu, mmlu_computer_security, 'boolq', 'openbookqa', 'winogrande'
+        TASKS_TO_INCLUDE = ['minerva'] # minerva perturb_rc enlarge distractors perturb_cot, mmlu_pro, mmlu, mmlu_computer_security, 'boolq', 'openbookqa', 'winogrande'
         if not any(task in task_name for task in TASKS_TO_INCLUDE): continue
+        if '_selfc' in task_name: continue # no self-consistency tasks
 
         task_cls = TASK_REGISTRY[task_name]
         task_root = task_name.split(':')[0]

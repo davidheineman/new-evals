@@ -62,7 +62,8 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
     
     duplicates_count = slices.duplicated(subset=['native_id'] + col).sum()
     if duplicates_count > 0:
-        if 'hellaswag' not in task: # this is a known problem for 433 HellaSwag instances
+        if 'hellaswag' not in task and \
+            'drop' not in task: # this is a known problem for 433 HellaSwag instances, 1 Drop instance
             warnings.simplefilter("once", UserWarning)
             warnings.warn(f"Warning: {duplicates_count}/{len(slices)} duplicate native_id-key pairs found for task='{task}'. Removing duplicates...", category=UserWarning, stacklevel=2)
         slices = slices.drop_duplicates(subset=['native_id'] + col, keep='first')
