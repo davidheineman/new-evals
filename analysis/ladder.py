@@ -76,7 +76,7 @@ def sort_experiments_corrected(experiments):
     return sorted(experiments, key=extract_sort_key)
 
 
-def merge_dicts(dict1, dict2):
+def merge_dicts(dict1, dict2, overwrite_xs=False):
     if dict1.keys() != dict2.keys():
         raise ValueError(f"Keys of dict1 and dict2 do not match. Seeing:\n{dict1.keys()}\n{dict2.keys()}")
     
@@ -86,11 +86,13 @@ def merge_dicts(dict1, dict2):
         # if l2 != l1:
         #     raise ValueError(f"Length of 'xs' in dict1 and 'xs' in dict2 do not match for key '{key}': {l1} != {l2}.")
 
+        # Sort all values by the number of tokens seen
         sorted_indices = sorted(range(len(dict2[key]['ds'])), key=lambda i: dict2[key]['ds'][i])
         dict2[key]['ds'] = [dict2[key]['ds'][i] for i in sorted_indices]
         dict2[key]['ns'] = [dict2[key]['ns'][i] for i in sorted_indices]
         dict2[key]['ls'] = [dict2[key]['ls'][i] for i in sorted_indices]
         if 'fs' in dict2: dict2[key]['fs'] = [dict2[key]['fs'][i] for i in sorted_indices]
+        if overwrite_xs:  dict2[key]['xs'] = [dict2[key]['xs'][i] for i in sorted_indices]
 
         if l1 != l2:
             # A faustian bargain to allow us to use the wandb tokens w/ oe-eval for intermediate ckpts, since we have different numbers
@@ -102,6 +104,7 @@ def merge_dicts(dict1, dict2):
                 dict1[key]['ds'] = [dict2[key]['ds'][i] for i in indices]
                 dict1[key]['ls'] = [dict2[key]['ls'][i] for i in indices]
                 if 'fs' in dict2: dict1[key]['fs'] = [dict2[key]['fs'][i] for i in indices]
+                if overwrite_xs:  dict1[key]['xs'] = [dict2[key]['xs'][i] for i in indices]
             else:
                 raise RuntimeError()
         else:
@@ -109,7 +112,8 @@ def merge_dicts(dict1, dict2):
             dict1[key]['ds'] = dict2[key]['ds']
             dict1[key]['ls'] = dict2[key]['ls']
             if 'fs' in dict2: dict1[key]['fs'] = dict2[key]['fs']
-    
+            if overwrite_xs:  dict1[key]['xs'] = dict2[key]['xs']
+
     return dict1
 
 
@@ -270,6 +274,10 @@ def get_ladder_data(df, task_name, train_models, eval_models, step='max'):
         else:
             acc = acc.squeeze().tolist()
 
+        if model == 'peteish-moreeval-1B-10xC' and task_name == 'gsm8k':
+            # manual fix for broken model
+            correct_bpb = 0.5828522670464399
+
         data_by_name[size]['xs'] += [correct_bpb]
         data_by_name[size]['ys'] += [acc]
         data_by_name[size]['mode'] = mode
@@ -311,7 +319,7 @@ def get_ladder_config(config_path, task_name, train_models, eval_models):
     return task_key, configs
 
 
-def run_ladder_step_1(df, task_name, train_models, eval_models, ax=None, config_path=DEFAULT_CONIFG_PATH):
+def run_ladder_step_1(df, task_name, train_models, eval_models, y_metric='rc_bpb', ax=None, config_path=DEFAULT_CONIFG_PATH):
     # Unfortunately there are local references, so we have to be in the OLMo repo
     os.chdir('/Users/dhei/ai2/new-evals/olmo-repos/OLMo')
 
@@ -319,24 +327,23 @@ def run_ladder_step_1(df, task_name, train_models, eval_models, ax=None, config_
     configs = get_final_configs(config_path)
 
     # Get data
-    data_by_name = get_step1_data_by_name(configs, 'arc_easy_test_5shot', y_metric='rc_bpb', moving_avg=5) # we are only using this for the num tokens
+    data_by_name = get_step1_data_by_name(configs, 'arc_easy_test_5shot', y_metric=y_metric, moving_avg=1) # we are only using this for the num tokens
     data_by_name_downstream = get_ladder_data(df, task_name, train_models, eval_models)
-
-    data_by_name = merge_dicts(data_by_name_downstream, data_by_name) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
+    data_by_name = merge_dicts(data_by_name_downstream, data_by_name, overwrite_xs=(y_metric == 'c4')) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
 
     # Fit step 1
-    coefficients, cov = fit_step1(data_by_name, 'rc_bpb')
+    coefficients, cov = fit_step1(data_by_name, y_metric)
 
     (
         predicted_data_by_name, plotted_predicted_data,
         (y, y_pred, rel_error), all_rel_errors,
     ) = predict_step1(
-        configs, data_by_name, coefficients, y_metric='rc_bpb', 
+        configs, data_by_name, coefficients, y_metric=y_metric, 
     )
 
     plot_step1(
         configs, data_by_name, predicted_data_by_name, plotted_predicted_data,
-        task_name, str_chinchilla_n_d_fit(coefficients), 'rc_bpb',
+        task_name, str_chinchilla_n_d_fit(coefficients), y_metric,
         coefficients, cov, ax,
     )
 
@@ -346,29 +353,37 @@ def run_ladder_step_1(df, task_name, train_models, eval_models, ax=None, config_
     return (y, y_pred, rel_error), all_rel_errors
 
 
-def run_ladder_step_2(df, task_name, train_models, eval_models, ax=None, config_path=DEFAULT_CONIFG_PATH, add_texts=False):
+def run_ladder_step_2(df, task_name, train_models, eval_models, y_metric='rc_bpb', ax=None, config_path=DEFAULT_CONIFG_PATH, add_texts=False):
     # Unfortunately there are local references, so we have to be in the OLMo repo
     os.chdir('/Users/dhei/ai2/new-evals/olmo-repos/OLMo')
 
     data_by_name = get_ladder_data(df, task_name, train_models, eval_models)
     task_key, configs = get_ladder_config(config_path, task_name, train_models, eval_models)
+
+    configs = {name: config for name, config in configs.items() if config.paths is not None}
+
+    # data for c4 loss
+    if y_metric == 'c4':
+        data_by_name = get_step1_data_by_name(configs, 'arc_easy_test_5shot', y_metric='c4', moving_avg=5) # we are only using this for the num tokens
+        data_by_name_downstream = get_ladder_data(df, task_name, train_models, eval_models)
+        data_by_name = merge_dicts(data_by_name_downstream, data_by_name, overwrite_xs=True) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
     
     _min, _max = None, None
     if task_key is None:
         _min, _max = 0, 1 # TODO: Use utils.constants_task to get correct values
 
     try:
-        coefficients, cov = fit_step2(data_by_name, task_key, None, _min=_min, _max=_max, use_log_sigmoid=False)
+        coefficients, cov = fit_step2(data_by_name, task_key, y_metric=None, _min=_min, _max=_max, use_log_sigmoid=False)
 
         (
             predicted_data_by_name, plotted_predicted_data,
             (y, y_pred, rel_error, delta_error), all_rel_errors,
         ) = predict_step2(
-            configs, data_by_name, coefficients, cov, y_metric='rc_acc', use_log_sigmoid=False
+            configs, data_by_name, coefficients, cov, y_metric=None, use_log_sigmoid=False
         )
 
         plot_step2(
-            configs, data_by_name, predicted_data_by_name, plotted_predicted_data, task_key, None, 'rc_bpb', 'rc_acc',
+            configs, data_by_name, predicted_data_by_name, plotted_predicted_data, task_key, None, y_metric, 'rc_acc',
             coefficients, cov, use_log_sigmoid=False, add_texts=add_texts, ax=ax
         )
     except Exception as e:
@@ -381,23 +396,32 @@ def run_ladder_step_2(df, task_name, train_models, eval_models, ax=None, config_
     return (y, y_pred, rel_error, delta_error), all_rel_errors
 
 
-def run_ladder_stacked(df, task_name, train_models, eval_models, ax=None, config_path=DEFAULT_CONIFG_PATH):
+def run_ladder_stacked(df, task_name, train_models, eval_models, y_metric='rc_bpb', ax=None, config_path=DEFAULT_CONIFG_PATH):
     # Get config
     configs = get_final_configs(config_path)
 
     # Fit step 1
-    data_by_name = get_step1_data_by_name(configs, 'arc_easy_test_5shot', y_metric='rc_bpb', moving_avg=5) # we are only using this for the num tokens
+    data_by_name = get_step1_data_by_name(configs, 'arc_easy_test_5shot', y_metric=y_metric, moving_avg=5) # we are only using this for the num tokens
     data_by_name_downstream = get_ladder_data(df, task_name, train_models, eval_models)
-    data_by_name_step_1 = merge_dicts(data_by_name_downstream, data_by_name) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
-    step1_coefficients, _ = fit_step1(data_by_name_step_1, 'rc_bpb')
+    data_by_name_step_1 = merge_dicts(data_by_name_downstream, data_by_name, overwrite_xs=(y_metric == 'c4')) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
+    step1_coefficients, _ = fit_step1(data_by_name_step_1, y_metric)
 
     # workaround 5000. 2 AM. who needs sleep -- there are evals to run.
     for key in data_by_name_step_1:
         data_by_name_step_1[key]['xs'] = data_by_name_step_1[key]['ys']
 
-    # Fit step 2
-    data_by_name_step_2 = get_ladder_data(df, task_name, train_models, eval_models)
     task_key, configs = get_ladder_config(config_path, task_name, train_models, eval_models)
+    configs = {name: config for name, config in configs.items() if config.paths is not None}
+
+    # data for c4 loss
+    if y_metric == 'c4':
+        data_by_name_step_2 = get_step1_data_by_name(configs, 'arc_easy_test_5shot', y_metric='c4', moving_avg=5) # we are only using this for the num tokens
+        data_by_name_downstream = get_ladder_data(df, task_name, train_models, eval_models)
+        data_by_name_step_2 = merge_dicts(data_by_name_downstream, data_by_name_step_2, overwrite_xs=True) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
+    else:
+        # Fit step 2
+        data_by_name_step_2 = get_ladder_data(df, task_name, train_models, eval_models)
+    
 
     _min, _max = None, None
     if task_key is None:

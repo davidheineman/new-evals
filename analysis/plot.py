@@ -64,12 +64,15 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=
     return ax
 
 
-def plot_training(ax: plt.Axes, x, y, xlabel: str, ylabel: str, label=None, title=None, color=None, fit=None):
+def plot_training(ax: plt.Axes, x, y, xlabel: str, ylabel: str, label=None, title=None, color=None, fit=None, ci=None):
     if xlabel == 'step':
         ax.plot(x, y, label=label, color=color, linewidth=0.5, marker='.', markersize=2)
         # ax.plot(df_slice[xlabel], df_slice[ylabel].rolling(window=5).mean(), label=label, color=color, linewidth=0.5, marker='.', markersize=2)
     else:
         ax.scatter(x, y, label=label, color=color, s=3)
+
+    if ci is not None:
+        ax.fill_between(x, y - ci, y + ci, alpha=0.1, color=color)
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
@@ -100,7 +103,7 @@ def plot_training(ax: plt.Axes, x, y, xlabel: str, ylabel: str, label=None, titl
         y_fit = log(x_fit_scaled, *popt)
 
         ax.plot(x_fit, y_fit, color=color, alpha=0.5, linestyle='dotted')
-    
+
     return ax
 
 
