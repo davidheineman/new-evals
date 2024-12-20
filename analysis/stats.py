@@ -68,6 +68,11 @@ def perc_significant(p_values, alpha=0.05):
     return ((p_values > (1-alpha)).sum() + (p_values < alpha).sum()) / (~np.isnan(p_values)).sum()
 
 
+def calculate_standard_error(avg_score, num_scores):
+    """ https://arxiv.org/pdf/2411.00640#page=2.55 """
+    return np.sqrt((avg_score * (1 - avg_score)) / num_scores)
+
+
 def get_bound(arr, idx, alpha):
     """ Get the first index where arr[i] < alpha """
     condition = (arr < alpha) | (arr > (1-alpha))
@@ -99,6 +104,8 @@ def get_sig_cluster_bound(p_vals, idx, alpha):
 
 def get_sig_clusters(p_vals, alpha=0.01):
     """
+    The pièce de résistance.
+
     Start with highest scoring mix, assign rank 1 to all mixes until we have 
     encountered a mix statistically significantly different from any mix so far.
     """
@@ -167,14 +174,15 @@ def compute_significance(df, models, metric, last_n=1, tasks=None, alpha=0.05, d
             # Change task name
             task = 'olmes_macro_average'
         else:
-            p_values = compute_pairwise_p_values(scores)
+            p_values = compute_pairwise_p_values(scores, num_permutations=100_000)
             
             # p_values = np.nan_to_num(compute_pairwise_p_values(scores), nan=0) + np.nan_to_num(compute_pairwise_p_values(scores[::-1]).T, nan=0)
             # np.fill_diagonal(p_values, np.nan)
 
             mix_scores = None
 
-        sig_clusters = get_sig_clusters(p_values, alpha=alpha)
+        # sig_clusters = get_sig_clusters(p_values, alpha=alpha)
+        sig_clusters = None
 
         perc_sig = perc_significant(p_values, alpha=alpha)
         sig_results.loc['perc_sig', task] = perc_sig
@@ -194,60 +202,67 @@ def compute_significance(df, models, metric, last_n=1, tasks=None, alpha=0.05, d
     return sig_results, all_p_values, None
 
 
-def compute_total_variation(df, tasks, models, metric='acc_per_char', ax=None):
+def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None, color=None):
     tv_results = pd.DataFrame(index=['total_variation'], columns=tasks)
 
-    model_color = 'b'
+    assert isinstance(models, list) 
 
-    for task in tasks:
-        step, scores = get_nd_array(df, 'step', metric, model=models, task=task)
-        acc = scores.mean(axis=1)
+    for i, task in enumerate(tasks):
+        for j, model in enumerate(models):
+            step, scores = get_nd_array(df, 'step', metric, model=model, task=task)
+            acc = scores.mean(axis=1)
 
-        if metric == 'logits_per_char' or metric == 'logits_per_byte':
-            # TMP: Code from model ladder to get the correct logits per char
-            _, corr = get_nd_array(df, 'step', 'correct_choice', model=models, task=task)
-            _, bpb  = get_nd_array(df, 'step', 'logits_per_byte', model=models, task=task)
+            if metric == 'logits_per_char' or metric == 'logits_per_byte':
+                # TMP: Code from model ladder to get the correct logits per char
+                _, corr = get_nd_array(df, 'step', 'correct_choice', model=model, task=task)
+                _, bpb  = get_nd_array(df, 'step', 'logits_per_byte', model=model, task=task)
 
-            # Get correct logprobs per char
-            n_choices = bpb[0][0].shape
-            correct_bpb = np.empty_like(corr, dtype=np.float64)
-            rows, cols = corr.shape
-            for i in range(rows):
-                for j in range(cols):
-                    if corr[i, j] == n_choices and 'enlarge' in task_name: 
-                        # print(f'Warning: bpb has {n_choices} choices, but the correct label is {corr[i, j]} (did ChatGPT generate an incorrect ground truth?). re-indexing the correct label...')
-                        corr[i, j] -= 1
-                    correct_bpb[i, j] = bpb[i, j][corr[i, j].astype(np.int32)]
-            correct_bpb = correct_bpb.mean(axis=1)
-            acc = correct_bpb
+                # Get correct logprobs per char
+                n_choices = bpb[0][0].shape
+                correct_bpb = np.empty_like(corr, dtype=np.float64)
+                rows, cols = corr.shape
+                for i in range(rows):
+                    for j in range(cols):
+                        if corr[i, j] == n_choices and 'enlarge' in task_name: 
+                            # print(f'Warning: bpb has {n_choices} choices, but the correct label is {corr[i, j]} (did ChatGPT generate an incorrect ground truth?). re-indexing the correct label...')
+                            corr[i, j] -= 1
+                        correct_bpb[i, j] = bpb[i, j][corr[i, j].astype(np.int32)]
+                correct_bpb = correct_bpb.mean(axis=1)
+                acc = correct_bpb
 
-        tv = calc_total_variation(acc, improvement=True) * 100
+            tv = calc_total_variation(acc, improvement=True) * 100
 
-        task_name = task
-        if isinstance(task, list):
-            task_name = 'olmes_macro_average'
+            # Add analytical CI
+            ci = 1.96 * calculate_standard_error(acc, num_scores=scores.shape[1])
 
-        tv_results.loc['total_variation', task_name] = tv
+            task_name = task
+            if isinstance(task, list):
+                task_name = 'olmes_macro_average'
 
-        if ax is not None:
-            _ = plot_training(
-                ax=ax, 
-                x=step, y=acc, 
-                xlabel='step', ylabel=metric, 
-                title=f'{task_name} (n={scores.shape[1]}) on {models}', color=model_color
-            )
+            tv_results.loc['total_variation', task_name] = tv
 
-            # Add total variation text
-            text = ''
-            text += f'\nTV-I={tv:.3f}'
-            text = text.lstrip('\n')
-            if text != '':
-                ax.text(
-                    x=step[-1], y=acc[-1], s=text, color=model_color, 
-                    va='center', ha='left', zorder=5, fontsize=10
+            if axes is not None:
+                _ = plot_training(
+                    ax=axes[i], 
+                    label=model,
+                    x=step, y=acc, ci=ci,
+                    xlabel='step', ylabel=metric, 
+                    title=f'{task_name} (n={scores.shape[1]}) {"on " + models if len(models) == 0 else ""}', color=color[j]
                 )
-            
-                if metric != 'c4_loss' and metric != 'll_per_char': 
-                    ax.set_xlim(right=max(step) * 1.25)
 
-    return tv_results, ax
+                # Add total variation text
+                text = ''
+                text += f'\nTV-I={tv:.3f}'
+                text = text.lstrip('\n')
+                if text != '':
+                    axes[i].text(
+                        x=step[-1], y=acc[-1], s=text, color=color[j], 
+                        va='center', ha='left', zorder=5, fontsize=10
+                    )
+                
+                    if metric != 'c4_loss' and metric != 'll_per_char': 
+                        axes[i].set_xlim(right=max(step) * 1.25)
+            
+        axes[i].legend(fontsize=8)
+
+    return tv_results, axes
