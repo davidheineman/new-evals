@@ -71,7 +71,7 @@ def _test_dataloader(task_name: str, task_cls: Task, config_name: str):
 
         task_instances = task._instances
         example_instances = [task_instances[0]]
-        example_instances = task_instances[:50]
+        example_instances = task_instances[:3]
 
         # print(example_instance)
 
@@ -134,7 +134,7 @@ def test_dataloader():
 
     # Test non-OLMES core9mcqa
     for task_name, task_cls in TASK_REGISTRY.items():
-        TASKS_TO_INCLUDE = ['gsm'] # minerva perturb_rc enlarge distractors perturb_cot, mmlu_pro, mmlu, mmlu_computer_security, 'boolq', 'openbookqa', 'winogrande'
+        TASKS_TO_INCLUDE = ['drop', 'gsm8k', 'jeopardy', 'naturalqs', 'squad', 'triviaqa', 'bbh', 'mmlu_pro_', 'agi_eval'] # minerva perturb_rc enlarge distractors perturb_cot, mmlu_pro, mmlu, mmlu_computer_security, 'boolq', 'openbookqa', 'winogrande'
         if not any(task in task_name for task in TASKS_TO_INCLUDE): continue
         if '_selfc' in task_name: continue # no self-consistency tasks
 
@@ -200,7 +200,7 @@ def get_few_shot_examples(task_name, config, transform):
     elif 'ifeval' in task_name:
         raise NotImplementedError()
     elif 'coqa' in task_name:
-        raise NotImplementedError('Coqa does not have few shot examples?')
+        raise NotImplementedError('Coqa does not have few shot examples')
     else:
         new_few_shot_name = config['fewshot_source'].replace(f':{transform.capitalize()}', '')
         examples = FEWSHOT_SOURCES[new_few_shot_name]
@@ -226,7 +226,6 @@ def main(transform):
     elif transform == 'perturb_rc':
         task_registry = TASK_REGISTRY
         TASKS_TO_INCLUDE = ['drop', 'gsm8k', 'jeopardy', 'naturalqs', 'squad', 'triviaqa'] # 'coqa'
-        # TASKS_TO_INCLUDE = ['coqa']
     elif transform == 'perturb_cot':
         task_registry = TASK_REGISTRY
         TASKS_TO_INCLUDE = ['gsm', 'agi_eval', 'minerva', 'bbh'] # ifeval, humaneval, bigcodebench

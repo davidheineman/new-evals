@@ -17,7 +17,7 @@ session = boto3.Session(profile_name=PROFILE_NAME)
 S3 = session.client('s3', endpoint_url=ENDPOINT_URL)
 
 
-def download_file_with_progress(bucket_name, file_key, local_path):
+def download_from_weka(bucket_name, file_key, local_path):
     """Download an S3 file with a tqdm bar, skipping if already downloaded"""
     s3_file_size = S3.head_object(Bucket=bucket_name, Key=file_key)['ContentLength']
 
@@ -45,16 +45,7 @@ def pull_predictions_from_weka(name):
     file_key = f'davidh/metaeval/analysis/data/all_{name}_predictions.parquet'
     local_path = f'{DATA_DIR}/all_{name}_predictions.parquet'
 
-    # # List files
-    # response = s3.list_objects_v2(Bucket=bucket_name)
-    # if 'Contents' in response:
-    #     for obj in response['Contents']:
-    #         print(obj['Key'])
-
-    # Download a file
-    # s3.download_file(bucket_name, file_key, local_path)
-
-    download_file_with_progress(bucket_name, file_key, local_path)
+    download_from_weka(bucket_name, file_key, local_path)
 
 
 if __name__ == '__main__':
