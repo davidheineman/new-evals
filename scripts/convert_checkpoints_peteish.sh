@@ -188,7 +188,7 @@ MODEL_LIST_LADDER=(
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-1B-1xC"
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-1xC"
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-3B-1xC"
-    "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-370M-1xC"
+    "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-370M-1xC" # this is where I paused
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-2xC"
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-3B-2xC"
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-3B-1xC"
@@ -204,28 +204,67 @@ MODEL_LIST_CUSTOM=(
 # Dolma 2 Tokenizer
 TOKENIZER_PATH=/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/latest/tokenizer.json
 
-# for MODEL in "${MODEL_LIST_LADDER[@]}"; do
-for MODEL in "${MODEL_LIST_CUSTOM[@]}"; do
-    if [[ $MODEL == *"step"* ]]; then
-        # Option 1, use the provided model path
-        MODEL_PATH=$MODEL
-    else
-        # Option 2, find highest model path
-        FINAL_CKPT=$(ls $MODEL | grep 'step[0-9]*-unsharded$' | sort -V | tail -n 1)
-        MODEL_PATH=$MODEL/$FINAL_CKPT
-    fi
-
-    INPUT_DIR=$MODEL_PATH
-    OUTPUT_DIR=$MODEL_PATH-hf
+process_model_checkpoint() {
+    INPUT_DIR=$1
+    OUTPUT_DIR=$1-hf
 
     # Skip if OUTPUT_DIR already exists
     if [[ -d "$OUTPUT_DIR" ]]; then
         echo "Output directory exists: $OUTPUT_DIR. Skipping..."
-        continue
+        return
     fi
+
+    echo $INPUT_DIR
+    echo $OUTPUT_DIR
 
     python olmo-repos/OLMo/scripts/convert_olmo2_to_hf.py \
         --input_dir "$INPUT_DIR" \
         --output_dir "$OUTPUT_DIR" \
         --tokenizer_json_path "$TOKENIZER_PATH"
+}
+
+for MODEL in "${MODEL_LIST_LADDER[@]}"; do
+    # for MODEL in "${MODEL_LIST_CUSTOM[@]}"; do
+    if [[ $MODEL == *"step"* ]]; then
+        # Directly process the provided model path
+        process_model_checkpoint "$MODEL"
+    else
+        # Process the last 6 model checkpoints
+        FINAL_CKPTS=$(ls $MODEL | grep 'step[0-9]*-unsharded$' | sort -V | tail -n 6)
+        for CKPT in $FINAL_CKPTS; do
+            process_model_checkpoint "$MODEL/$CKPT"
+        done
+    fi
 done
+
+
+#### OLD ####
+
+# for MODEL in "${MODEL_LIST_LADDER[@]}"; do
+# # for MODEL in "${MODEL_LIST_CUSTOM[@]}"; do
+#     if [[ $MODEL == *"step"* ]]; then
+#         # Option 1, use the provided model path
+#         MODEL_PATH=$MODEL
+#     else
+#         # Option 2, find highest model path
+#         FINAL_CKPT=$(ls $MODEL | grep 'step[0-9]*-unsharded$' | sort -V | tail -n 1)
+#         MODEL_PATH=$MODEL/$FINAL_CKPT
+#     fi
+
+#     INPUT_DIR=$MODEL_PATH
+#     OUTPUT_DIR=$MODEL_PATH-hf
+
+#     # Skip if OUTPUT_DIR already exists
+#     if [[ -d "$OUTPUT_DIR" ]]; then
+#         echo "Output directory exists: $OUTPUT_DIR. Skipping..."
+#         continue
+#     fi
+
+#     echo $INPUT_DIR
+#     echo $OUTPUT_DIR
+
+#     # python olmo-repos/OLMo/scripts/convert_olmo2_to_hf.py \
+#     #     --input_dir "$INPUT_DIR" \
+#     #     --output_dir "$OUTPUT_DIR" \
+#     #     --tokenizer_json_path "$TOKENIZER_PATH"
+# done

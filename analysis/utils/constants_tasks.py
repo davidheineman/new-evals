@@ -128,7 +128,7 @@ AGI_EVAL_MC = [
 ]
 
 AGI_EVAL_COT = [
-    # # AGI Eval CoT (only ::tulu3 has proper configs)
+    # # AGI Eval CoT (only ::tulu3 has proper configs) -- broken
     # "agi_eval_lsat-ar:0shot_cot::tulu3",
     # "agi_eval_lsat-lr:0shot_cot::tulu3",
     # "agi_eval_lsat-rc:0shot_cot::tulu3",
@@ -152,7 +152,11 @@ AGI_EVAL_COT = [
 ]
 
 MINERVA_MC = [
-    # Minerva MC
+    # Minerva does not have MC
+]
+
+MINERVA_COT = [
+    # Minerva CoT (there's also a tulu and llama config)
     "minerva_math_algebra::olmes:full",
     "minerva_math_counting_and_probability::olmes:full",
     "minerva_math_geometry::olmes:full",
@@ -160,17 +164,6 @@ MINERVA_MC = [
     "minerva_math_number_theory::olmes:full",
     "minerva_math_prealgebra::olmes:full",
     "minerva_math_precalculus::olmes:full",
-]
-
-MINERVA_COT = [
-    # Minerva CoT (don't run these because they'll overwrite the MC files, methinks)
-    "minerva_math_algebra::tulu",
-    "minerva_math_counting_and_probability::tulu",
-    "minerva_math_geometry::tulu",
-    "minerva_math_intermediate_algebra::tulu",
-    "minerva_math_number_theory::tulu",
-    "minerva_math_prealgebra::tulu",
-    "minerva_math_precalculus::tulu",
 ]
 
 BBH_COT = [

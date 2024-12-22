@@ -27,7 +27,9 @@ METRICS_TO_KEEP = [
     "correct_choice",
     "exact_match",
     "f1",
-    "recall"
+    "recall",
+    "pass_at_1",
+    "pass_at_10",
 ]
 
 MODEL_OUTPUT_TO_KEEP = [
@@ -107,6 +109,12 @@ def process_predictions(file_path):
             entry[col] = metrics[col] if col in metrics else None
         for col in MODEL_OUTPUT_TO_KEEP:
             entry[col] = [output[col] if col in output else None for output in model_output]
+
+        # For some generation benchmarks, correct_choice is a str, but this will cause a type error
+        # when indexing this column
+        if isinstance(entry['correct_choice'], str):
+            entry['correct_choice'] = 0
+
         processed += [entry]
     return processed
 
@@ -280,6 +288,34 @@ def verify_df(df):
             print(f"  - Model: {model}, Task: {task}")
 
 
+def sanity_check(folder_name):
+    """ 
+    All leaf folders should have the same eval data. This prints folders
+    that do not have data compared to evals that appear at least once.
+    """
+    data_dir = Path(DATA_DIR).resolve()
+    data_dir.mkdir(exist_ok=True)
+
+    aws_dir = data_dir / folder_name
+
+    all_files = set()
+    folder_files = defaultdict(set)
+
+    # Traverse the directory recursively
+    for root, dirs, files in os.walk(aws_dir):
+        dirs[:] = [d for d in dirs if d != "local_testing"]  # Exclude "local_testing" directories
+        if not dirs:  # It's a leaf directory
+            folder_files[root] = set(files)
+            all_files.update(files)
+
+    # Check for consistency
+    for folder, files in folder_files.items():
+        missing_files = all_files - files
+        if missing_files:
+            print(f"\033[91mFolder: {folder}\033[0m")
+            print(f"Missing files:\n  - " + '\n  - '.join(sorted(missing_files)))
+
+
 def main(folder_name):
     data_dir = Path(DATA_DIR).resolve()
     data_dir.mkdir(exist_ok=True)
@@ -331,4 +367,5 @@ def main(folder_name):
 if __name__ == '__main__': 
     folder_name = "aws" # 30min
     # folder_name = "consistent_ranking" # 3hr
+    # sanity_check(folder_name)
     main(folder_name)
