@@ -26,13 +26,13 @@ pip install git+https://github.com/huggingface/transformers
 INPUT_DIR=/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-5xC/step81352-unsharded
 OUTPUT_DIR=/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-5xC/step81352-unsharded-hf
 TOKENIZER_PATH=/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/latest/tokenizer.json
-python scripts/convert_olmo_to_hf_new.py --input_dir $INPUT_DIR --output_dir $OUTPUT_DIR --tokenizer_json_path $TOKENIZER_PATH
+python olmo-repos/OLMo/scripts/convert_olmo_to_hf_new.py --input_dir $INPUT_DIR --output_dir $OUTPUT_DIR --tokenizer_json_path $TOKENIZER_PATH
 
 # OLMo 2 models (post-peteish)
 INPUT_DIR=/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-5xC/step81352-unsharded
 OUTPUT_DIR=/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-5xC/step81352-unsharded-hf
 TOKENIZER_PATH=/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/latest/tokenizer.json
-python scripts/convert_olmo2_to_hf.py --input_dir $INPUT_DIR --output_dir $OUTPUT_DIR --tokenizer_json_path $TOKENIZER_PATH
+python olmo-repos/OLMo/scripts/convert_olmo2_to_hf.py --input_dir $INPUT_DIR --output_dir $OUTPUT_DIR --tokenizer_json_path $TOKENIZER_PATH
 
 # Convert in a batch
 conda activate metaeval
