@@ -53,7 +53,7 @@ def display_task_variants(results, key, transpose=False, as_prct=True, inverse=F
     display_table(results, transpose=transpose)
 
 
-def display_table(df, transpose=False):
+def display_table(df, transpose=False, monospace=False):
     # Show as HTLM
     if transpose: df = df.transpose()
     html = df.to_html(escape=False)
@@ -62,5 +62,6 @@ def display_table(df, transpose=False):
         html +
         '</div>'
     )
+    if monospace: styled_html = styled_html.replace('<table', '<table style="font-family: monospace"')
     styled_html = styled_html.replace('<td', '<td style="white-space: nowrap;"') # no wrap on table cells!
     display(HTML(styled_html))

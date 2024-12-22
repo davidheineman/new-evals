@@ -39,6 +39,7 @@ MODEL_OUTPUT_TO_KEEP = [
 SIZE_PREFIXES = [
     f'-{size}-' for size in ['3B', '1B', '760M', '750M', '530M', '370M', '300M', '190M', '150M']
 ]
+SIZE_PREFIXES_FIX = {'3B': '3.2B', '1B': '1.3B'}
 
 CHINHILLA_MULT = [
     '0.5xC', '1xC', '2xC', '5xC', '10xC', '15xC', '20xC'

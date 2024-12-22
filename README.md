@@ -7,6 +7,9 @@ pip install -e . # [dev] # --no-deps
 
 # (for vllm support) install nightly vllm=
 pip install https://vllm-wheels.s3.us-west-2.amazonaws.com/nightly/vllm-1.0.0.dev-cp38-abi3-manylinux1_x86_64.whl
+
+# sanity check
+oe-eval --model pythia-160m --task drop::olmes:full gsm8k::olmes:full jeopardy::olmes:full naturalqs::olmes:full squad::olmes:full triviaqa::olmes:full --run-local --output-dir /Users/dhei/ai2/new-evals/workspace --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing --limit 20
 ```
 
 ### Converting OLMo Checkpoints
@@ -57,23 +60,13 @@ cd olmo-repos/olmo
 git checkout ladder-1xC
 pip install -e .
 
-# Example: Run variance analysis + predictions
-python scripts/scaling/variance_analysis.py -k v2_main_variance -c scripts/scaling/final_variance.json -o figure/peteish-moreeval/variance.pdf --last_n_points 10 --run_prediction
-
-python scripts/scaling/step2.py -k v2_main -c scripts/scaling/step2.json -o figure/peteish-moreeval/step2_main.pdf --skip_perc 0.1 --moving_avg 5
-
+# Download wandb logs (see OLMo library for all downloads)
 python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-1xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-1xC.csv
 python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-2xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-2xC.csv
 python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-5xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-5xC.csv
 python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-10xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-10xC.csv
-```
 
-```sh
-# A failed attempt to increase memory swap size
-free -h
-sudo fallocate -l 50G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-free -h
+# Sanity check: Run variance analysis + predictions
+python scripts/scaling/variance_analysis.py -k v2_main_variance -c scripts/scaling/final_variance.json -o figure/peteish-moreeval/variance.pdf --last_n_points 10 --run_prediction
+python scripts/scaling/step2.py -k v2_main -c scripts/scaling/step2.json -o figure/peteish-moreeval/step2_main.pdf --skip_perc 0.1 --moving_avg 5
 ```
