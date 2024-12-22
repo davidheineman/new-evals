@@ -4,7 +4,8 @@ from pathlib import Path
 parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
 
-from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_INTERMEDIATE, MODEL_LIST_MIXES, OE_EVAL_OFFICIAL_MODELS
+from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_INTERMEDIATE, MODEL_LIST_MIXES, OE_EVAL_BASE_MODELS, OE_EVAL_INSTRUCT_MODELS, OE_EVAL_ALL_MODELS
+from analysis.utils.constants_final_6_ckpts import MODEL_LIST_FINAL_SIX_CKPTS
 from analysis.utils.constants_models import WEKA_CLUSTERS
 from analysis.utils.constants_tasks import MC_TASKS_COPY_COLORS
 
@@ -21,8 +22,11 @@ from analysis.utils.constants_tasks import MINERVA_MC, MINERVA_COT
 from analysis.utils.constants_tasks import BBH_MC, BBH_COT
 from analysis.utils.constants_tasks import PERTURB_COT_TASKS
 
-MODEL_LIST_ALL = MODEL_LADDER_LIST + MODEL_LIST_INTERMEDIATE + MODEL_LIST_MIXES
-MODEL_LIST_ALL += OE_EVAL_OFFICIAL_MODELS
+MODEL_LIST_ALL = []
+MODEL_LIST_ALL += MODEL_LADDER_LIST + MODEL_LIST_INTERMEDIATE + MODEL_LIST_MIXES
+MODEL_LIST_ALL += OE_EVAL_BASE_MODELS
+# MODEL_LIST_ALL += OE_EVAL_INSTRUCT_MODELS
+# MODEL_LIST_ALL += MODEL_LIST_FINAL_SIX_CKPTS
 
 TASK_LIST_ALL = []
 
@@ -33,13 +37,34 @@ TASK_LIST_ALL = []
 
 # TASK_LIST_ALL += MC_TASKS_COPY_COLORS
 # TASK_LIST_ALL += GEN_TASKS_OLMES
-# TASK_LIST_ALL += GEN_TASKS_EXTENDED + BBH_QA
-# TASK_LIST_ALL += MMLU_PRO_MC 
-TASK_LIST_ALL += AGI_EVAL_COT + MMLU_PRO_COT # Currently using :cot::none!
+# TASK_LIST_ALL += AGI_EVAL_MC + BBH_MC + MMLU_PRO_MC # + MINERVA_MC
+# TASK_LIST_ALL += AGI_EVAL_COT + MMLU_PRO_COT # Currently using :cot::none!
 
 # TASK_LIST_ALL += MMLU_PRO_RC
 # TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
 # TASK_LIST_ALL += PERTURB_COT_TASKS
+
+
+# FOR MODEL LADDER
+TASK_LIST_ALL += [
+    # GSM CoT
+    "gsm8k::olmes",
+
+    # # Minerva CoT (olmes version)
+    # "minerva_math_algebra::olmes:full",
+    # "minerva_math_counting_and_probability::olmes:full",
+    # "minerva_math_geometry::olmes:full",
+    # "minerva_math_intermediate_algebra::olmes:full",
+    # "minerva_math_number_theory::olmes:full",
+    # "minerva_math_prealgebra::olmes:full",
+    # "minerva_math_precalculus::olmes:full",
+
+    # # Coding
+    # "codex_humaneval:temp0.8",
+    # "mbpp::ladder",
+    # "mbppplus::ladder",
+    # "codex_humanevalplus::ladder",
+]
 
 
 # # FOR TESTING
@@ -47,8 +72,13 @@ TASK_LIST_ALL += AGI_EVAL_COT + MMLU_PRO_COT # Currently using :cot::none!
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' in task] # <- MMLU only
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' in task and ':para' in task] # <- MMLU:para only
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'coqa:' not in task] # <- coqa is not setup properly
-# MODEL_LIST_ALL = [MODEL_LIST_ALL[1]] # <- only use first model!
+# MODEL_LIST_ALL = [MODEL_LIST_INTERMEDIATE[1]] # <- only use first model!
+# MODEL_LIST_ALL = [OE_EVAL_INSTRUCT_MODELS[0]]
+# MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if 'peteish7' in model or 'peteish13' in model] # <- only peteish7!
+# MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if '-3B-' in model] # <- 3B models!
+# MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if 'qwen2.5-72b' in model or 'qwen2.5-32b' in model or 'qwen2.5-14b' in model] # <- only 3B ladder models!
 # TASK_LIST_ALL = SYNTHETIC_TASKS # <- only use synthetic tasks!
+# TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'arc_' not in task]
 
 
 def run_eval(model_list, task_list, model_type='hf', gpus=1):
@@ -63,7 +93,7 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1):
         --model-type {model_type} \
         --gpus {gpus} \
         --beaker-workspace ai2/davidh \
-        --beaker-image davidh/oe-eval-metaeval-3 \
+        --beaker-image davidh/oe-eval-metaeval \
         --gantry-secret-aws-access-key-id AWS_ACCESS_KEY_ID \
         --gantry-secret-aws-secret-access AWS_SECRET_ACCESS_KEY \
         --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
@@ -81,24 +111,29 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1):
 
 
 def main():
-    print('Note! I added a 10K instance limit')
+    print('🫢😧 Using a 10K instance limit 🤫🫣')
     print(f'Launching {len(MODEL_LIST_ALL)} models on {len(TASK_LIST_ALL)} tasks (10 second sleep to confirm...)')
-    time.sleep(10)
+    # time.sleep(10)
 
     for model in MODEL_LIST_ALL:
-        if model in OE_EVAL_OFFICIAL_MODELS:
+        if model in OE_EVAL_ALL_MODELS:
             # From my testing, looks like anything less than 4 GPUs on 13B+ models (or Gemma 7B+) breaks
             # Also 70B model do not work on neptune (L40s)
             model_type = 'vllm'
-            if model in ['gemma-7b', 'gemma2-9b', "llama2-13b", "llama3-70b", "llama3.1-70b", "qwen2.5-14b", "qwen2.5-32b", "qwen2.5-72b"]:
+            if model in ['gemma-7b', 'gemma2-9b', "gemma2-2b-instruct", "gemma2-9b-instruct", "gemma2-9b-instruct-SimPO", "llama2-13b", "llama3-70b", "llama3.1-70b", "qwen2.5-14b", "qwen2.5-32b", "qwen2.5-72b", "llama3.1-70b-instruct", "qwen2.5-14b-instruct"]:
                 gpus = 4
             else:
                 gpus = 1 # don't need many GPUs for small models
         elif 'peteish13' in model or 'peteish7' in model:
             model_type = 'vllm'
             gpus = 4
-        else:
+        elif model in MODEL_LIST_MIXES or ('-3B-' in model):
+            # Our 3B models have a head size of 208. This is not supported by PagedAttention and will throw errors.
             model_type = 'hf'
+            gpus = 1
+        else:
+            # model_type = 'hf'
+            model_type = 'vllm'
             gpus = 1
 
         run_eval(model, TASK_LIST_ALL, model_type, gpus)

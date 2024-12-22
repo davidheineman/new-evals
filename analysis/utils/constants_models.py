@@ -1,5 +1,5 @@
 WEKA_CLUSTERS = ",".join(
-    ["ai2/jupiter-cirrascale-2", "ai2/saturn-cirrascale"]
+    ["ai2/jupiter-cirrascale-2", "ai2/saturn-cirrascale", "ai2/ganymede-cirrascale"]
 )
 # "ai2/neptune-cirrascale", # L40s, can't load 70B+
 
@@ -30,7 +30,7 @@ MODEL_LADDER_LIST = [
     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-760M-10xC",
     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-10xC",
     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-3B-10xC",
-    "weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish7/step928646-hf-vllm",
+    "weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish7/step928646-hf-vllm-2", # converted to new vllm format
     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm",
 ]
 
@@ -230,7 +230,7 @@ MODEL_LIST_MIXES = [
 ]
 
 # Officially supported models in oe-eval as of 12/6/2024
-OE_EVAL_OFFICIAL_MODELS = [
+OE_EVAL_BASE_MODELS = [
     # Base Models
     "deepseek-7b",
     "falcon-7b",
@@ -248,7 +248,6 @@ OE_EVAL_OFFICIAL_MODELS = [
     "llama3.1-70b",
     "mistral-7b-v0.1",
     "mistral-7b-v0.3",
-    "mpt-1b-rpj-200b",
     "mpt-7b",
     "neo-7b",
     "olmo-1b",
@@ -268,6 +267,7 @@ OE_EVAL_OFFICIAL_MODELS = [
     "qwen2.5-14b",
     "qwen2.5-32b",
     "qwen2.5-72b",
+    # "mpt-1b-rpj-200b",
 
     # Other models (instruct, API, broken base models)
 
@@ -277,28 +277,13 @@ OE_EVAL_OFFICIAL_MODELS = [
     # "dclm-7b-instruct",
     # "deepseek-v2-lite-instruct",
     # "falcon-rw-7b",
-    # "gemma2-2b-instruct",
-    # "gemma2-9b-instruct",
-    # "gemma2-9b-instruct-SimPO",
-    # "llama3.2-1b-instruct",
-    # "llama3.2-3b-instruct",
-    # "llama3-8b-instruct",
-    # "llama3.1-8b-instruct",
-    # "llama-3.1-tulu-2-8b",
-    # "llama-3.1-tulu-2-dpo-8b",
-    # "llama3.1-70b-instruct",
     # "mistral-nemo-base-2407-12b",
     # "mistral-nemo-base-2407-12b-instruct",
     # "mixtral-8x7b-v0.1",
     # "mixtral-8x22b-v0.1",
-    # "ministral-8b-instruct-2410",
     # "mpt-7b-instruct",
-    # "olmo-7b-0724-instruct",
-    # "olmoe-1b-7b-0924-instruct",
     # "persimmon-8b-base",
     # "persimmon-8b-chat",
-    # "qwen2.5-7b-instruct",
-    # "qwen2.5-14b-instruct",
     # "rpj-incite-7b",
     # "stablelm-2-1_6b",
     # "stablelm-2-12b",
@@ -306,8 +291,6 @@ OE_EVAL_OFFICIAL_MODELS = [
     # "tulu-2-dpo-7b",
     # "xgen-7b-4k-base",
     # "xgen-7b-8k-inst",
-    # "zamba2-7b",
-    # "zamba2-7b-instruct",
     # "zephyr-7b-beta",
     # "gpt-3.5-turbo-0125",
     # "gpt-4o-mini-2024-07-18",
@@ -350,3 +333,25 @@ OE_EVAL_OFFICIAL_MODELS = [
     # "tulu-L3.1-70B-v3.8-lr_2e-6-2_epochs",
     # "tulu-L3.1-70B-v3.8-lr_2e-6-2_epochs-pif_dpo-2e-7",
 ]
+
+OE_EVAL_INSTRUCT_MODELS = [
+    "gemma2-2b-instruct",
+    "gemma2-9b-instruct",
+    "gemma2-9b-instruct-SimPO",
+    "llama3.2-1b-instruct",
+    "llama3.2-3b-instruct",
+    "llama3-8b-instruct",
+    "llama3.1-8b-instruct",
+    "llama-3.1-tulu-2-8b",
+    "llama-3.1-tulu-2-dpo-8b",
+    "llama3.1-70b-instruct",
+    "olmo-7b-0724-instruct",
+    "olmoe-1b-7b-0924-instruct",
+    "qwen2.5-7b-instruct",
+    "qwen2.5-14b-instruct",
+    "zamba2-7b",
+    "zamba2-7b-instruct",
+    "ministral-8b-instruct-2410",
+]
+
+OE_EVAL_ALL_MODELS = OE_EVAL_BASE_MODELS + OE_EVAL_INSTRUCT_MODELS

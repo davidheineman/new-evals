@@ -29,20 +29,31 @@ ai2/saturn-cirrascale\
 # mmlu_pro_math:cot::llama3.1 \
 # mmlu_pro_psychology:cot::llama3.1 \
 # "
+# TASK_LIST="\
+# agi_eval_lsat-ar:cot::none \
+# agi_eval_sat-math:cot::none \
+# mmlu_pro_math:cot::none \
+# mmlu_pro_psychology:cot::none \
+# "
 TASK_LIST="\
-agi_eval_lsat-ar:cot::none \
-agi_eval_sat-math:cot::none \
-mmlu_pro_math:cot::none \
-mmlu_pro_psychology:cot::none \
+gsm8k::olmes \
 "
-MODEL_LIST="\
-weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-190M-1xC \
-weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-2xC \
-"
+# codex_humaneval:temp0.8 \
+# mbppplus::ladder \
+# mbpp::ladder \
+# codex_humanevalplus::ladder \
+# MODEL_LIST="\
+# weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-190M-1xC \
+# weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-2xC \
+# "
 
 # MODEL_LIST="\
 # weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm \
 # "
+
+MODEL_LIST="\
+weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-10xC/step162000-unsharded-hf \
+"
 
 # MODEL_LIST="\
 # llama3-70b \
@@ -52,7 +63,7 @@ weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M
 # MODEL_TYPE=vllm
 
 GPUS=1
-MODEL_TYPE=hf
+MODEL_TYPE=vllm
 
 oe-eval \
     --task $TASK_LIST \

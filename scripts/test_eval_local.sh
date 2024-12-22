@@ -9,22 +9,35 @@ DATA_DIR=/root/ai2/metaeval/data # data to copy into Dockerfile
 rm -rf ~/ai2/metaeval/olmo-repos/oe-eval-internal/data && \
 cp -r $DATA_DIR ~/ai2/metaeval/olmo-repos/oe-eval-internal/data && \
 
+
 oe-eval \
     --task \
-        mmlu_pro_math:cot::none \
-        agi_eval_lsat-lr:cot::none \
+        gsm8k::olmes \
     --output-dir $OUTPUT_DIR \
     --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing \
     --model \
-        pythia-160m \
+        /oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-10xC/step162000-unsharded-hf \
     --model-type hf \
     --run-local \
     --recompute-metrics \
-    --limit 100
+    --limit 9999999
+
+# /oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-190M-1xC \
+# /oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm \
+# /oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish7/step928646-hf-vllm-2 \
+
+
+# gsm8k::olmes \
+# minerva_math_algebra::olmes:full \
+# minerva_math_counting_and_probability::olmes:full \
+# minerva_math_geometry::olmes:full \
+# minerva_math_intermediate_algebra::olmes:full \
+# minerva_math_number_theory::olmes:full \
+# minerva_math_prealgebra::olmes:full \
+# minerva_math_precalculus::olmes:full \
 
 # oe-eval --list-models
 
-# /oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm \
 # /oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-190M-1xC \
 # /oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-2xC \
 # /oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-5xC/step81352-unsharded-hf \
