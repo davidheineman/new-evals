@@ -6,7 +6,7 @@ from openai.types.chat import ChatCompletion
 
 from .__init__ import ROOT_DIR
 
-DEFAULT_OPENAI_SECRET_PATH = os.path.join(ROOT_DIR, '.OPENAI-SECRET')
+DEFAULT_OPENAI_SECRET_PATH = os.path.join(ROOT_DIR, '.openai')
 
 DEFAULT_KWARGS_OPENAI = {
     'model': "gpt-4o-mini",

@@ -61,6 +61,11 @@ pip install -e .
 python scripts/scaling/variance_analysis.py -k v2_main_variance -c scripts/scaling/final_variance.json -o figure/peteish-moreeval/variance.pdf --last_n_points 10 --run_prediction
 
 python scripts/scaling/step2.py -k v2_main -c scripts/scaling/step2.json -o figure/peteish-moreeval/step2_main.pdf --skip_perc 0.1 --moving_avg 5
+
+python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-1xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-1xC.csv
+python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-2xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-2xC.csv
+python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-5xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-5xC.csv
+python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-10xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-10xC.csv
 ```
 
 ```sh
