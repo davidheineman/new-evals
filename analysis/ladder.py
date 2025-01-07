@@ -165,17 +165,14 @@ def get_ladder_data(df, task_name, train_models, eval_models, step='max'):
         else:
             size = model
         
-        # super hacky temporary thing (pls fix soon)
-        # if 'gsm' in task_name:
-        #     loss_task_name = f'{task_name}:perturb_cot'
-        olmes_gen = ["drop", "jeopardy", "naturalqs", "squad", "triviaqa"]
+        # # super hacky temporary thing (pls fix soon)
         loss_task_name = None
-        if 'mmlu_pro_' in task_name:
-            loss_task_name = task_name.replace(':cot', '') # this uses the :cot responses, but :rc is easier to predict
-        elif ':cot' not in task_name and task_name in olmes_gen:
-            loss_task_name = f'{task_name}:perturb_rc'
-        elif ':cot' in task_name:
-            loss_task_name = task_name.replace(':cot', ':perturb_cot')
+        # if 'mmlu_pro_' in task_name:
+        #     loss_task_name = task_name.replace(':cot', '') # this uses the :cot responses, but :rc is easier to predict
+        # elif ':cot' not in task_name:
+        #     loss_task_name = f'{task_name}:perturb_rc'
+        # elif ':cot' in task_name:
+        #     loss_task_name = task_name.replace(':cot', ':perturb_cot')
         
         metric_names = ["correct_choice", "logits_per_byte", "acc_per_char", "exact_match", "pass_at_1", "pass_at_10"]
 
@@ -496,7 +493,7 @@ def run_variance_analysis(df, tasks, eval_models, last_n_points=10, ax=None, con
             print(f'{task_name} failed: {e}')
             continue
 
-    df, fig = plot_variance_analysis(config, variance_results, last_n_points)
+    fig, df = plot_variance_analysis(config, variance_results, last_n_points)
 
     return df
     

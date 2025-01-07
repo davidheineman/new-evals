@@ -13,8 +13,7 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=
         def custom_colormap(value):
             if np.isnan(value):
                 return (0, 0, 0, 0)
-            elif value < alpha or value > (1-alpha):
-            # elif value < 0.05:
+            elif value < alpha: # or value > (1-alpha):
                 return (1, 1, 1, 0.05)
             else:
                 return plt.cm.viridis(value)
