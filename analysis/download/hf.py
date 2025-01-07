@@ -1,5 +1,14 @@
-from huggingface_hub import HfApi, login, HfHubHTTPError
+from huggingface_hub import HfApi, login, hf_hub_download
 import os
+
+import sys
+import os
+
+# Add the parent directory to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils import DATA_DIR
+
 
 def push_parquet_to_hf(parquet_file_path, hf_dataset_name, private=True, overwrite=False):
     login(new_session=False)
@@ -31,3 +40,20 @@ def push_parquet_to_hf(parquet_file_path, hf_dataset_name, private=True, overwri
         repo_type="dataset"
     )
     print(f"File '{path_in_repo}' uploaded to '{hf_dataset_name}'.")
+
+
+def download_parquet_from_hf(hf_dataset_name, file_name, local_path):
+    print(f'Downloading {file_name} -> {local_path}')
+    file_path = hf_hub_download(
+        repo_id=hf_dataset_name,
+        filename=file_name,
+        repo_type="dataset",
+        local_dir=local_path
+    )
+    return file_path
+
+
+def pull_predictions_from_hf(repo_id, name):
+    file_name = f'all_{name}_predictions.parquet'
+    local_path = DATA_DIR
+    download_parquet_from_hf(repo_id, file_name, local_path)

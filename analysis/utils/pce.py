@@ -21,7 +21,7 @@ import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid value encountered in multiply")
 
 
-def compute_pairwise_p_values(seg_scores, num_permutations=1000, seed: int = 4):
+def compute_pairwise_p_values(seg_scores, num_permutations=1000, seed: int = 4, return_scores = False):
     """
     Author: Brian Thompson
     Date: June 2024
@@ -124,6 +124,8 @@ def compute_pairwise_p_values(seg_scores, num_permutations=1000, seed: int = 4):
             test_delta = sys_scores[ii] - sys_scores[jj]  # float
             p_vals[ii, jj] = np.sum(null_delta >= test_delta) / num_permutations
 
+    if return_scores:
+        return p_vals, sys_scores/seg_scores.shape[1], partial
     return p_vals
 
 
