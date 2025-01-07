@@ -9,7 +9,8 @@ pip install -e . # [dev] # --no-deps
 pip install https://vllm-wheels.s3.us-west-2.amazonaws.com/nightly/vllm-1.0.0.dev-cp38-abi3-manylinux1_x86_64.whl
 
 # sanity check
-oe-eval --model pythia-160m --task drop::olmes:full gsm8k::olmes:full jeopardy::olmes:full naturalqs::olmes:full squad::olmes:full triviaqa::olmes:full --run-local --output-dir /Users/dhei/ai2/new-evals/workspace --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing --limit 20
+# drop::olmes:full gsm8k::olmes:full jeopardy::olmes:full naturalqs::olmes:full squad::olmes:full triviaqa::olmes:full
+oe-eval --model pythia-160m --task agi_eval_lsat-ar:cot::none bbh_boolean_expressions:cot::olmes:full mmlu_pro_math:cot::none --run-local --output-dir /Users/dhei/ai2/new-evals/workspace --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing --limit 20
 ```
 
 ### Converting OLMo Checkpoints

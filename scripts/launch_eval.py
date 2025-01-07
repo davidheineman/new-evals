@@ -38,33 +38,33 @@ TASK_LIST_ALL = []
 # TASK_LIST_ALL += MC_TASKS_COPY_COLORS
 # TASK_LIST_ALL += GEN_TASKS_OLMES
 # TASK_LIST_ALL += AGI_EVAL_MC + BBH_MC + MMLU_PRO_MC # + MINERVA_MC
-# TASK_LIST_ALL += AGI_EVAL_COT + MMLU_PRO_COT # Currently using :cot::none!
+TASK_LIST_ALL += AGI_EVAL_COT # + MMLU_PRO_COT
 
-# TASK_LIST_ALL += MMLU_PRO_RC
+TASK_LIST_ALL += MMLU_PRO_RC
 # TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
 # TASK_LIST_ALL += PERTURB_COT_TASKS
 
 
 # FOR MODEL LADDER
-TASK_LIST_ALL += [
-    # GSM CoT
-    "gsm8k::olmes",
-
-    # # Minerva CoT (olmes version)
-    # "minerva_math_algebra::olmes:full",
-    # "minerva_math_counting_and_probability::olmes:full",
-    # "minerva_math_geometry::olmes:full",
-    # "minerva_math_intermediate_algebra::olmes:full",
-    # "minerva_math_number_theory::olmes:full",
-    # "minerva_math_prealgebra::olmes:full",
-    # "minerva_math_precalculus::olmes:full",
-
-    # # Coding
-    # "codex_humaneval:temp0.8",
-    # "mbpp::ladder",
-    # "mbppplus::ladder",
-    # "codex_humanevalplus::ladder",
-]
+# TASK_LIST_ALL += [
+#     # GSM CoT
+#     "gsm8k::olmes",
+# 
+#     # Minerva CoT (olmes version)
+#     "minerva_math_algebra::olmes:full",
+#     "minerva_math_counting_and_probability::olmes:full",
+#     "minerva_math_geometry::olmes:full",
+#     "minerva_math_intermediate_algebra::olmes:full",
+#     "minerva_math_number_theory::olmes:full",
+#     "minerva_math_prealgebra::olmes:full",
+#     "minerva_math_precalculus::olmes:full",
+# 
+#     # Coding
+#     "codex_humaneval:temp0.8",
+#     "mbpp::ladder",
+#     "mbppplus::ladder",
+#     "codex_humanevalplus::ladder",
+# ]
 
 
 # # FOR TESTING
