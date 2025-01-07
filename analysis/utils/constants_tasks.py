@@ -109,7 +109,7 @@ MMLU_PRO_MC = [
     "mmlu_pro_psychology:mc::none",
     "mmlu_pro_law:mc::none",
 ]
-MMLU_PRO_RC          = [task.replace(":mc", ":rc") for task in MMLU_PRO_MC]
+MMLU_PRO_RC          = [task.replace(":mc::none", ":rc::none") for task in MMLU_PRO_MC]
 MMLU_PRO_COT         = [task.replace(":mc::none", ":cot::none") for task in MMLU_PRO_MC]
 # MMLU_PRO_COT         = [task.replace(":mc::none", ":cot::llama3.1") for task in MMLU_PRO_MC] # <- broken on base models
 # MMLU_PRO_PERTURB_COT = [task.replace(":mc", ":perturb_cot") for task in MMLU_PRO_MC] # <- does not exist yet!

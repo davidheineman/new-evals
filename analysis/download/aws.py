@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 import json
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
@@ -35,12 +36,49 @@ def download_file(s3_client, bucket_name, key, local_dir):
         if s3_file_size == local_file_size:
             return  # Skip download if the file already exists and has the same size
 
-    os.makedirs(os.path.dirname(local_path), exist_ok=True)
-
     # Manual override for Ian's eval setup
     local_path.replace('all_olmes_rc_tasks/', '')
     local_path.replace('all_olmes_paraphrase_tasks/', '')
 
+    # Manual override for Matt J's eval setup
+    if 'olmo2_microanneals' in local_path:
+        # 1) Seperate checkpoint: [MODEL_NAME]_step2693-hf => [MODEL_NAME]/step2693-hf
+        local_path = re.sub(r'([a-zA-Z0-9_-]+)_step(\d+)-hf', r'\1/step\2-hf', local_path)
+
+        # 2) Delete the OLMo 1 evals (__olmo1)
+        if '__olmo1' in local_path: return
+
+        # 3) Remove any subfolders after checkpoint: [MODEL_NAME]/step2693-hf/gsm8k__olmes/result.json => step2693-hf/result.json
+        local_path = re.sub(r'(step\d+-hf)(/.*)?/([^/]+)$', r'\1/\3', local_path)
+
+        # 4) Get human-readable name from model description
+        #    OLMo-medium_peteish7-microanneals_peteish7-weka-microanneal-from928646_automathtext => automathtext
+        def get_short(p):
+            try:
+                # Match "fromXXXXXX_" and extract the part after it
+                return re.search(r'from\d+_(.*)', p).group(1)
+            except Exception:
+                return p
+        
+        def process_path(input_path):
+            """ Perform a substitution on one folder in the path """
+            parts = input_path.split('/')
+            parts[-3] = get_short(parts[-3])
+            final_path = '/'.join(parts)
+            return final_path
+
+        local_path = process_path(local_path)
+
+    # Manual override for Luca's eval setup
+    if 'olmo2_anneals' in local_path or 'olmo2_soups' in local_path:
+        # 1) Remove any subfolders after checkpoint: [MODEL_NAME]/step2693-hf/gsm8k__olmes/result.json => step2693-hf/result.json
+        local_path = re.sub(r'([^/]+)/[^/]+/([^/]+)$', r'\1/\2', local_path)
+
+        # 2) Add fake model step: [MODEL_NAME]/result.json => [MODEL_NAME]/step0-hf/result.json
+        dir_path, file_name = os.path.split(local_path)
+        local_path = os.path.join(dir_path, "step0-hf", file_name)
+
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
     s3_client.download_file(bucket_name, key, local_path)
 
 
@@ -60,12 +98,17 @@ def mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100):
         for result in tqdm(executor.map(fetch_page, pages), desc="Listing S3 entries"):
             keys.extend(result)
 
-    # ProcessPoolExecutor seems not to work with AWS, so we use ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=max_threads) as executor:
-        futures = {executor.submit(download_file, s3_client, bucket_name, key, local_dir): key for key in keys}
-        with tqdm(total=len(futures), desc="Syncing download folder from S3", unit="file") as pbar:
-            for _ in as_completed(futures):
-                pbar.update(1)
+    if max_threads > 1:
+        # ProcessPoolExecutor seems not to work with AWS, so we use ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=max_threads) as executor:
+            futures = {executor.submit(download_file, s3_client, bucket_name, key, local_dir): key for key in keys}
+            with tqdm(total=len(futures), desc="Syncing download folder from S3", unit="file") as pbar:
+                for _ in as_completed(futures):
+                    pbar.update(1)
+    else:
+        # Sequential implmentation
+        for key in tqdm(keys, desc="Syncing download folder from S3", unit="file"):
+            download_file(s3_client, bucket_name, key, local_dir)
 
 
 def main():
@@ -73,6 +116,18 @@ def main():
     Mirror AWS bucket to a local folder
     https://us-east-1.console.aws.amazon.com/s3/buckets/ai2-llm?prefix=eval-results/downstream/metaeval/OLMo-ladder/&region=us-east-1&bucketType=general
     """
+    # bucket_name = 'ai2-llm'
+    # s3_prefix = 'evaluation/microanneal-peteish-7b-postmortem/'
+    # folder_name = 'olmo2_microanneals'
+
+    # bucket_name = "ai2-lucas-archival"
+    # s3_prefix = "evaluations/2024-09"
+    # folder_name = 'olmo2_anneals'
+
+    # bucket_name = "ai2-llm"
+    # s3_prefix = "evaluation/peteish7-soup"
+    # folder_name = 'olmo2_soups'
+
     bucket_name = 'ai2-llm'
     s3_prefix = 'eval-results/downstream/metaeval/'
     folder_name = 'aws'
@@ -82,7 +137,7 @@ def main():
     # folder_name = 'consistent_ranking'
 
     local_dir = f'{DATA_DIR}/{folder_name}'
-    mirror_s3_to_local(bucket_name, s3_prefix, local_dir)
+    mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100)
 
     # Launch preprocessing job!
     from preprocess import main

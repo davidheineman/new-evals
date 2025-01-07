@@ -30,6 +30,8 @@ METRICS_TO_KEEP = [
     "recall",
     "pass_at_1",
     "pass_at_10",
+    "logits_per_char_corr",
+    "logits_per_byte_corr",
 ]
 
 MODEL_OUTPUT_TO_KEEP = [
@@ -114,6 +116,10 @@ def process_predictions(file_path):
         # when indexing this column
         if isinstance(entry['correct_choice'], str):
             entry['correct_choice'] = 0
+
+        # Sometimes exact_match is bool when it should be float
+        if isinstance(entry['exact_match'], bool):
+            entry['exact_match'] = float(entry['exact_match'])
 
         processed += [entry]
     return processed

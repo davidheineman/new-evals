@@ -1,7 +1,8 @@
 CLUSTER="\
 ai2/jupiter-cirrascale-2,\
 ai2/neptune-cirrascale,\
-ai2/saturn-cirrascale\
+ai2/saturn-cirrascale,\
+ai2/ganymede-cirrascale
 "
 
 # Test configuration
@@ -36,7 +37,11 @@ ai2/saturn-cirrascale\
 # mmlu_pro_psychology:cot::none \
 # "
 TASK_LIST="\
-gsm8k::olmes \
+drop::olmes:full \
+jeopardy::olmes:full \
+naturalqs::olmes:full \
+squad::olmes:full \
+triviaqa::olmes:full \
 "
 # codex_humaneval:temp0.8 \
 # mbppplus::ladder \
