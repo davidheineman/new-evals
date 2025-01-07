@@ -11,6 +11,8 @@ from utils import DATA_DIR
 
 
 def push_parquet_to_hf(parquet_file_path, hf_dataset_name, private=True, overwrite=False):
+    print(f"Uploading to hf dataset '{hf_dataset_name}'")
+
     login(new_session=False)
     api = HfApi()
     
@@ -57,3 +59,32 @@ def pull_predictions_from_hf(repo_id, name):
     file_name = f'all_{name}_predictions.parquet'
     local_path = DATA_DIR
     download_parquet_from_hf(repo_id, file_name, local_path)
+
+
+def main():
+    push_parquet_to_hf(
+        parquet_file_path='analysis/data/all_olmo2_soups_predictions.parquet',
+        hf_dataset_name='allenai/olmo2-soups-evals',
+        overwrite=True
+    )
+
+    push_parquet_to_hf(
+        parquet_file_path='analysis/data/all_olmo2_anneals_predictions.parquet',
+        hf_dataset_name='allenai/olmo2-anneals-evals',
+        overwrite=True
+    )
+
+    push_parquet_to_hf(
+        parquet_file_path='analysis/data/all_olmo2_microanneals_predictions.parquet',
+        hf_dataset_name='allenai/olmo2-microanneals-evals',
+        overwrite=True
+    )
+
+    push_parquet_to_hf(
+        parquet_file_path='analysis/data/all_aws_predictions.parquet',
+        hf_dataset_name='allenai/ladder-evals',
+        overwrite=True
+    )
+
+
+if __name__ == '__main__': main()
