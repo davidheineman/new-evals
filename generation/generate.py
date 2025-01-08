@@ -3,12 +3,12 @@ import json, os
 from utils.gpt import openai_init
 from utils.__init__ import DATA_DIR, ROOT_DIR
 
-from paraphrase import paraphrase_task, paraphrase_few_shot
-from enlarge import enlarge_task, enlarge_task_few_shot
-from distractors import add_distractors_task, add_distractors_task_few_shot
-from cloze import convert_mc_to_rc, convert_mc_to_rc_few_shot
-from cot_perturb import perturb_cot_task, perturb_cot_task_few_shot
-from rc_perturb import perturb_rc_task, perturb_rc_task_few_shot
+from methods.paraphrase import paraphrase_task, paraphrase_few_shot
+from methods.enlarge import enlarge_task, enlarge_task_few_shot
+from methods.distractors import add_distractors_task, add_distractors_task_few_shot
+from methods.cloze import convert_mc_to_rc, convert_mc_to_rc_few_shot
+from methods.cot_perturb import perturb_cot_task, perturb_cot_task_few_shot
+from methods.rc_perturb import perturb_rc_task, perturb_rc_task_few_shot
 
 from oe_eval.tasks.base_task import Task
 from oe_eval.tasks.fewshot_sources import FEWSHOT_SOURCES
