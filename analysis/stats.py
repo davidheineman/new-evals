@@ -4,7 +4,7 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from utils.pce import compute_pairwise_p_values
+from utils.pce import compute_pairwise_p_values, compute_pairwise_p_values_paired_t_test
 from plot import plot_heatmap, plot_training
 from dataloader import get_nd_array
 
@@ -123,7 +123,7 @@ def get_sig_clusters(p_vals, alpha=0.01):
     return sig_clusters
 
 
-def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, alpha=0.05, do_plot=False, quiet=False):
+def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, alpha=0.05, num_permutations=1_000, do_plot=False, quiet=False):
     if tasks is None: 
         tasks = df.index.get_level_values('task').unique()
 
@@ -171,12 +171,13 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
             weights = create_stratified_array(unique_counts)
 
             # Compute paired permutation test with instance weights
-            p_values, mix_scores, _ = compute_weighted_pairwise_p_values(scores, weights=weights, return_scores=True)
+            p_values, mix_scores, _ = compute_weighted_pairwise_p_values(scores, num_permutations=num_permutations, weights=weights, return_scores=True)
 
             # Change task name
             task = 'olmes_macro_average'
         else:
-            p_values, mix_scores, _ = compute_pairwise_p_values(scores, num_permutations=1_000, return_scores=True)
+            p_values, mix_scores, _ = compute_pairwise_p_values(scores, num_permutations=num_permutations, return_scores=True)
+            # p_values, mix_scores, _ = compute_pairwise_p_values_paired_t_test(scores, return_scores=True)
             
             # p_values = np.nan_to_num(compute_pairwise_p_values(scores), nan=0) + np.nan_to_num(compute_pairwise_p_values(scores[::-1]).T, nan=0)
             # np.fill_diagonal(p_values, np.nan)
