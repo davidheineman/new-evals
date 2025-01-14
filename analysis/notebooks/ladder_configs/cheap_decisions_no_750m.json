@@ -1,0 +1,30 @@
+{
+    "150M": {
+        "paths": [],
+        "mode": "train",
+        "n": 0,
+        "label": "150M",
+        "color": "darkred"
+    },
+    "300M": {
+        "paths": [],
+        "mode": "train",
+        "n": 0,
+        "label": "300M",
+        "color": "darkorange"
+    },
+    "530M": {
+        "paths": [],
+        "mode": "train",
+        "n": 0,
+        "label": "530M",
+        "color": "darkgreen"
+    },
+    "1.3B": {
+        "paths": [],
+        "mode": "eval",
+        "n": 0,
+        "label": "1.3B",
+        "color": "darkblue"
+    }
+}
