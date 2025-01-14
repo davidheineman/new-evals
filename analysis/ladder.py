@@ -17,6 +17,13 @@ from scaling.step2 import fit_step2, predict_step2, plot_step2
 from scaling.predict import predict_chained, plot_chained, str_chained_fit
 from scaling.variance_analysis import compute_variance, plot_variance_analysis
 
+from scaling.step1_flops import fit_step1 as fit_step1_flops
+from scaling.step1_flops import predict_step1 as predict_step1_flops
+from scaling.step1_flops import plot_step1 as plot_step1_flops
+from scaling.step1_flops import str_chinchilla_flops_fit
+
+from scaling.predict_flops import predict_chained_flops, plot_chained as plot_chained_flops, str_chained_fit as str_chained_fit_flops
+
 DEFAULT_CONIFG_PATH = "scripts/scaling/final.json"
 FONTSIZE = 8
 
@@ -47,6 +54,34 @@ COLOR_MAP = {
     'neo': 'orange',
     'falcon': 'blue'
 }
+
+def add_ladder_data_cheap_decisions(data_by_name):
+    # Manual override for Ian's toks seen
+    TOK_SEEN_IAN_5XC = {
+        '150M': 15003942912,
+        '300M': 30006968320,
+        '530M': 53009711104,
+        '750M': 75012636672,
+        # '750M': 69909479424,
+        '1.3B': 100015669248,
+    }
+    for k, v in data_by_name.items():
+        data_by_name[k]['ds'] = [TOK_SEEN_IAN_5XC[k]]
+
+    # Add numbers for Ian's estimated FLOPs
+    MODEL_FLOPS = {
+        "150M": 1903391232,
+        "300M": 3443922944,
+        "530M": 5180751744,
+        "750M": 6373843968,
+        "1.3B": 10109071360,
+    }
+    for k, v in data_by_name.items():
+        d = TOK_SEEN_IAN_5XC[k]
+        f = float(d * MODEL_FLOPS[k])
+        data_by_name[k]["fs"] = [f]
+
+    return data_by_name
 
 
 def sort_experiment_names(experiments):
@@ -174,20 +209,35 @@ def get_ladder_data(df, task_name, train_models, eval_models, step='max'):
         # elif ':cot' in task_name:
         #     loss_task_name = task_name.replace(':cot', ':perturb_cot')
         
-        metric_names = ["correct_choice", "logits_per_byte", "acc_per_char", "exact_match", "pass_at_1", "pass_at_10"]
+        if 'exact_match' in df.columns:
+            # Load generative benchmarks
+            metric_names = ["correct_choice", "logits_per_byte", "acc_per_char", "exact_match", "pass_at_1", "pass_at_10"]
+        else:
+            metric_names = ["correct_choice", "logits_per_byte", "acc_per_char"]
 
         if step == 'max':
             _, scores = get_nd_array(df, "model", metric_names, model=model, task=task_name, step="max")
-            corr, bpb, acc, exact_match, pass_at_1, pass_at_10 = scores
+            if len(scores) == 6:
+                corr, bpb, acc, exact_match, pass_at_1, pass_at_10 = scores
+            else:
+                corr, bpb, acc = scores
+                exact_match = np.array([])
+                pass_at_1 = np.array([])
+                pass_at_10 = np.array([])
         else:
             # get results from multiple steps
             if step == 'all': step = None
             m1, corr        = get_nd_array(df, ['model', 'step', 'mix'], 'correct_choice', model=model, task=task_name, step=step)
             m2, bpb         = get_nd_array(df, ['model', 'step', 'mix'], 'logits_per_byte', model=model, task=task_name, step=step)
             m3, acc         = get_nd_array(df, ['model', 'step', 'mix'], 'acc_per_char', model=model, task=task_name, step=step)
-            m4, exact_match = get_nd_array(df, ['model', 'step', 'mix'], 'exact_match', model=model, task=task_name, step=step)
-            m5, pass_at_1   = get_nd_array(df, ['model', 'step', 'mix'], 'pass_at_1', model=model, task=task_name, step=step)
-            m6, pass_at_10  = get_nd_array(df, ['model', 'step', 'mix'], 'pass_at_10', model=model, task=task_name, step=step)
+            if len(metric_names) == 6:
+                m4, exact_match = get_nd_array(df, ['model', 'step', 'mix'], 'exact_match', model=model, task=task_name, step=step)
+                m5, pass_at_1   = get_nd_array(df, ['model', 'step', 'mix'], 'pass_at_1', model=model, task=task_name, step=step)
+                m6, pass_at_10  = get_nd_array(df, ['model', 'step', 'mix'], 'pass_at_10', model=model, task=task_name, step=step)
+            else:
+                exact_match = np.array([])
+                pass_at_1 = np.array([])
+                pass_at_10 = np.array([])
 
         if loss_task_name is not None:
             # Eventually I can delete all this when I stop using :perturb_cot for gold perplexity
@@ -262,7 +312,7 @@ def get_ladder_data(df, task_name, train_models, eval_models, step='max'):
         if model == 'peteish-moreeval-1B-10xC' and task_name == 'gsm8k':
             # manual fix for broken model
             correct_bpb = 0.5828522670464399
-
+        
         data_by_name[size]['xs'] += [correct_bpb]
         data_by_name[size]['ys'] += [acc]
         data_by_name[size]['mode'] = mode
@@ -306,8 +356,8 @@ def create_ladder_config(config_path, task_name, train_models, eval_models):
 
 def run_ladder(
         df, task_name, train_models, eval_models, config_path,
-        y_metric='rc_bpb', run_step1=True, run_step2=True, run_stacked=True,
-        axes=None, add_texts=False):
+        y_metric='rc_bpb', use_flops=False, run_step1=True, run_step2=True, run_stacked=True,
+        axes=None, add_texts=False, return_preds=False):
     # Unfortunately there are local references, so we have to be in the OLMo repo
     os.chdir('/Users/dhei/ai2/new-evals/olmo-repos/OLMo')
 
@@ -322,27 +372,59 @@ def run_ladder(
     ax_i = 0
     if run_step1:
         # Add token data
-        data_by_name_tokens = get_step1_data_by_name(configs, 'arc_easy_test_5shot', y_metric=y_metric, moving_avg=1) # we are only using this for the num tokens    
-        data_by_name = merge_dicts(data_by_name, data_by_name_tokens, overwrite_xs=(y_metric == 'c4')) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
+        if 'cheap_decisions' in config_path:
+            data_by_name = add_ladder_data_cheap_decisions(data_by_name)
+        else:
+            data_by_name_tokens = get_step1_data_by_name(configs, 'arc_easy_test_5shot', y_metric=y_metric, moving_avg=1) # we are only using this for the num tokens    
+            data_by_name = merge_dicts(data_by_name, data_by_name_tokens, overwrite_xs=(y_metric == 'c4')) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
 
         # Fit step 1
-        step1_coefficients, cov = fit_step1(data_by_name, y_metric)
+        if use_flops:
+            step1_coefficients, cov = fit_step1_flops(data_by_name, y_metric)
+        else:
+            step1_coefficients, cov = fit_step1(data_by_name, y_metric)
 
-        (
-            predicted_data_by_name, plotted_predicted_data,
-            (y, y_pred, rel_error_step_1), all_rel_errors,
-        ) = predict_step1(
-            configs, data_by_name, step1_coefficients, y_metric=y_metric, 
-        )
+        if use_flops:
+            (
+                predicted_data_by_name, plotted_predicted_data,
+                (y, step_1_y_pred, rel_error_step_1), all_rel_errors,
+            ) = predict_step1_flops(
+                configs, data_by_name, step1_coefficients, y_metric=y_metric, 
+            )
+        else:
+            (
+                predicted_data_by_name, plotted_predicted_data,
+                (y, step_1_y_pred, rel_error_step_1), all_rel_errors,
+            ) = predict_step1(
+                configs, data_by_name, step1_coefficients, y_metric=y_metric, 
+            )
 
         # Plot step 1
-        ax = axes[ax_i]
-        ax_i += 1
-        plot_step1(
-            configs, data_by_name, predicted_data_by_name, plotted_predicted_data,
-            task_name, str_chinchilla_n_d_fit(step1_coefficients), y_metric,
-            step1_coefficients, cov, ax,
-        )
+        if axes is not None:
+            ax = axes[ax_i]
+            ax_i += 1
+            if use_flops:
+                plot_step1_flops(
+                    configs, data_by_name, predicted_data_by_name, plotted_predicted_data,
+                    task_name, str_chinchilla_flops_fit(step1_coefficients), y_metric,
+                    step1_coefficients, cov, ax,
+                )
+            else:
+                plot_step1(
+                    configs, data_by_name, predicted_data_by_name, plotted_predicted_data,
+                    task_name, str_chinchilla_n_d_fit(step1_coefficients), y_metric,
+                    step1_coefficients, cov, ax,
+                )
+
+    if 'cheap_decisions' in config_path:
+        # Use intermediate checkpoints to fit step 2
+        data_by_name = get_ladder_data(df, task_name, train_models, eval_models, step='all')
+        for k1, v1 in data_by_name.items():
+            for k2, v2 in v1.items():
+                if isinstance(v2, list):
+                    import math
+                    # use last 90% of checkpoints
+                    data_by_name[k1][k2] = v2[0][math.ceil(0.1 * len(v2[0])):]
 
     if run_step2:
         task_key, configs = create_ladder_config(config_path, task_name, train_models, eval_models)
@@ -358,68 +440,104 @@ def run_ladder(
 
             (
                 predicted_data_by_name, plotted_predicted_data,
-                (y, y_pred, rel_error_step_2, delta_error), all_rel_errors,
+                (y, step_2_y_pred, rel_error_step_2, delta_error), all_rel_errors,
             ) = predict_step2(
                 configs, data_by_name, step2_coefficients, cov, y_metric=None, use_log_sigmoid=False
             )
 
             # Plot step 2
-            ax = axes[ax_i]
-            ax_i += 1
-            plot_step2(
-                configs, data_by_name, predicted_data_by_name, plotted_predicted_data, task_key, None, y_metric, 'rc_acc',
-                step2_coefficients, cov, use_log_sigmoid=False, add_texts=add_texts, ax=ax
-            )
+            if axes is not None:
+                ax = axes[ax_i]
+                ax_i += 1
+                plot_step2(
+                    configs, data_by_name, predicted_data_by_name, plotted_predicted_data, task_key, None, y_metric, 'rc_acc',
+                    step2_coefficients, cov, use_log_sigmoid=False, add_texts=add_texts, ax=ax
+                )
         except Exception as e:
             print(data_by_name)
             raise RuntimeError(f'Step 2 failed to fit: {e}')
         
+    if 'cheap_decisions' in config_path:
+        # Get step 1 data again (necessary if running with intermediate checkpoints)
+        data_by_name = get_ladder_data(df, task_name, train_models, eval_models)
+        configs = get_final_configs(config_path)
+        if 'cheap_decisions' in config_path:
+            data_by_name = add_ladder_data_cheap_decisions(data_by_name)
+        else:
+            data_by_name_tokens = get_step1_data_by_name(configs, 'arc_easy_test_5shot', y_metric=y_metric, moving_avg=1) # we are only using this for the num tokens
+            data_by_name = merge_dicts(data_by_name, data_by_name_tokens, overwrite_xs=(y_metric == 'c4')) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
+
     if run_stacked:
         assert run_step2, 'For now, you must run step 2 to get stacked preds!'
 
         # Predict stacked
-        (
-            predicted_data_by_name, plotted_predicted_data_by_name, 
-            (y, y_pred, rel_error)
-        ) = predict_chained(
-            data_by_name, step1_coefficients, step2_coefficients, use_log_sigmoid=False
-        )
+        if use_flops:
+            (
+                predicted_data_by_name, plotted_predicted_data_by_name, 
+                (y, stacked_y_pred, rel_error)
+            ) = predict_chained_flops(
+                data_by_name, step1_coefficients, step2_coefficients
+            )
+        else:
+            (
+                predicted_data_by_name, plotted_predicted_data_by_name, 
+                (y, stacked_y_pred, rel_error)
+            ) = predict_chained(
+                data_by_name, step1_coefficients, step2_coefficients, use_log_sigmoid=False
+            )
 
         # For stacked predictions, the x axis is now the y axis
         for key in data_by_name:
             data_by_name[key]['xs'] = data_by_name[key]['ys']
 
         # Plot stacked prediction
-        ax = axes[ax_i]
-        plot_chained(
-            configs,
-            data_by_name,
-            predicted_data_by_name,
-            plotted_predicted_data_by_name,
-            task_name,
-            str_chained_fit(step1_coefficients, step2_coefficients, use_log_sigmoid=False),
-            ax,
-        )
+        if axes is not None:
+            ax = axes[ax_i]
+            if use_flops:
+                plot_chained_flops(
+                    configs,
+                    data_by_name,
+                    predicted_data_by_name,
+                    plotted_predicted_data_by_name,
+                    task_name,
+                    str_chained_fit_flops(step1_coefficients, step2_coefficients),
+                    ax,
+                )
+            else:
+                plot_chained(
+                    configs,
+                    data_by_name,
+                    predicted_data_by_name,
+                    plotted_predicted_data_by_name,
+                    task_name,
+                    str_chained_fit(step1_coefficients, step2_coefficients, use_log_sigmoid=False),
+                    ax,
+                )
+            ax.legend(loc='upper left')
 
-        ax.legend(loc='upper left')
+        if 'peteish7' in eval_models:
+            # make 7B prediction
+            n = 6887575552 
+            d = 3945065873408 
+            target_name = '7B-4T'
 
-        # make 7B prediction
-        n = 6887575552 
-        d = 3945065873408 
-        target_name = '7B-4T'
+            pred_loss = chinchilla_n_d_fit([n, d], step1_coefficients)
+            fit_fn = sigmoid
+            pred_acc = fit_fn(pred_loss, *step2_coefficients)
+            data = data_by_name[target_name]
+            rel_error_stacked = 0
+            if "ys" in data:
+                actual_acc = data["ys"][-1]
+                delta_error=pred_acc - actual_acc
+                rel_error_stacked = np.abs(delta_error) / actual_acc if actual_acc > 0 else float('inf')
 
-        pred_loss = chinchilla_n_d_fit([n, d], step1_coefficients)
-        fit_fn = sigmoid
-        pred_acc = fit_fn(pred_loss, *step2_coefficients)
-        data = data_by_name[target_name]
-        actual_acc = data["ys"][-1]
-        delta_error=pred_acc - actual_acc
-        rel_error_stacked = np.abs(delta_error) / actual_acc
+    if axes is not None:
+        for ax in axes:
+            ax.set_title(task_name)
+            ax.legend(fontsize=6)
 
-    for ax in axes:
-        ax.set_title(task_name)
-        ax.legend(fontsize=6)
-
+    if return_preds:
+        return (rel_error_step_1, rel_error_step_2, None), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
     return rel_error_step_1, rel_error_step_2, rel_error_stacked
 
 

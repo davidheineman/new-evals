@@ -1,3 +1,13 @@
+Analysis tools for pre-training evaluation
+
+### Setup
+```sh
+pip install -r requirements.txt
+mkdir olmo-repos # clone olmo repos here if applicable!
+```
+
+## Other Features
+
 ### Install Custom oe-eval 
 ```sh
 git clone git@github.com:allenai/oe-eval-internal.git olmo-repos/oe-eval-internal
@@ -49,23 +59,20 @@ nohup /root/ai2/metaeval/convert_checkpoints_peteish.sh > out.out 2>&1 & tail -f
 
 ### Launching & Processing Evals
 ```sh
-python scripts/launch_eval.py # launch evals on beaker
+python scripts/launch_evals.py # launch evals on beaker
 python analysis/download/aws.py # sync from s3
 python analysis/download/preprocess.py # convert to .parquet
 
 # Detatch from current session
 nohup python scripts/launch_eval.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 nohup python analysis/download/aws.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
-
-# (in case I need it)
-nohup python analysis/download/preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 ```
 
 ### Install Ladder Model Code
 ```sh
 git clone https://github.com/allenai/OLMo/ olmo-repos/olmo
 cd olmo-repos/olmo
-git checkout ladder-1xC
+git checkout 62267db538fdafc27dda5b3a1946543d6d42b44f # git checkout ladder-1xC
 pip install -e .
 
 # Download wandb logs (see OLMo library for all downloads)
