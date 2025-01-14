@@ -69,7 +69,7 @@ def generate_gpt(prompt: list[str], parallel: bool=True, **kwargs) -> list[str]:
     
     if parallel:
         # Query OpenAI using concurrent
-        with concurrent.futures.ThreadPoolExecutor() as exec:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=100) as exec:
         # with concurrent.futures.ProcessPoolExecutor() as exec:
             futures = [exec.submit(_call_openai, CLIENT, p, params) for p in prompt]
             cands = [f.result() for f in tqdm(futures, desc="Querying OpenAI")]
