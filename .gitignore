@@ -8,3 +8,4 @@ workspace/
 vllm/
 data-bak/
 .openai
+.comet-api-key
