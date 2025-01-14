@@ -94,17 +94,35 @@ def process_jsonl(file_path):
         return [json.loads(line) for line in f]
 
 
+def get_native_id(pred):
+    if pred['native_id'] is not None:
+        return str(pred['native_id'])
+    elif pred['doc_id'] is not None:
+        return str(pred['doc_id'])
+            
+
 def process_predictions(file_path):
     """ Process a predictions.jsonl to a list """
     predictions = process_jsonl(file_path)
 
+    request_ids_to_bytes = None
+    if 'consistent_ranking' in str(file_path):
+        # Load the requests file
+        requests_folder = '/oe-eval-default/davidh/metaeval/analysis/data/consistent_ranking/eval-results/downstream/eval-for-consistent-ranking-preemption-fixed/baseline-150M-5xC/step38157-unsharded-hf'
+        file_name = Path(file_path).name.replace('predictions.jsonl', 'requests.jsonl')
+        requests_path = f"{requests_folder}/{Path(file_path).parent.name}/{file_name}"
+        requests = process_jsonl(requests_path)
+        request_ids   = [get_native_id(request) for request in requests]
+        request_bytes = [max(len(request["request"].get("continuation", "").encode("utf-8")), 1) for request in requests]
+        request_ids_to_bytes = defaultdict(list)
+        for request_id, request_byte in zip(request_ids, request_bytes):
+            request_ids_to_bytes[request_id].append(request_byte)
+
     processed = []
     for pred in predictions:
         entry = {}
-        if pred['native_id'] is not None:
-            entry['native_id'] = str(pred['native_id'])
-        elif pred['doc_id'] is not None:
-            entry['native_id'] = str(pred['doc_id'])
+
+        entry['native_id'] = get_native_id(pred)
         metrics = pred['metrics']
         model_output = pred['model_output']
         for col in METRICS_TO_KEEP:
@@ -120,6 +138,27 @@ def process_predictions(file_path):
         # Sometimes exact_match is bool when it should be float
         if isinstance(entry['exact_match'], bool):
             entry['exact_match'] = float(entry['exact_match'])
+
+        # Compute BPB using request files
+        if request_ids_to_bytes is not None:
+            all_num_bytes = request_ids_to_bytes[str(entry["native_id"])]
+            if len(all_num_bytes) > len(model_output):
+                # For whatever reason ian's results have zero- and few-shot...
+                # print(f'Seeing len(entry_requests)={len(entry_requests)} and len(model_output)={len(model_output)}. Truncating...')
+                all_num_bytes = all_num_bytes[:len(model_output)]
+            # assert len(entry_requests) == len(model_output), (entry_requests, entry["native_id"], requests[0])
+            assert len(all_num_bytes) == len(model_output), (len(all_num_bytes), len(model_output))
+            all_logits_per_byte = []
+            for num_bytes, out in zip(all_num_bytes, model_output):
+                LOG_2_OF_E = 1.44269504089
+                logits_per_byte = -LOG_2_OF_E * (out["sum_logits"] / num_bytes)
+                all_logits_per_byte.append(logits_per_byte)
+            entry["logits_per_byte"] = all_logits_per_byte
+            if 0 <= entry["correct_choice"] < len(all_logits_per_byte):
+                entry["logits_per_byte_corr"] = all_logits_per_byte[entry["correct_choice"]]
+            else:
+                print(f'Incorrect correct_choice indexer: {entry["correct_choice"]}, {file_path}')
+                entry["logits_per_byte_corr"] = 0
 
         processed += [entry]
     return processed
@@ -201,10 +240,10 @@ def load_file(file_data):
     token_ratio = str_find(CHINHILLA_MULT, model_name)
 
     # Load predictions
-    data = process_jsonl(file_path)
     preprocessed = process_predictions(file_path)
 
     # # Add metadata to output json
+    # data = process_jsonl(file_path)
     # if file.endswith('predictions.jsonl'):
     #     predictions_data[model_name][step][task] = data
     # elif file.endswith('metrics.jsonl'):
@@ -236,29 +275,15 @@ def process_files_chunk(files_chunk):
 
 
 def recursive_pull(data_dir):
-    predictions_data = nested_defaultdict()
-    metrics_data = nested_defaultdict()
-
     all_files = [
         (root, file)
         for root, _, files in os.walk(data_dir) if 'local_testing' not in root
         for file in files if file.endswith('predictions.jsonl') or file.endswith('metrics.jsonl')
     ]
 
-    # all_files = all_files[:1_000]
-
-    # with tqdm(total=len(all_files), desc=f"Recursively loading files in {data_dir}") as pbar:
-    #     with ThreadPoolExecutor() as exec:
-    #         for preprocessed in exec.map(load_file, all_files):
-    #             predictions_df += preprocessed
-    #             pbar.update(1)
-
-    # all_preprocessed = []
-    # with tqdm(total=len(all_files), desc=f"Recursively loading files in {data_dir}") as pbar:
-    #     with ProcessPoolExecutor() as exec:
-    #         for preprocessed in exec.map(load_file, all_files):
-    #             all_preprocessed += preprocessed
-    #             pbar.update(1)
+    # all_files = all_files[:100]
+    if 'consistent_ranking' in str(data_dir):
+        all_files = [f for f in all_files if ':para' not in f]
 
     chunk_size = 100
     all_preprocessed = []
@@ -273,8 +298,7 @@ def recursive_pull(data_dir):
                 pbar.update(futures[future])  # Update based on the chunk size
         pbar.close()
 
-    return all_preprocessed, None, None
-    # return all_preprocessed, predictions_data, metrics_data
+    return all_preprocessed
 
 
 def verify_df(df):
@@ -326,23 +350,14 @@ def main(folder_name):
     data_dir = Path(DATA_DIR).resolve()
     data_dir.mkdir(exist_ok=True)
 
-    aws_dir = data_dir / folder_name
+    aws_dir      = data_dir / folder_name
+    parquet_path = data_dir / f"all_{folder_name}_predictions.parquet"
 
-    predictions_path = data_dir / f"all_{folder_name}_predictions.json"
-    metrics_path     = data_dir / f"all_{folder_name}_metrics.json"
-    parquet_path     = data_dir / f"all_{folder_name}_predictions.parquet"
-
-    predictions_df, predictions, metrics = recursive_pull(aws_dir)
+    predictions_df = recursive_pull(aws_dir)
 
     # Save predictions to parquet
     import time
     start_time = time.time()
-
-    # df = pd.DataFrame(predictions_df, columns=predictions_df[0])
-    # df = pd.json_normalize(predictions_df)
-
-    # import pyarrow as pa # conversion for 1000 preds: pyarrow=5.6s, pandas=14s
-    # df = pa.Table.from_pylist(predictions_df).to_pandas()
     
     df = load_df_parallel(predictions_df) # for 6700 preds: 300s (5 min)
 
@@ -356,22 +371,11 @@ def main(folder_name):
     df.to_parquet(parquet_path, index=True)
     print(f"Predictions saved to {parquet_path} ({fsize(parquet_path):.2f} GB)")
 
-    # Write prediction files
-    print('Saving files...')
-    if predictions is not None:
-        with open(predictions_path, 'w') as f:
-            json.dump(predictions, f)
-        print(f"Predictions saved to {predictions_path} ({fsize(predictions_path):.2f} GB)")
-
-    if metrics is not None:
-        with open(metrics_path, 'w') as f:
-            json.dump(metrics, f)
-        print(f"Metrics saved to {metrics_path} ({fsize(metrics_path):.2f} GB)")
     print('Done!')
 
 
 if __name__ == '__main__': 
-    folder_name = "aws" # 30min
-    # folder_name = "consistent_ranking" # 3hr
+    # folder_name = "aws" # 1hr
+    folder_name = "consistent_ranking" # 3hr
     # sanity_check(folder_name)
     main(folder_name)

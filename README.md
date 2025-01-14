@@ -49,13 +49,16 @@ nohup /root/ai2/metaeval/convert_checkpoints_peteish.sh > out.out 2>&1 & tail -f
 
 ### Launching & Processing Evals
 ```sh
-python scripts/launch_evals.py # launch evals on beaker
+python scripts/launch_eval.py # launch evals on beaker
 python analysis/download/aws.py # sync from s3
 python analysis/download/preprocess.py # convert to .parquet
 
 # Detatch from current session
 nohup python scripts/launch_eval.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 nohup python analysis/download/aws.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
+
+# (in case I need it)
+nohup python analysis/download/preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 ```
 
 ### Install Ladder Model Code

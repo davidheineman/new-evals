@@ -38,11 +38,13 @@ TASK_LIST_ALL = []
 # TASK_LIST_ALL += MC_TASKS_COPY_COLORS
 # TASK_LIST_ALL += GEN_TASKS_OLMES
 # TASK_LIST_ALL += AGI_EVAL_MC + BBH_MC + MMLU_PRO_MC # + MINERVA_MC
-TASK_LIST_ALL += AGI_EVAL_COT # + MMLU_PRO_COT
+# TASK_LIST_ALL += AGI_EVAL_COT # + MMLU_PRO_COT
 
-TASK_LIST_ALL += MMLU_PRO_RC
+# TASK_LIST_ALL += MMLU_PRO_RC
 # TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
 # TASK_LIST_ALL += PERTURB_COT_TASKS
+
+TASK_LIST_ALL += ['autobencher::none']
 
 
 # FOR MODEL LADDER
@@ -81,7 +83,7 @@ TASK_LIST_ALL += MMLU_PRO_RC
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'arc_' not in task]
 
 
-def run_eval(model_list, task_list, model_type='hf', gpus=1):
+def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None):
     if isinstance(task_list, list): 
         task_list = ' '.join([f'"{task}"' for task in task_list])
 
@@ -98,9 +100,11 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1):
         --gantry-secret-aws-secret-access AWS_SECRET_ACCESS_KEY \
         --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
         --recompute-metrics \
-        --beaker-priority normal \
-        --limit 10000
+        --beaker-priority normal
     """
+    if limit is not None: 
+        print(f'🫢😧 Using a {limit} instance limit 🤫🫣')
+        command += " --limit 10000"
     command = command.replace('  ', '') # remove extra spacing!
     mb = len(command.encode('utf-8')) / (1024 * 1024) # compute size of command
 
@@ -111,7 +115,6 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1):
 
 
 def main():
-    print('🫢😧 Using a 10K instance limit 🤫🫣')
     print(f'Launching {len(MODEL_LIST_ALL)} models on {len(TASK_LIST_ALL)} tasks (10 second sleep to confirm...)')
     # time.sleep(10)
 
@@ -136,7 +139,13 @@ def main():
             model_type = 'vllm'
             gpus = 1
 
-        run_eval(model, TASK_LIST_ALL, model_type, gpus)
+        run_eval(
+            model_list=model, 
+            task_list=TASK_LIST_ALL, 
+            model_type=model_type, 
+            gpus=gpus,
+            # limit=10_000
+        )
 
 
 if __name__ == '__main__': main()
@@ -149,19 +158,6 @@ if __name__ == '__main__': main()
 #     "llama-7b",
 #     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm",
 # ]
-
-
-# Want more models?
-# https://github.com/mlfoundations/open_lm
-# open_lm_11m
-# open_lm_25m
-# open_lm_87m
-# open_lm_160m
-# open_lm_411m
-# open_lm_830m
-# open_lm_1b
-# open_lm_3b
-# open_lm_7b
 
 # Scaling data constrained LLMs (https://arxiv.org/abs/2305.16264)
 # https://huggingface.co/datablations#models / https://github.com/huggingface/datablations
