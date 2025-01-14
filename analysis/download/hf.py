@@ -62,27 +62,33 @@ def pull_predictions_from_hf(repo_id, name):
 
 
 def main():
-    push_parquet_to_hf(
-        parquet_file_path='analysis/data/all_olmo2_soups_predictions.parquet',
-        hf_dataset_name='allenai/olmo2-soups-evals',
-        overwrite=True
-    )
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/all_olmo2_soups_predictions.parquet',
+    #     hf_dataset_name='allenai/olmo2-soups-evals',
+    #     overwrite=True
+    # )
+
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/all_olmo2_anneals_predictions.parquet',
+    #     hf_dataset_name='allenai/olmo2-anneals-evals',
+    #     overwrite=True
+    # )
+
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/all_olmo2_microanneals_predictions.parquet',
+    #     hf_dataset_name='allenai/olmo2-microanneals-evals',
+    #     overwrite=True
+    # )
+
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/all_aws_predictions.parquet',
+    #     hf_dataset_name='allenai/ladder-evals',
+    #     overwrite=True
+    # )
 
     push_parquet_to_hf(
-        parquet_file_path='analysis/data/all_olmo2_anneals_predictions.parquet',
-        hf_dataset_name='allenai/olmo2-anneals-evals',
-        overwrite=True
-    )
-
-    push_parquet_to_hf(
-        parquet_file_path='analysis/data/all_olmo2_microanneals_predictions.parquet',
-        hf_dataset_name='allenai/olmo2-microanneals-evals',
-        overwrite=True
-    )
-
-    push_parquet_to_hf(
-        parquet_file_path='analysis/data/all_aws_predictions.parquet',
-        hf_dataset_name='allenai/ladder-evals',
+        parquet_file_path='analysis/data/all_consistent_ranking_predictions.parquet',
+        hf_dataset_name='allenai/consistent-ranking-evals',
         overwrite=True
     )
 

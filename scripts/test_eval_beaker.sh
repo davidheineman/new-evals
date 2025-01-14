@@ -36,13 +36,13 @@ ai2/ganymede-cirrascale
 # mmlu_pro_math:cot::none \
 # mmlu_pro_psychology:cot::none \
 # "
-TASK_LIST="\
-drop::olmes:full \
-jeopardy::olmes:full \
-naturalqs::olmes:full \
-squad::olmes:full \
-triviaqa::olmes:full \
-"
+# TASK_LIST="\
+# drop::olmes:full \
+# jeopardy::olmes:full \
+# naturalqs::olmes:full \
+# squad::olmes:full \
+# triviaqa::olmes:full \
+# "
 # codex_humaneval:temp0.8 \
 # mbppplus::ladder \
 # mbpp::ladder \
@@ -51,6 +51,10 @@ triviaqa::olmes:full \
 # weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-190M-1xC \
 # weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-2xC \
 # "
+
+TASK_LIST="\
+autobencher::none \
+"
 
 # MODEL_LIST="\
 # weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm \
