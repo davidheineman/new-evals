@@ -72,7 +72,7 @@ nohup python analysis/download/aws.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 ```sh
 git clone https://github.com/allenai/OLMo/ olmo-repos/olmo
 cd olmo-repos/olmo
-git checkout 62267db538fdafc27dda5b3a1946543d6d42b44f # git checkout ladder-1xC
+git checkout ladder-1xC
 pip install -e .
 
 # Download wandb logs (see OLMo library for all downloads)
