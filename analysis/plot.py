@@ -63,9 +63,18 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=
     return ax
 
 
-def plot_training(ax: plt.Axes, x, y, xlabel: str, ylabel: str, label=None, title=None, color=None, fit=None, ci=None):
+def plot_training(ax: plt.Axes, x, y, xlabel: str, ylabel: str, label=None, title=None, color=None, fit=None, ci=None, sma_window=None):
     if xlabel == 'step':
-        ax.plot(x, y, label=label, color=color, linewidth=0.5, marker='.', markersize=2)
+        if sma_window is not None:
+            import numpy as np
+            window_size = 5
+            sma = np.convolve(y, np.ones(window_size)/window_size, mode='valid')
+            x_sma = x[window_size-1:]
+            x_plt, y_plt = x_sma, sma
+        else:
+            x_plt, y_plt = x, y
+        
+        ax.plot(x_plt, y_plt, label=label, color=color, linewidth=0.5, marker='.', markersize=2)
         # ax.plot(df_slice[xlabel], df_slice[ylabel].rolling(window=5).mean(), label=label, color=color, linewidth=0.5, marker='.', markersize=2)
     else:
         ax.scatter(x, y, label=label, color=color, s=3)

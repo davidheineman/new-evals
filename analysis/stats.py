@@ -250,7 +250,7 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
                     label=model,
                     x=step, y=acc, ci=ci,
                     xlabel='step', ylabel=metric, 
-                    title=f'{task_name} (n={scores.shape[1]}) {"on " + models if len(models) == 0 else ""}', color=color[j]
+                    title=f'{task_name} (n={scores.shape[1]}) {"on " + models if len(models) == 0 else ""}', color=(color[j] if color else None)
                 )
 
                 # Add total variation text
@@ -259,7 +259,7 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
                 text = text.lstrip('\n')
                 if text != '':
                     axes[i].text(
-                        x=step[-1], y=acc[-1], s=text, color=color[j], 
+                        x=step[-1], y=acc[-1], s=text, color=(color[j] if color else None), 
                         va='center', ha='left', zorder=5, fontsize=10
                     )
                 
