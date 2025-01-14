@@ -17,11 +17,7 @@ from scaling.step2 import fit_step2, predict_step2, plot_step2
 from scaling.predict import predict_chained, plot_chained, str_chained_fit
 from scaling.variance_analysis import compute_variance, plot_variance_analysis
 
-from scaling.step1_flops import fit_step1 as fit_step1_flops
-from scaling.step1_flops import predict_step1 as predict_step1_flops
-from scaling.step1_flops import plot_step1 as plot_step1_flops
-from scaling.step1_flops import str_chinchilla_flops_fit
-
+from scaling.step1_flops import fit_step1 as fit_step1_flops, predict_step1 as predict_step1_flops, plot_step1 as plot_step1_flops, str_chinchilla_flops_fit
 from scaling.predict_flops import predict_chained_flops, plot_chained as plot_chained_flops, str_chained_fit as str_chained_fit_flops
 
 DEFAULT_CONIFG_PATH = "scripts/scaling/final.json"
