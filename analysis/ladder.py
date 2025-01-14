@@ -262,7 +262,7 @@ def get_ladder_data(df, task_name, train_models, eval_models, step='max'):
                 else:
                     continue
 
-        if exact_match.size != 0:
+        if exact_match.size != 0 and np.all(~np.isnan(exact_match.astype(float))):
             acc = exact_match # if there's exact match, use it as the primary metric
         if pass_at_1.size != 0 and np.all(~np.isnan(pass_at_1.astype(float))):
             acc = pass_at_1 # if there's pass@1, use it

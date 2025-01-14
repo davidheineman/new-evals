@@ -212,26 +212,18 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
 
     for i, task in enumerate(tasks):
         for j, model in enumerate(models):
-            step, scores = get_nd_array(df, 'step', metric, model=model, task=task)
-            acc = scores.mean(axis=1)
-
             if metric == 'logits_per_char' or metric == 'logits_per_byte':
-                # TMP: Code from model ladder to get the correct logits per char
+                # TMP: map correct choice to metric
+                step, bpb  = get_nd_array(df, 'step', metric, model=model, task=task)
                 _, corr = get_nd_array(df, 'step', 'correct_choice', model=model, task=task)
-                _, bpb  = get_nd_array(df, 'step', 'logits_per_byte', model=model, task=task)
 
-                # Get correct logprobs per char
-                n_choices = bpb[0][0].shape
-                correct_bpb = np.empty_like(corr, dtype=np.float64)
-                rows, cols = corr.shape
-                for i in range(rows):
-                    for j in range(cols):
-                        if corr[i, j] == n_choices and 'enlarge' in task_name: 
-                            # print(f'Warning: bpb has {n_choices} choices, but the correct label is {corr[i, j]} (did ChatGPT generate an incorrect ground truth?). re-indexing the correct label...')
-                            corr[i, j] -= 1
-                        correct_bpb[i, j] = bpb[i, j][corr[i, j].astype(np.int32)]
-                correct_bpb = correct_bpb.mean(axis=1)
-                acc = correct_bpb
+                from ladder import map_corr_labels
+                correct_bpb = map_corr_labels(bpb, corr, task_name=task)
+                acc = correct_bpb.mean(axis=1)
+                scores = correct_bpb
+            else:
+                step, scores = get_nd_array(df, 'step', metric, model=model, task=task)
+                acc = scores.mean(axis=1)
 
             tv = calc_total_variation(acc, improvement=True) * 100
 
@@ -266,6 +258,10 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
                     if metric != 'c4_loss' and metric != 'll_per_char': 
                         axes[i].set_xlim(right=max(step) * 1.25)
             
+                if metric == 'logits_per_byte':
+                    axes[i].set_ylim(top=max(acc[int(len(acc)*0.1):]), bottom=min(acc)*0.95)
+        
+        if axes is not None:
         axes[i].legend(fontsize=8)
 
     return tv_results, axes
