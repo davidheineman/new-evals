@@ -24,21 +24,16 @@ def generate_distractors(all_questions):
         entry['gold'] = 0
     
     openai_init()
-    questions_with_distractors = _run_add_distractors_task(n_new_distractors=4, docs=all_questions_tmp)
+    all_questions = _run_add_distractors_task(n_new_distractors=4, docs=all_questions_tmp, override_idx=False)
 
-    assert len(all_questions) == len(questions_with_distractors), 'Not all questions successfully generated distractors!'
-
-    # Paste back the gold and choices indices
-    for entry, distractors in zip(all_questions, questions_with_distractors):
-        entry['choices'] = distractors['choices']
-        entry['gold_idx'] = distractors['gold']
+    # Delete the oe-eval format
+    for entry in all_questions:
+        del entry['query']
 
     return all_questions
 
 def merge_datasets(path, pattern, filename):
     # Merge all generated question files
-    # question_files = sorted(glob.glob(glob_path))
-
     question_files = sorted([os.path.join(path, f) for f in os.listdir(path) if re.match(pattern, f)])
 
     all_questions = []
@@ -56,7 +51,7 @@ def merge_datasets(path, pattern, filename):
 
             all_questions.extend(questions)
 
-    # all_questions = all_questions[:30_000]
+    # all_questions = all_questions[:5]
     # all_questions = generate_distractors(all_questions)
 
     assert len(all_questions) != 0, all_questions
@@ -73,22 +68,39 @@ def merge_datasets(path, pattern, filename):
 
 
 def main():
-    # Push knowledge QA
-    path = 'AutoBencher/KI/'
-    pattern = r'.*\.\d+\.KI_questions.json'
-    filename = 'combined_ki_questions'
+    # # Push knowledge QA
+    # path = 'AutoBencher/KI/'
+    # pattern = r'.*\.\d+\.KI_questions.json'
+    # filename = 'combined_ki_questions'
 
-    parquet_path = merge_datasets(path, pattern, filename)
+    # # parquet_path = merge_datasets(path, pattern, filename)
 
-    push_parquet_to_hf(
-        parquet_file_path=parquet_path,
-        hf_dataset_name="allenai/autobencher-knowledge-qa",
-        private=True,
-        overwrite=True
-    )
+    # # Override the ID with a unique ID for each entry
+    # parquet_path = f"AutoBencher/data/{filename}.parquet"
+    # df = pd.read_parquet(parquet_path)
+    # ids = []
+    # for idx, root_category in enumerate(df['root_category']):
+    #     ids.append(f"{root_category}_{idx}")
+    # df['id'] = ids
+    # df.to_parquet(parquet_path)
+    
+    # push_parquet_to_hf(
+    #     parquet_file_path=parquet_path,
+    #     hf_dataset_name="allenai/autobencher-knowledge-qa",
+    #     private=True,
+    #     overwrite=True
+    # )
+
+    # # Also push to personal repo
+    # push_parquet_to_hf(
+    #     parquet_file_path=parquet_path,
+    #     hf_dataset_name="davidheineman/autobencher-knowledge-qa",
+    #     private=False,
+    #     overwrite=True
+    # )
 
     # Push math
-    path = 'AutoBencher/MATH/'
+    path = 'AutoBencher/MATH_test/'
     pattern = r'.\d+.*.questions_final.json'
     filename = 'combined_math_questions'
 

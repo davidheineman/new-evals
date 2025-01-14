@@ -105,7 +105,7 @@ def get_id(doc):
     return id, key
 
 
-def _run_add_distractors_task(n_new_distractors: int, docs: dict):
+def _run_add_distractors_task(n_new_distractors: int, docs: dict, override_idx: bool=True):
     prompts = []
 
     c1, c2 = str(34), str(35)
@@ -202,8 +202,9 @@ def _run_add_distractors_task(n_new_distractors: int, docs: dict):
 
             new_doc['choices'] = new_choices
             new_doc['gold'] = new_choices.index(gold_choice)
-            new_doc[key] = f'distractors_{id}'
-            new_doc['id'] = f'distractors_{id}'
+            if override_idx:
+                new_doc[key] = f'distractors_{id}'
+                new_doc['id'] = f'distractors_{id}'
 
             new_docs += [new_doc]
 
