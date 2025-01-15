@@ -174,7 +174,7 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
             p_values, mix_scores, _ = compute_weighted_pairwise_p_values(scores, num_permutations=num_permutations, weights=weights, return_scores=True)
 
             # Change task name
-            task = 'olmes_macro_average'
+            task = 'aggregate'
         else:
             p_values, mix_scores, _ = compute_pairwise_p_values(scores, num_permutations=num_permutations, return_scores=True)
             # p_values, mix_scores, _ = compute_pairwise_p_values_paired_t_test(scores, return_scores=True)
@@ -232,7 +232,7 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
 
             task_name = task
             if isinstance(task, list):
-                task_name = 'olmes_macro_average'
+                task_name = 'aggregate'
 
             tv_results.loc['total_variation', task_name] = tv
 

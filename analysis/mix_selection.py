@@ -67,7 +67,7 @@ def simulate_mix_selection(df, method, sizes, models, mixes, task, mult=None, to
 
         task_name = task
         if isinstance(task, list): 
-            task_name = 'olmes_macro_average' # TMP: WONT WORK ON OTHER TASK SETS
+            task_name = 'aggregate' # TMP: WONT WORK ON OTHER TASK SETS
 
         mixes, scores, p_vals = p_values[task_name]
 
