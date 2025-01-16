@@ -81,6 +81,30 @@ MC_TASKS_COPY_COLORS = [
     "copycolors_cyclic_8way:mc::none",
 ]
 
+PALOMA = [
+    "paloma_4chan_meta_sep::paloma",
+    # "paloma_c4_100_domains::paloma", # 28K
+    "paloma_c4_en::paloma",
+    "paloma_dolma_100_programing_languages::paloma",
+    # "paloma_dolma_100_subreddits::paloma", # 92K
+    "paloma_dolma-v1_5::paloma",
+    "paloma_falcon-refinedweb::paloma",
+    "paloma_gab::paloma",
+    "paloma_m2d2_s2orc_unsplit::paloma",
+    "paloma_m2d2_wikipedia_unsplit::paloma",
+    "paloma_manosphere_meta_sep::paloma",
+    "paloma_mc4::paloma",
+    "paloma_ptb::paloma",
+    "paloma_redpajama::paloma",
+    # "paloma_twitterAAE_HELM_fixed::paloma", # 100K
+    "paloma_wikitext_103::paloma",
+]
+LLM_COMPRESSION = [
+    "arxiv_math::llm_compression",
+    "cc::llm_compression",
+    "python::llm_compression",
+]
+
 GEN_TASKS_OLMES = [
     # Core generation-based benchmarks
     # "coqa::olmes:full", # <- coqa is not setup properly (no few shot examples)
@@ -126,30 +150,8 @@ AGI_EVAL_MC = [
     "agi_eval_sat-en-without-passage::olmes:full",
     "agi_eval_gaokao-english::olmes:full",
 ]
-
-AGI_EVAL_COT = [
-    # # AGI Eval CoT (only ::tulu3 has proper configs) -- broken
-    # "agi_eval_lsat-ar:0shot_cot::tulu3",
-    # "agi_eval_lsat-lr:0shot_cot::tulu3",
-    # "agi_eval_lsat-rc:0shot_cot::tulu3",
-    # "agi_eval_logiqa-en:0shot_cot::tulu3",
-    # "agi_eval_sat-math:0shot_cot::tulu3",
-    # "agi_eval_sat-en:0shot_cot::tulu3",
-    # "agi_eval_aqua-rat:0shot_cot::tulu3",
-    # "agi_eval_sat-en-without-passage:0shot_cot::tulu3",
-    # "agi_eval_gaokao-english:0shot_cot::tulu3",
-
-    # ::tulu3 does not work on base models. only this config works currently:
-    "agi_eval_lsat-ar:cot::none",
-    "agi_eval_lsat-lr:cot::none",
-    "agi_eval_lsat-rc:cot::none",
-    "agi_eval_logiqa-en:cot::none",
-    "agi_eval_sat-math:cot::none",
-    "agi_eval_sat-en:cot::none",
-    "agi_eval_aqua-rat:cot::none",
-    "agi_eval_sat-en-without-passage:cot::none",
-    "agi_eval_gaokao-english:cot::none",
-]
+AGI_EVAL_RC = [task.replace("::olmes:full", ":rc::none") for task in AGI_EVAL_MC]
+AGI_EVAL_COT = [task.replace("::olmes:full", ":cot::none") for task in AGI_EVAL_MC] # ::tulu3 does not work on base models. only this config works currently
 
 MINERVA_MC = [
     # Minerva does not have MC
@@ -302,4 +304,17 @@ ADDITIONAL_TASKS_TULU_3 = [
     "codex_humaneval:temp0.8",
     "codex_humaneval::tulu",
     "codex_humanevalplus::tulu"
+]
+
+AGI_EVAL_TULU_3 = [
+    # AGI Eval CoT (only ::tulu3 has proper configs) -- broken
+    "agi_eval_lsat-ar:0shot_cot::tulu3",
+    "agi_eval_lsat-lr:0shot_cot::tulu3",
+    "agi_eval_lsat-rc:0shot_cot::tulu3",
+    "agi_eval_logiqa-en:0shot_cot::tulu3",
+    "agi_eval_sat-math:0shot_cot::tulu3",
+    "agi_eval_sat-en:0shot_cot::tulu3",
+    "agi_eval_aqua-rat:0shot_cot::tulu3",
+    "agi_eval_sat-en-without-passage:0shot_cot::tulu3",
+    "agi_eval_gaokao-english:0shot_cot::tulu3",
 ]

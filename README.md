@@ -66,6 +66,9 @@ python analysis/download/preprocess.py # convert to .parquet
 # Detatch from current session
 nohup python scripts/launch_eval.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 nohup python analysis/download/aws.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
+
+# (in case I need it)
+nohup python analysis/download/preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 ```
 
 ### Install Ladder Model Code
