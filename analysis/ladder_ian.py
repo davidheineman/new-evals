@@ -158,18 +158,18 @@ def run_ladder(
     task_key, configs = create_ladder_config(task_name, train_models, eval_models)
 
     # Get data
-    data_by_name = get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models)
+    # data_by_name = get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models)
 
-    # # Use avg of final 5% of checkpoints to fit step 1
-    # data_by_name = get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models, step='all')
-    # for k1, v1 in data_by_name.items():
-    #     for k2, v2 in v1.items():
-    #         if isinstance(v2, list):
-    #             import math
-    #             # use last 10% of checkpoints
-    #             # print(len(v2[0]))
-    #             # print(len(v2[0][math.ceil(0.9 * len(v2[0])):]))
-    #             data_by_name[k1][k2] = [np.mean(v2[0][math.ceil(0.9 * len(v2[0])):])]
+    # Use avg of final 5% of checkpoints to fit step 1
+    data_by_name = get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models, step='all')
+    for k1, v1 in data_by_name.items():
+        for k2, v2 in v1.items():
+            if isinstance(v2, list):
+                import math
+                # use last 10% of checkpoints
+                # print(len(v2[0]))
+                # print(len(v2[0][math.ceil(0.9 * len(v2[0])):]))
+                data_by_name[k1][k2] = [np.mean(v2[0][math.ceil(0.9 * len(v2[0])):])]
 
     y_metric_func = 'rc_bpb' # which functional form to use for step 1 prediction
 
