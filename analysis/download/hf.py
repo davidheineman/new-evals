@@ -1,12 +1,9 @@
-from huggingface_hub import HfApi, login, hf_hub_download
-import os
-
-import sys
-import os
+import sys, os
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from huggingface_hub import HfApi, login, hf_hub_download
 from utils import DATA_DIR
 
 
@@ -86,10 +83,24 @@ def main():
     #     overwrite=True
     # )
 
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/all_consistent_ranking_predictions.parquet',
+    #     hf_dataset_name='davidheineman/consistent-ranking-evals',
+    #     overwrite=True,
+    #     private=False,
+    # )
+
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/all_consistent_ranking_predictions.parquet',
+    #     hf_dataset_name='allenai/consistent-ranking-evals',
+    #     overwrite=True
+    # )
+
     push_parquet_to_hf(
-        parquet_file_path='analysis/data/all_consistent_ranking_predictions.parquet',
-        hf_dataset_name='allenai/consistent-ranking-evals',
-        overwrite=True
+        parquet_file_path='analysis/data/all_consistent_ranking_final_predictions.parquet',
+        hf_dataset_name='davidheineman/consistent-ranking-evals',
+        overwrite=True,
+        private=False,
     )
 
 

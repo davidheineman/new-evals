@@ -52,9 +52,17 @@ ai2/ganymede-cirrascale
 # weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-2xC \
 # "
 
+# TASK_LIST="\
+# autobencher::none \
+# "
+
 TASK_LIST="\
-autobencher::none \
+paloma_gab::paloma \
 "
+
+# TASK_LIST="\
+# arxiv_math::llm_compression \
+# "
 
 # MODEL_LIST="\
 # weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm \
@@ -72,7 +80,7 @@ weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-1
 # MODEL_TYPE=vllm
 
 GPUS=1
-MODEL_TYPE=vllm
+MODEL_TYPE=hf
 
 oe-eval \
     --task $TASK_LIST \
