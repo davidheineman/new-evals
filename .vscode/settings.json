@@ -8,6 +8,7 @@
         "/Users/dhei/ai2/new-evals/olmo-repos/olmo",
         "/Users/dhei/ai2/new-evals/olmo-repos/OLMo",
         "/Users/dhei/ai2/new-evals/olmo-repos/OLMo/scripts",
-        "/Users/dhei/ai2/new-evals/olmo-repos/OLMo/scripts/scaling"
+        "/Users/dhei/ai2/new-evals/olmo-repos/OLMo/scripts/scaling",
+        "./olmo-repos/oe-eval-internal"
     ]
 }

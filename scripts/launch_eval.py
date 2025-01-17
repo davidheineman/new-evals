@@ -10,17 +10,20 @@ from analysis.utils.constants_models import WEKA_CLUSTERS
 from analysis.utils.constants_tasks import MC_TASKS_COPY_COLORS
 
 # OLMES Classic Tasks
-from analysis.utils.constants_tasks import RC_TASKS_OLMES, PARA_TASKS_OLMES, ENLARGE_TASKS_OLMES, DISTRACTORS_TASKS_OLMES
+from analysis.utils.constants_tasks import RC_TASKS_OLMES, MC_TASKS_OLMES, PARA_TASKS_OLMES, ENLARGE_TASKS_OLMES, DISTRACTORS_TASKS_OLMES
 
 # OLMES Gen Tasks
 from analysis.utils.constants_tasks import GEN_TASKS_OLMES, GEN_TASKS_OLMES_PERTURB_RC
 
 # CoT tasks (mainly Tulu tasks)
-from analysis.utils.constants_tasks import AGI_EVAL_MC, AGI_EVAL_COT
+from analysis.utils.constants_tasks import AGI_EVAL_MC, AGI_EVAL_RC, AGI_EVAL_COT
 from analysis.utils.constants_tasks import MMLU_PRO_MC, MMLU_PRO_RC, MMLU_PRO_COT
 from analysis.utils.constants_tasks import MINERVA_MC, MINERVA_COT
 from analysis.utils.constants_tasks import BBH_MC, BBH_COT
 from analysis.utils.constants_tasks import PERTURB_COT_TASKS
+
+# Perplexity tasks
+from analysis.utils.constants_tasks import PALOMA, LLM_COMPRESSION
 
 MODEL_LIST_ALL = []
 MODEL_LIST_ALL += MODEL_LADDER_LIST + MODEL_LIST_INTERMEDIATE + MODEL_LIST_MIXES
@@ -34,17 +37,21 @@ TASK_LIST_ALL = []
 # TASK_LIST_ALL += PARA_TASKS_OLMES
 # TASK_LIST_ALL += ENLARGE_TASKS_OLMES
 # TASK_LIST_ALL += DISTRACTORS_TASKS_OLMES
+TASK_LIST_ALL += MC_TASKS_OLMES
+
+# TASK_LIST_ALL += PALOMA
+# TASK_LIST_ALL += LLM_COMPRESSION
 
 # TASK_LIST_ALL += MC_TASKS_COPY_COLORS
 # TASK_LIST_ALL += GEN_TASKS_OLMES
 # TASK_LIST_ALL += AGI_EVAL_MC + BBH_MC + MMLU_PRO_MC # + MINERVA_MC
 # TASK_LIST_ALL += AGI_EVAL_COT # + MMLU_PRO_COT
 
-# TASK_LIST_ALL += MMLU_PRO_RC
+# TASK_LIST_ALL += MMLU_PRO_RC + AGI_EVAL_RC
 # TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
 # TASK_LIST_ALL += PERTURB_COT_TASKS
 
-TASK_LIST_ALL += ['autobencher::none']
+# TASK_LIST_ALL += ['autobencher::none']
 
 
 # FOR MODEL LADDER
@@ -76,7 +83,7 @@ TASK_LIST_ALL += ['autobencher::none']
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'coqa:' not in task] # <- coqa is not setup properly
 # MODEL_LIST_ALL = [MODEL_LIST_INTERMEDIATE[1]] # <- only use first model!
 # MODEL_LIST_ALL = [OE_EVAL_INSTRUCT_MODELS[0]]
-# MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if 'peteish7' in model or 'peteish13' in model] # <- only peteish7!
+# MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if '-3B-5xC' in model or 'peteish13' in model] # <- only peteish13!
 # MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if '-3B-' in model] # <- 3B models!
 # MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if 'qwen2.5-72b' in model or 'qwen2.5-32b' in model or 'qwen2.5-14b' in model] # <- only 3B ladder models!
 # TASK_LIST_ALL = SYNTHETIC_TASKS # <- only use synthetic tasks!
@@ -116,7 +123,7 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None):
 
 def main():
     print(f'Launching {len(MODEL_LIST_ALL)} models on {len(TASK_LIST_ALL)} tasks (10 second sleep to confirm...)')
-    # time.sleep(10)
+    time.sleep(10)
 
     for model in MODEL_LIST_ALL:
         if model in OE_EVAL_ALL_MODELS:
@@ -138,6 +145,9 @@ def main():
             # model_type = 'hf'
             model_type = 'vllm'
             gpus = 1
+
+        if any(task in PALOMA + LLM_COMPRESSION for task in TASK_LIST_ALL):
+            model_type = 'hf' # we can only run perplexity on hf for now
 
         run_eval(
             model_list=model, 
