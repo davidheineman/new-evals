@@ -123,7 +123,7 @@ def get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models
     return data_by_name
 
 
-def create_ladder_config(task_name, train_models, eval_models):
+def create_ladder_config(task_name, train_models, eval_models, color=None):
     # arc_easy:enlarge => arc_easy
     task_root = task_name.split(':')[0] if isinstance(task_name, str) else None
 
@@ -131,7 +131,7 @@ def create_ladder_config(task_name, train_models, eval_models):
     configs = {}
     for model in train_models + eval_models:
         size = model.split('-')[-2]
-        color = MODEL_COLORS.get(size, 'k')
+        if color == None: color = MODEL_COLORS.get(size, 'k')
         mode = 'eval' if model in eval_models else 'train'
         
         # Create dummy config for new eval points
@@ -146,32 +146,33 @@ def create_ladder_config(task_name, train_models, eval_models):
 
 def run_ladder(
         df, task_name, train_models, eval_models, x_metric, y_metric,
-        use_flops=False, run_step1=True, run_step2=True, run_stacked=True,
-        axes=None, add_texts=False, return_preds=False):
+        use_flops=False, use_helper_points=False, 
+        run_step1=True, run_step2=True, run_stacked=True,
+        axes=None, add_texts=False, color=None, return_preds=False):
     # Unfortunately there are local references, so we have to be in the OLMo repo
     os.chdir('/Users/dhei/ai2/new-evals/olmo-repos/OLMo')
 
-    rel_error_step_1, rel_error_step_2, rel_error_stacked = None, None, None
+    abs_error_step_1, abs_error_step_2, abs_error_stacked = None, None, None
 
     # Get config
-    # configs = get_final_configs(config_path)
-    task_key, configs = create_ladder_config(task_name, train_models, eval_models)
+    task_key, configs = create_ladder_config(task_name, train_models, eval_models, color=color)
 
     # Get data
     # data_by_name = get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models)
 
-    # Use avg of final 5% of checkpoints to fit step 1
+    # Use avg of final 10% of checkpoints to fit step 1
     data_by_name = get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models, step='all')
     for k1, v1 in data_by_name.items():
         for k2, v2 in v1.items():
             if isinstance(v2, list):
                 import math
-                # use last 10% of checkpoints
-                # print(len(v2[0]))
-                # print(len(v2[0][math.ceil(0.9 * len(v2[0])):]))
                 data_by_name[k1][k2] = [np.mean(v2[0][math.ceil(0.9 * len(v2[0])):])]
 
-    y_metric_func = 'rc_bpb' # which functional form to use for step 1 prediction
+    # which functional form to use for step 1 prediction
+    if 'byte' in x_metric:
+        y_metric_func = 'rc_bpb'
+    else:
+        y_metric_func = 'rc_acc'
 
     assert len(data_by_name) != 0, train_models
 
@@ -189,17 +190,18 @@ def run_ladder(
         if use_flops:
             (
                 predicted_data_by_name, plotted_predicted_data,
-                (y, step_1_y_pred, rel_error_step_1), all_rel_errors,
+                (step_1_y, step_1_y_pred, rel_error_step_1), all_rel_errors,
             ) = predict_step1_flops(
                 configs, data_by_name, step1_coefficients, y_metric=y_metric_func, 
             )
         else:
             (
                 predicted_data_by_name, plotted_predicted_data,
-                (y, step_1_y_pred, rel_error_step_1), all_rel_errors,
+                (step_1_y, step_1_y_pred, rel_error_step_1), all_rel_errors,
             ) = predict_step1(
                 configs, data_by_name, step1_coefficients, y_metric=y_metric_func, 
             )
+        abs_error_step_1 = abs(step_1_y_pred - step_1_y)
 
         # Plot step 1
         if axes is not None and run_step1:
@@ -217,6 +219,7 @@ def run_ladder(
                     task_name, str_chinchilla_n_d_fit(step1_coefficients), y_metric_func,
                     step1_coefficients, cov, ax,
                 )
+            ax.set_ylabel(x_metric)
 
     # Use intermediate checkpoints to fit step 2
     data_by_name = get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models, step='all')
@@ -228,34 +231,33 @@ def run_ladder(
                 data_by_name[k1][k2] = v2[0][math.ceil(0.1 * len(v2[0])):]
 
     if run_step2 or run_stacked:
-        task_key, configs = create_ladder_config(task_name, train_models, eval_models)
+        task_key, configs = create_ladder_config(task_name, train_models, eval_models, color=color)
 
         _min, _max = None, None
-        if task_key is None:
+        if task_key is None and use_helper_points:
             _min, _max = 0, 1 # TODO: Use utils.constants_task to get correct values
 
-        try:
-            # Fit step 2
-            step2_coefficients, cov = fit_step2(data_by_name, task_key, y_metric=None, _min=_min, _max=_max, use_log_sigmoid=False)
+        # Fit step 2
+        step2_coefficients, cov = fit_step2(data_by_name, task_key, y_metric=None, _min=_min, _max=_max, use_log_sigmoid=False, use_helper_points=use_helper_points)
 
-            (
-                predicted_data_by_name, plotted_predicted_data,
-                (y, step_2_y_pred, rel_error_step_2, delta_error), all_rel_errors,
-            ) = predict_step2(
-                configs, data_by_name, step2_coefficients, cov, y_metric=None, use_log_sigmoid=False
+        (
+            predicted_data_by_name, plotted_predicted_data,
+            (step_2_y, step_2_y_pred, rel_error_step_2, delta_error), all_rel_errors,
+        ) = predict_step2(
+            configs, data_by_name, step2_coefficients, cov, y_metric=None, use_log_sigmoid=False
+        )
+        abs_error_step_2 = abs(step_2_y_pred - step_2_y)
+
+        # Plot step 2
+        if axes is not None and run_step2:
+            ax = axes[ax_i]
+            ax_i += 1
+            plot_step2(
+                configs, data_by_name, predicted_data_by_name, plotted_predicted_data, task_key, None, y_metric_func, 'rc_acc',
+                step2_coefficients, cov, use_log_sigmoid=False, add_texts=add_texts, ax=ax
             )
-
-            # Plot step 2
-            if axes is not None and run_step2:
-                ax = axes[ax_i]
-                ax_i += 1
-                plot_step2(
-                    configs, data_by_name, predicted_data_by_name, plotted_predicted_data, task_key, None, y_metric_func, 'rc_acc',
-                    step2_coefficients, cov, use_log_sigmoid=False, add_texts=add_texts, ax=ax
-                )
-        except Exception as e:
-            print(data_by_name)
-            raise RuntimeError(f'Step 2 failed to fit: {e}')
+            ax.set_xlabel(x_metric)
+            ax.set_ylabel(y_metric)
         
     # Get step 1 data again (necessary if running with intermediate checkpoints)
     data_by_name = get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models)
@@ -266,17 +268,18 @@ def run_ladder(
         if use_flops:
             (
                 predicted_data_by_name, plotted_predicted_data_by_name, 
-                (y, stacked_y_pred, rel_error_stacked)
+                (stacked_y, stacked_y_pred, rel_error_stacked)
             ) = predict_chained_flops(
                 data_by_name, step1_coefficients, step2_coefficients
             )
         else:
             (
                 predicted_data_by_name, plotted_predicted_data_by_name, 
-                (y, stacked_y_pred, rel_error_stacked)
+                (stacked_y, stacked_y_pred, rel_error_stacked)
             ) = predict_chained(
                 data_by_name, step1_coefficients, step2_coefficients, use_log_sigmoid=False
             )
+        abs_error_stacked = abs(stacked_y_pred - stacked_y)
 
         # For stacked predictions, the x axis is now the y axis
         for key in data_by_name:
@@ -306,6 +309,7 @@ def run_ladder(
                     ax,
                 )
             ax.legend(loc='upper left')
+            ax.set_ylabel(y_metric)
 
     if axes is not None:
         for ax in axes:
@@ -313,5 +317,5 @@ def run_ladder(
             ax.legend(fontsize=8)
 
     if return_preds:
-        return (rel_error_step_1, rel_error_step_2, rel_error_stacked), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
-    return rel_error_step_1, rel_error_step_2, rel_error_stacked
+        return (abs_error_step_1, abs_error_step_2, abs_error_stacked), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
+    return abs_error_step_1, abs_error_step_2, abs_error_stacked

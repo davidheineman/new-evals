@@ -132,6 +132,31 @@ def run_mcnemar(acc1, acc2, agreement_rate, n_samples):
     return acc_diff, result.pvalue
 
 
+def compute_pairwise_mcnemar(seg_scores, return_scores=False):
+    """ Computes pairwise p-values between a set of scores """
+    num_systems, num_segments = seg_scores.shape
+    seg_scores = seg_scores.astype(np.float32)
+    sys_scores = np.sum(seg_scores, axis=1)
+
+    p_vals = np.empty((num_systems, num_systems)) * np.nan
+    
+    for i in range(num_systems):
+        for j in range(i + 1, num_systems):
+            n = num_segments
+            acc1, acc2 = np.mean(seg_scores[i, :]), np.mean(seg_scores[j, :])
+            agreement_rate = np.sum(seg_scores[i, :] == seg_scores[j, :]) / n
+            try:
+                _, p_value = run_mcnemar(acc1, acc2, agreement_rate, n)
+            except Exception as e:
+                print(e)
+                p_value = 1
+            p_vals[i, j] = p_value
+    
+    if return_scores:
+        return p_vals, sys_scores / seg_scores.shape[1], None
+    return p_vals
+
+
 def calculate_mde(baseline_acc: float, agreement_rate: float, n_samples: int, target_power: float = 0.8, tolerance: float = 1e-4) -> float:
     """ Find the minimum detectable effect (MDE) w/ binary search """
     def calculate_power(Δacc):
