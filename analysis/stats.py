@@ -5,6 +5,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 from utils.pce import compute_pairwise_p_values, compute_pairwise_p_values_paired_t_test
+from utils.power import compute_pairwise_mcnemar
 from plot import plot_heatmap, plot_training
 from dataloader import get_nd_array
 
@@ -23,6 +24,10 @@ def calc_total_variation(arr, norm=False, improvement=False):
 
 def calc_improvement(arr):
     return (arr[-1] - arr[0]) / len(arr)
+
+
+def calc_improvement_last_n(arr, n=5):
+    return (sum(arr[-n:]) / n - sum(arr[:n]) / n) / len(arr)
 
 
 def convert_sci(n):
@@ -131,12 +136,14 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
     all_p_values = {}
 
     n_tasks = len(tasks)
-    if do_plot: 
+    if do_plot is not None: 
         if isinstance(do_plot, plt.Axes):
             axes = [do_plot] # allow passing in an axes object for plotting
-        else:
+        elif isinstance(do_plot, bool):
             fig, axes = plt.subplots(n_tasks, 1, figsize=(0.5*len(models), 0.4*len(models)*n_tasks))
             if n_tasks == 1: axes = [axes]
+        else:
+            axes = do_plot
 
     for i, task in tqdm(enumerate(tasks), desc='Computing pairwise comparisons', total=len(tasks), disable=quiet):
         if last_n > 1:
@@ -159,7 +166,23 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
             mixes = mixes[sorted_indices].tolist()
             scores = scores[sorted_indices]
         else:
-            mixes, scores = get_nd_array(df, 'mix', metric, model=models, task=task, step=step, sorted=True)
+            if metric == 'logits_per_byte':
+                # TMP: Handle 3D array
+                from ladder import map_corr_labels
+                mixes, bpb = get_nd_array(df, ['model', 'step', 'mix'], metric, model=models, task=task, step=step)
+                mixes = np.array([mix for mix, _, _ in mixes])
+                bpb = bpb[:, 0, :]
+                _, corr = get_nd_array(df, ['model', 'step', 'mix'], 'correct_choice', model=models, task=task, step=step)
+                corr = corr[:, 0, :]
+                correct_bpb = map_corr_labels(bpb, corr, task_name=task)
+                scores = correct_bpb
+                # Sort by overall performance
+                mix_sums = scores.sum(axis=1)
+                sorted_indices = mix_sums.argsort()[::-1]
+                mixes = mixes[sorted_indices].tolist()
+                scores = scores[sorted_indices]
+            else:
+                mixes, scores = get_nd_array(df, 'mix', metric, model=models, task=task, step=step, sorted=True)
 
         if isinstance(task, list):
             from dataloader import get_slice
@@ -178,6 +201,7 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
         else:
             p_values, mix_scores, _ = compute_pairwise_p_values(scores, num_permutations=num_permutations, return_scores=True)
             # p_values, mix_scores, _ = compute_pairwise_p_values_paired_t_test(scores, return_scores=True)
+            # p_values, mix_scores, _ = compute_pairwise_mcnemar(scores, return_scores=True)
             
             # p_values = np.nan_to_num(compute_pairwise_p_values(scores), nan=0) + np.nan_to_num(compute_pairwise_p_values(scores[::-1]).T, nan=0)
             # np.fill_diagonal(p_values, np.nan)
@@ -191,21 +215,21 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
         sig_results.loc['perc_sig', task] = perc_sig
         all_p_values[task] = (mixes, scores, p_values)
 
-        if do_plot:
+        if do_plot is not None: 
             axes[i] = plot_heatmap(axes[i], p_values, mixes, mix_scores, sig_clusters, alpha=alpha)
             title = r'$p$' + f'-values for {task} (n={scores.shape[1]}) across data mixes at {("last " + str(last_n) + " steps" if last_n > 1 else "final checkpoint")} ({metric}), perc sig={(perc_sig*100):.2f}%'
             if len(models) < 15:
                 title = r'$p$' + f'-values for {task}, perc sig={(perc_sig*100):.2f}%'
             axes[i].set_title(title, fontsize=10)
 
-    if do_plot:
-        if not isinstance(do_plot, plt.Axes):
+    if do_plot is not None: 
+        if isinstance(do_plot, plt.Figure):
             fig.tight_layout()
         return sig_results, all_p_values, axes
     return sig_results, all_p_values, None
 
 
-def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None, color=None):
+def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None, color=None, add_text=True):
     tv_results = pd.DataFrame(index=['total_variation'], columns=tasks)
 
     assert isinstance(models, list) 
@@ -245,23 +269,24 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
                     title=f'{task_name} (n={scores.shape[1]}) {"on " + models if len(models) == 0 else ""}', color=(color[j] if color else None)
                 )
 
-                # Add total variation text
-                text = ''
-                text += f'\nTV-I={tv:.3f}'
-                text = text.lstrip('\n')
-                if text != '':
-                    axes[i].text(
-                        x=step[-1], y=acc[-1], s=text, color=(color[j] if color else None), 
-                        va='center', ha='left', zorder=5, fontsize=10
-                    )
-                
-                    if metric != 'c4_loss' and metric != 'll_per_char': 
-                        axes[i].set_xlim(right=max(step) * 1.25)
-            
-                if metric == 'logits_per_byte':
-                    axes[i].set_ylim(top=max(acc[int(len(acc)*0.1):]), bottom=min(acc)*0.95)
+                if add_text:
+                    # Add total variation text
+                    text = ''
+                    text += f'\nTV-I={tv:.3f}'
+                    text = text.lstrip('\n')
+                    if text != '':
+                        axes[i].text(
+                            x=step[-1], y=acc[-1], s=text, color=(color[j] if color else None), 
+                            va='center', ha='left', zorder=5, fontsize=10
+                        )
+                    
+                        if metric != 'c4_loss' and metric != 'll_per_char': 
+                            axes[i].set_xlim(right=max(step) * 1.25)
+
+                    if metric == 'logits_per_byte':
+                        axes[i].set_ylim(top=max(acc[int(len(acc)*0.1):]), bottom=min(acc)*0.95)
         
         if axes is not None:
-        axes[i].legend(fontsize=8)
+            axes[i].legend(fontsize=8)
 
     return tv_results, axes
