@@ -67,10 +67,11 @@ def download_parquet_from_hf(hf_dataset_name, file_name, local_path):
     return file_path
 
 
-def pull_predictions_from_hf(repo_id, name):
-    file_name = f'all_{name}_predictions.parquet'
-    local_path = DATA_DIR
+def pull_predictions_from_hf(repo_id, split_name, local_path=DATA_DIR):
+    file_name = f'data/{split_name}-00000-of-00001.parquet'
     download_parquet_from_hf(repo_id, file_name, local_path)
+    local_file_name = os.path.join(local_path, file_name)
+    return local_file_name
 
 
 def main():
