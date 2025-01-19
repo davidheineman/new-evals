@@ -10,8 +10,8 @@ from utils import DATA_DIR
 
 def convert_csv_to_parquet(csv_file_path):
     parquet_file_path = csv_file_path.replace(".csv", ".parquet")
-    print(f"Converting '{csv_file_path}' to '{parquet_file_path}'")
-    df = pd.read_csv(csv_file_path)
+    print(f"Converting '{csv_file_path}' -> '{parquet_file_path}'")
+    df = pd.read_csv(csv_file_path, encoding='utf-8')
     df.to_parquet(parquet_file_path, index=False)
     return parquet_file_path
 
@@ -93,17 +93,17 @@ def main():
     # )
 
     push_parquet_to_hf(
-        parquet_file_path='analysis/data/all_aws_predictions.parquet',
-        hf_dataset_name='allenai/ladder-evals',
-        split_name='instance-level-evals',
-        overwrite=True
-    )
-    push_parquet_to_hf(
         parquet_file_path='analysis/data/aws_metrics.csv',
         hf_dataset_name='allenai/ladder-evals',
-        split_name='benchmark-level-evals',
+        split_name='benchmarks',
         overwrite=True
     )
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/all_aws_predictions.parquet',
+    #     hf_dataset_name='allenai/ladder-evals',
+    #     split_name='instances',
+    #     overwrite=True
+    # )
 
     # push_parquet_to_hf(
     #     parquet_file_path='analysis/data/all_consistent_ranking_predictions.parquet',
