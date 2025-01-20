@@ -1,14 +1,14 @@
 {
     "editor.inlayHints.enabled": "off",
     "python.analysis.extraPaths": [
-        "/Users/dhei/ai2/new-evals",
-        "/Users/dhei/ai2/new-evals/analysis",
-        "/Users/dhei/ai2/new-evals/generation",
-        "/Users/dhei/ai2/new-evals/olmo-repos/oe-eval-internal",
-        "/Users/dhei/ai2/new-evals/olmo-repos/olmo",
-        "/Users/dhei/ai2/new-evals/olmo-repos/OLMo",
-        "/Users/dhei/ai2/new-evals/olmo-repos/OLMo/scripts",
-        "/Users/dhei/ai2/new-evals/olmo-repos/OLMo/scripts/scaling",
+        ".",
+        "./analysis",
+        "./generation",
+        "./olmo-repos/oe-eval-internal",
+        "./olmo-repos/olmo",
+        "./olmo-repos/OLMo",
+        "./olmo-repos/OLMo/scripts",
+        "./olmo-repos/OLMo/scripts/scaling",
         "./olmo-repos/oe-eval-internal"
     ]
 }
