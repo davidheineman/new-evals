@@ -4,17 +4,24 @@ Analysis tools for pre-training evaluation
 ```sh
 pip install -r requirements.txt
 mkdir olmo-repos # clone olmo repos here if applicable!
-```
 
-## Other Features
-
-### Install Ladder Model Code
-```sh
+# (optional) Download model ladder code
 git clone https://github.com/allenai/OLMo/ olmo-repos/olmo
 cd olmo-repos/olmo
 git checkout ladder-1xC
 pip install -e .
 
+# (optional) Download custom oe-eval-internal
+git clone git@github.com:allenai/oe-eval-internal.git olmo-repos/oe-eval-internal
+cd olmo-repos/oe-eval-internal/
+git checkout paraphrase # get current project branch
+pip install -e ".[dev]" # --no-deps
+```
+
+## Other Features
+
+### Download Model Ladder Data
+```sh
 # Download wandb logs (see OLMo library for all downloads)
 python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-1xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-1xC.csv
 python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-2xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-2xC.csv
@@ -42,11 +49,6 @@ nohup python analysis/download/preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/
 
 ### Install Custom oe-eval 
 ```sh
-git clone git@github.com:allenai/oe-eval-internal.git olmo-repos/oe-eval-internal
-cd olmo-repos/oe-eval-internal/
-git checkout paraphrase # get current project branch
-pip install -e ".[dev]" # --no-deps
-
 # (for vllm support) install nightly vllm=
 pip install https://vllm-wheels.s3.us-west-2.amazonaws.com/nightly/vllm-1.0.0.dev-cp38-abi3-manylinux1_x86_64.whl
 
