@@ -404,7 +404,7 @@ def run_ladder(
                     step2_coefficients, cov, use_log_sigmoid=False, add_texts=add_texts, ax=ax
                 )
         except Exception as e:
-            print(data_by_name)
+            print(data_by_name_step_2)
             raise RuntimeError(f'Step 2 failed to fit: {e}')
 
     if run_stacked:
