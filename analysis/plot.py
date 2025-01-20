@@ -1,6 +1,11 @@
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import pandas as pd
 import numpy as np
+
+# Global dictionary to store colors for labels
+LABEL_COLOR_MAP = {}
+COLOR_IDX = {'col': 0}
 
 def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=None, _type='p_values', alpha=0.01):
     """ Plot a pairwise heatmap of statistical significance """
@@ -63,13 +68,37 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=
     return ax
 
 
+def assign_color(label):
+    if label not in LABEL_COLOR_MAP:
+        available_colors = list(mcolors.TABLEAU_COLORS.keys())
+        assigned_color = available_colors[COLOR_IDX['col'] % len(available_colors)]
+        LABEL_COLOR_MAP[label] = assigned_color
+        COLOR_IDX['col'] += 1
+    return LABEL_COLOR_MAP[label]
+
+
+def lighten_color(color, amount=0.2):
+    r, g, b = mcolors.to_rgb(color)
+    new_r = min(r + (1 - r) * amount, 1)
+    new_g = min(g + (1 - g) * amount, 1)
+    new_b = min(b + (1 - b) * amount, 1)
+    return new_r, new_g, new_b
+
+
 def plot_training(ax: plt.Axes, x, y, xlabel: str, ylabel: str, label=None, title=None, color=None, fit=None, ci=None, sma_window=None):
+    if color is None and label is not None:
+        label_for_color = label
+        # label_for_color = label.replace('_rc', '').replace('_mc', '').replace('_val', '').replace('_test', '') # peteish32 override
+        # if '_5shot' in label_for_color: label_for_color = label_for_color.split('_5shot')[0]
+        color = assign_color(label_for_color)
+        # if 'rc' in label: 
+        #     color = lighten_color(color, amount=0.5)
+
     if xlabel == 'step':
         if sma_window is not None:
             import numpy as np
-            window_size = 5
-            sma = np.convolve(y, np.ones(window_size)/window_size, mode='valid')
-            x_sma = x[window_size-1:]
+            sma = np.convolve(y, np.ones(sma_window)/sma_window, mode='valid')
+            x_sma = x[sma_window-1:]
             x_plt, y_plt = x_sma, sma
         else:
             x_plt, y_plt = x, y

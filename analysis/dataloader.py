@@ -18,10 +18,21 @@ def get_slice(df, mix=None, model=None, task=None, step=None):
     }
     slicing_tuple = tuple(level_slices.get(level, slice(None)) for level in df.index.names)
 
-    try:
-        df = df.loc[slicing_tuple]
-    except KeyError:
-        return df.iloc[0:0]  # Return an empty DataFrame if no match
+    is_multiindex = isinstance(df.index, pd.MultiIndex)
+
+    if is_multiindex:
+        try:
+            df = df.loc[slicing_tuple]
+        except KeyError:
+            return df.iloc[0:0]  # Return an empty DataFrame if no match
+    else:
+        # Slow index
+        df = df[
+            (df['mix'].isin(level_slices['mix']) if isinstance(level_slices['mix'], list) else True) &
+            (df['model'].isin(level_slices['model']) if isinstance(level_slices['model'], list) else True) &
+            (df['task'].isin(level_slices['task']) if isinstance(level_slices['task'], list) else True) &
+            (df['step'].isin(level_slices['step']) if isinstance(level_slices['step'], list) else True)
+        ]
     
     # Sort and return
     if 'step' in df.index.names:
@@ -57,19 +68,25 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
     if use_max_step: 
         slices = get_max_k_step(slices)
 
-    # For native_ids which count up from 0, there are the same IDs across tasks. Append the task name.
-    slices['native_id'] = slices['native_id'] + '_' + slices['task'].astype(str)
-    
-    duplicates_count = slices.duplicated(subset=['native_id'] + col).sum()
-    if duplicates_count > 0:
-        if 'hellaswag' not in task and \
-            'drop' not in task: # this is a known problem for 433 HellaSwag instances, 1 Drop instance
-            warnings.simplefilter("once", UserWarning)
-            warnings.warn(f"Warning: {duplicates_count}/{len(slices)} duplicate native_id-key pairs found for task='{task}' model='{model}'. Removing duplicates...", category=UserWarning, stacklevel=2)
-        slices = slices.drop_duplicates(subset=['native_id'] + col, keep='first')
+    is_multiindex = isinstance(df.index, pd.MultiIndex)
 
-    # Pivot the data to get mixes as columns and question_ids as rows
-    pivoted = slices.pivot(index='native_id', columns=col, values=metric)
+    if is_multiindex:
+        # For native_ids which count up from 0, there are the same IDs across tasks. Append the task name.
+        slices['native_id'] = slices['native_id'] + '_' + slices['task'].astype(str)
+        
+        duplicates_count = slices.duplicated(subset=['native_id'] + col).sum()
+        if duplicates_count > 0:
+            if 'hellaswag' not in task and \
+                'drop' not in task: # this is a known problem for 433 HellaSwag instances, 1 Drop instance
+                warnings.simplefilter("once", UserWarning)
+                warnings.warn(f"Warning: {duplicates_count}/{len(slices)} duplicate native_id-key pairs found for task='{task}' model='{model}'. Removing duplicates...", category=UserWarning, stacklevel=2)
+            slices = slices.drop_duplicates(subset=['native_id'] + col, keep='first')
+
+        # Pivot the data to get mixes as columns and question_ids as rows
+        pivoted = slices.pivot(index='native_id', columns=col, values=metric)
+    else:
+        pivoted = slices.pivot(index='index', columns=col, values=metric)
+        
     columns = pivoted.columns
     scores = pivoted.to_numpy()
 
