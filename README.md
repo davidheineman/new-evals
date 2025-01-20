@@ -8,12 +8,44 @@ mkdir olmo-repos # clone olmo repos here if applicable!
 
 ## Other Features
 
+### Install Ladder Model Code
+```sh
+git clone https://github.com/allenai/OLMo/ olmo-repos/olmo
+cd olmo-repos/olmo
+git checkout ladder-1xC
+pip install -e .
+
+# Download wandb logs (see OLMo library for all downloads)
+python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-1xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-1xC.csv
+python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-2xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-2xC.csv
+python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-5xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-5xC.csv
+python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-10xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-10xC.csv
+
+# Sanity check: Run variance analysis + predictions
+python scripts/scaling/variance_analysis.py -k v2_main_variance -c scripts/scaling/final_variance.json -o figure/peteish-moreeval/variance.pdf --last_n_points 10 --run_prediction
+python scripts/scaling/step2.py -k v2_main -c scripts/scaling/step2.json -o figure/peteish-moreeval/step2_main.pdf --skip_perc 0.1 --moving_avg 5
+```
+
+### Launching & Processing Evals
+```sh
+python scripts/launch_evals.py # launch evals on beaker
+python analysis/download/aws.py # sync from s3
+python analysis/download/preprocess.py # convert to .parquet
+
+# Detatch from current session
+nohup python scripts/launch_eval.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
+nohup python analysis/download/aws.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
+
+# (in case I need it)
+nohup python analysis/download/preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
+```
+
 ### Install Custom oe-eval 
 ```sh
 git clone git@github.com:allenai/oe-eval-internal.git olmo-repos/oe-eval-internal
 cd olmo-repos/oe-eval-internal/
 git checkout paraphrase # get current project branch
-pip install -e . # [dev] # --no-deps
+pip install -e ".[dev]" # --no-deps
 
 # (for vllm support) install nightly vllm=
 pip install https://vllm-wheels.s3.us-west-2.amazonaws.com/nightly/vllm-1.0.0.dev-cp38-abi3-manylinux1_x86_64.whl
@@ -22,9 +54,6 @@ pip install https://vllm-wheels.s3.us-west-2.amazonaws.com/nightly/vllm-1.0.0.de
 oe-eval --model pythia-160m --task drop::olmes:full gsm8k::olmes:full jeopardy::olmes:full naturalqs::olmes:full squad::olmes:full triviaqa::olmes:full arc_challenge:rc::olmes:full --run-local --output-dir /Users/dhei/ai2/new-evals/workspace --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing --limit 20
 
 oe-eval --model pythia-160m --task bbh_boolean_expressions:cot::olmes:full --run-local --output-dir /Users/dhei/ai2/new-evals/workspace --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing --limit 20
-
-# agi_eval_lsat-ar:cot::none
-# mmlu_pro_math:mc::none
 ```
 
 ### Converting OLMo Checkpoints
@@ -55,36 +84,4 @@ conda activate metaeval
 
 # Detatch from current session
 nohup /root/ai2/metaeval/convert_checkpoints_peteish.sh > out.out 2>&1 & tail -f out.out
-```
-
-### Launching & Processing Evals
-```sh
-python scripts/launch_evals.py # launch evals on beaker
-python analysis/download/aws.py # sync from s3
-python analysis/download/preprocess.py # convert to .parquet
-
-# Detatch from current session
-nohup python scripts/launch_eval.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
-nohup python analysis/download/aws.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
-
-# (in case I need it)
-nohup python analysis/download/preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
-```
-
-### Install Ladder Model Code
-```sh
-git clone https://github.com/allenai/OLMo/ olmo-repos/olmo
-cd olmo-repos/olmo
-git checkout ladder-1xC
-pip install -e .
-
-# Download wandb logs (see OLMo library for all downloads)
-python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-1xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-1xC.csv
-python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-2xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-2xC.csv
-python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-5xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-5xC.csv
-python olmo/scaling/scaling_laws/download_wandb_logs.py -n 'ai2-llm/olmo-ladder/peteish-moreeval-3B-10xC' -y validation-and-downstream-v2 -o scripts/scaling/data/peteish-moreeval/3B-10xC.csv
-
-# Sanity check: Run variance analysis + predictions
-python scripts/scaling/variance_analysis.py -k v2_main_variance -c scripts/scaling/final_variance.json -o figure/peteish-moreeval/variance.pdf --last_n_points 10 --run_prediction
-python scripts/scaling/step2.py -k v2_main -c scripts/scaling/step2.json -o figure/peteish-moreeval/step2_main.pdf --skip_perc 0.1 --moving_avg 5
 ```

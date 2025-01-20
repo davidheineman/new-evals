@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pandas as pd
 from collections import defaultdict
 
 from olmo.scaling.scaling_laws.utils import FinalConfig
@@ -64,6 +65,15 @@ def add_ladder_data_cheap_decisions(data_by_name):
     return data_by_name
 
 
+def get_slice(df, model, task):
+    try:
+        df = df.loc[(task, model)]
+    except KeyError:
+        return df.iloc[0:0]
+    df = df.reset_index()
+    return df
+
+
 def get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models, step='max'):
     data_by_name = defaultdict(dict)
 
@@ -77,14 +87,19 @@ def get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models
         size, chinchilla = split_name[-2:]
         group = '-'.join(split_name[:-2])
 
-        # Filter the DataFrame based on the criteria
-        _slice = df[
-            (df['task'] == task_name) &
-            (df['model'] == model)
-            # (df['group'] == group) &
-            # (df['size'] == size) &
-            # (df['chinchilla'] == chinchilla)
-        ]
+        is_multiindex = isinstance(df.index, pd.MultiIndex)
+
+        if is_multiindex:
+            _slice = get_slice(df, model, task_name)
+        else:
+            # Filter the DataFrame based on the criteria
+            _slice = df[
+                (df['task'] == task_name) &
+                (df['model'] == model)
+                # (df['group'] == group) &
+                # (df['size'] == size) &
+                # (df['chinchilla'] == chinchilla)
+            ]
 
         if len(_slice) == 0:
             raise RuntimeError(f'Got empty slice for {(task_name, group, size, chinchilla)}.')

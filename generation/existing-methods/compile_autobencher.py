@@ -100,7 +100,7 @@ def main():
     # )
 
     # Push math
-    path = 'AutoBencher/MATH_test/'
+    path = 'AutoBencher/MATH/'
     pattern = r'.\d+.*.questions_final.json'
     filename = 'combined_math_questions'
 
@@ -108,8 +108,8 @@ def main():
 
     push_parquet_to_hf(
         parquet_file_path=parquet_path,
-        hf_dataset_name="allenai/autobencher-math",
-        private=True,
+        hf_dataset_name="davidheineman/autobencher-math",
+        private=False,
         overwrite=True
     )
 
