@@ -156,9 +156,8 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
             scores = scores.mean(axis=1) # approach 1: average over last n ckpts
             # scores = scores.reshape(scores.shape[0], scores.shape[1] * scores.shape[2]) # approach 2: concat last n ckpts -- I'm concerned this wont work with instance weights
 
-            # Recover just the mix names using the first value for step
-            first_step = mixes.get_level_values('step').unique()[0]
-            mixes = mixes[mixes.get_level_values('step') == first_step].get_level_values('mix')
+            # Recover just the mix names
+            mixes = np.array([name for name, step in mixes])
 
             # Sort based on new aggregate (average/concat)
             mix_sums = scores.sum(axis=1)
