@@ -99,12 +99,12 @@ def main():
         split_name='benchmarks',
         overwrite=True
     )
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/all_aws_predictions.parquet',
-    #     hf_dataset_name='allenai/ladder-evals',
-    #     split_name='instances',
-    #     overwrite=True
-    # )
+    push_parquet_to_hf(
+        parquet_file_path='analysis/data/all_aws_predictions.parquet',
+        hf_dataset_name='allenai/ladder-evals',
+        split_name='instances',
+        overwrite=True
+    )
 
     # push_parquet_to_hf(
     #     parquet_file_path='analysis/data/all_consistent_ranking_predictions.parquet',

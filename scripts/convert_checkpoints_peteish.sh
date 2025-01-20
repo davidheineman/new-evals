@@ -188,7 +188,7 @@ MODEL_LIST_LADDER=(
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-1B-1xC"
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-1xC"
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-3B-1xC"
-    "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-370M-1xC" # this is where I paused
+    "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-370M-1xC"
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-2xC"
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-3B-2xC"
     "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-3B-1xC"
@@ -199,6 +199,7 @@ MODEL_LIST_LADDER=(
 
 MODEL_LIST_CUSTOM=(
     "/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848"
+    "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-10xC/step162694-unsharded"
 )
 
 # Dolma 2 Tokenizer
