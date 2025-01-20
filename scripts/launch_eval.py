@@ -37,10 +37,10 @@ TASK_LIST_ALL = []
 # TASK_LIST_ALL += PARA_TASKS_OLMES
 # TASK_LIST_ALL += ENLARGE_TASKS_OLMES
 # TASK_LIST_ALL += DISTRACTORS_TASKS_OLMES
-TASK_LIST_ALL += MC_TASKS_OLMES
+# TASK_LIST_ALL += MC_TASKS_OLMES
 
 # TASK_LIST_ALL += PALOMA
-# TASK_LIST_ALL += LLM_COMPRESSION
+TASK_LIST_ALL += LLM_COMPRESSION
 
 # TASK_LIST_ALL += MC_TASKS_COPY_COLORS
 # TASK_LIST_ALL += GEN_TASKS_OLMES
@@ -53,12 +53,11 @@ TASK_LIST_ALL += MC_TASKS_OLMES
 
 # TASK_LIST_ALL += ['autobencher::none']
 
-
-# FOR MODEL LADDER
+# # FOR MODEL LADDER
 # TASK_LIST_ALL += [
 #     # GSM CoT
 #     "gsm8k::olmes",
-# 
+
 #     # Minerva CoT (olmes version)
 #     "minerva_math_algebra::olmes:full",
 #     "minerva_math_counting_and_probability::olmes:full",
@@ -67,12 +66,29 @@ TASK_LIST_ALL += MC_TASKS_OLMES
 #     "minerva_math_number_theory::olmes:full",
 #     "minerva_math_prealgebra::olmes:full",
 #     "minerva_math_precalculus::olmes:full",
-# 
+
 #     # Coding
-#     "codex_humaneval:temp0.8",
 #     "mbpp::ladder",
 #     "mbppplus::ladder",
+#     "codex_humaneval:temp0.8",
 #     "codex_humanevalplus::ladder",
+# ]
+
+# # NEW TASKS
+# TASK_LIST_ALL += [
+#     'deepmind_math_large::none',
+#     'medmcqa:rc::none',
+#     'medmcqa:mc::none',
+#     'gsm_plus::none',
+#     'gsm_symbolic::none',
+#     'gsm_symbolic_p1::none',
+#     'gsm_symbolic_p2::none',
+#     'gpqa::none',
+#     'minerva_math_500::none',
+# ]
+
+# TASK_LIST_ALL += [
+#     'aime::none',
 # ]
 
 
@@ -81,16 +97,25 @@ TASK_LIST_ALL += MC_TASKS_OLMES
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' in task] # <- MMLU only
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' in task and ':para' in task] # <- MMLU:para only
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'coqa:' not in task] # <- coqa is not setup properly
+# TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'gsm8k' in task] # <- coqa is not setup properly
 # MODEL_LIST_ALL = [MODEL_LIST_INTERMEDIATE[1]] # <- only use first model!
 # MODEL_LIST_ALL = [OE_EVAL_INSTRUCT_MODELS[0]]
+# MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if 'peteish7' in model] # <- 3B models!
 # MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if '-3B-5xC' in model or 'peteish13' in model] # <- only peteish13!
 # MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if '-3B-' in model] # <- 3B models!
+# MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if '-1B-10xC' in model or '-3B-10xC' in model] # <- only 1B-10xC !
+# MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if 'falcon_and_cc-1B-5xC' in model or '-3B-10xC' in model] # <- only 1B-10xC !
 # MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if 'qwen2.5-72b' in model or 'qwen2.5-32b' in model or 'qwen2.5-14b' in model] # <- only 3B ladder models!
+# MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if 'qwen2.5-7b' in model]
+# MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if model in ['llama3.1-8b', 'pythia-1b', 'olmoe-1b-7b-0924', 'llama3.2-1b', 'qwen2.5-72b', 'llama2-7b', 'llama3-8b']]
+# MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if model in ['gemma-2b', 'llama2-13b', 'phi-1.5', 'olmo-7b-0724', 'olmo-1b', "llama3.1-70b"]]
+# MODEL_LIST_ALL = OE_EVAL_BASE_MODELS
 # TASK_LIST_ALL = SYNTHETIC_TASKS # <- only use synthetic tasks!
-# TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'arc_' not in task]
+# TASK_LIST_ALL = AGI_EVAL_MC + BBH_COT
+# TASK_LIST_ALL = ['coqa::olmes:full', 'copycolors_4way:mc::none']
 
 
-def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None):
+def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_size=None):
     if isinstance(task_list, list): 
         task_list = ' '.join([f'"{task}"' for task in task_list])
 
@@ -109,10 +134,13 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None):
         --recompute-metrics \
         --beaker-priority normal
     """
+    command = command.replace('\n', '').replace('  ', '') # remove extra spacing!
     if limit is not None: 
         print(f'🫢😧 Using a {limit} instance limit 🤫🫣')
-        command += " --limit 10000"
-    command = command.replace('  ', '') # remove extra spacing!
+        command += f" --limit {limit}"
+    if batch_size is not None: 
+        print(f'Using a batch_size of {batch_size}')
+        command += f" --batch-size {batch_size}"
     mb = len(command.encode('utf-8')) / (1024 * 1024) # compute size of command
 
     print(f'Executing command:\n{command}')
@@ -123,9 +151,11 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None):
 
 def main():
     print(f'Launching {len(MODEL_LIST_ALL)} models on {len(TASK_LIST_ALL)} tasks (10 second sleep to confirm...)')
-    time.sleep(10)
+    # time.sleep(10)
 
     for model in MODEL_LIST_ALL:
+        batch_size = None
+
         if model in OE_EVAL_ALL_MODELS:
             # From my testing, looks like anything less than 4 GPUs on 13B+ models (or Gemma 7B+) breaks
             # Also 70B model do not work on neptune (L40s)
@@ -148,13 +178,16 @@ def main():
 
         if any(task in PALOMA + LLM_COMPRESSION for task in TASK_LIST_ALL):
             model_type = 'hf' # we can only run perplexity on hf for now
+            if model in OE_EVAL_BASE_MODELS or '10xC' in model:
+                batch_size = 1 # larger corpora will silent fail
 
         run_eval(
             model_list=model, 
             task_list=TASK_LIST_ALL, 
             model_type=model_type, 
             gpus=gpus,
-            # limit=10_000
+            # limit=10_000,
+            batch_size=batch_size
         )
 
 

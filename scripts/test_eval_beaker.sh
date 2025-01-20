@@ -57,7 +57,7 @@ ai2/ganymede-cirrascale
 # "
 
 TASK_LIST="\
-paloma_gab::paloma \
+paloma_dolma_100_programing_languages::paloma \
 "
 
 # TASK_LIST="\

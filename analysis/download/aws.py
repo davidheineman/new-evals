@@ -86,17 +86,56 @@ def fetch_page(page):
     return [obj['Key'] for obj in page.get('Contents', [])]
 
 
-def mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100, excluded_file_names=EXCLUDED_FILE_NAMES):
+def fetch_keys_for_prefix(bucket_name, prefix):
+    s3_client = boto3.client('s3')
+    paginator = s3_client.get_paginator('list_objects_v2')
+    keys = []
+    pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
+    for page in pages:
+        keys.extend(fetch_page(page))
+    return keys
+
+
+def mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100, excluded_file_names=EXCLUDED_FILE_NAMES, s3_prefix_list=None):
     """ Recursively download an S3 folder to mirror remote """
     s3_client = boto3.client('s3')
     paginator = s3_client.get_paginator('list_objects_v2')
     keys = []
 
-    with ProcessPoolExecutor() as executor:
-        pages = paginator.paginate(Bucket=bucket_name, Prefix=s3_prefix)
-        keys = []
-        for result in tqdm(executor.map(fetch_page, pages), desc="Listing S3 entries"):
-            keys.extend(result)
+    if s3_prefix_list is not None:
+        with open(s3_prefix_list, 'r') as file:
+            s3_prefixes = [line.strip() for line in file.readlines() if line.strip()]
+    else:
+        s3_prefixes = [s3_prefix]
+
+    # with ProcessPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=100) as executor:
+        # TODO: Combine both if branches into one set of results
+        if s3_prefix_list is not None:
+            future_to_prefix = {}
+            with tqdm(total=len(s3_prefixes), desc="Submitting S3 prefix tasks", unit="prefix") as submit_pbar:
+                for prefix in s3_prefixes:
+                    future = executor.submit(fetch_keys_for_prefix, bucket_name, prefix)
+                    future_to_prefix[future] = prefix
+                    submit_pbar.update(1)
+
+            with tqdm(total=len(future_to_prefix), desc="Fetching keys from S3 prefixes", unit="prefix") as pbar:
+                for future in as_completed(future_to_prefix):
+                    try:
+                        keys.extend(future.result())
+                    except Exception as e:
+                        print(f"Error processing prefix {future_to_prefix[future]}: {e}")
+                    pbar.update(1)
+        else:
+            pages = paginator.paginate(Bucket=bucket_name, Prefix=s3_prefix)
+            keys = []
+            for result in tqdm(executor.map(fetch_page, pages), desc="Listing S3 entries"):
+                keys.extend(result)
+
+            for s3_prefix in tqdm(s3_prefixes, desc="Processing S3 prefixes", unit="prefix"):
+                pages = paginator.paginate(Bucket=bucket_name, Prefix=s3_prefix)
+                for result in executor.map(fetch_page, pages):
+                    keys.extend(result)
 
     if max_threads > 1:
         # ProcessPoolExecutor seems not to work with AWS, so we use ThreadPoolExecutor
@@ -144,12 +183,19 @@ def main():
     # s3_prefix = 'eval-results/downstream/eval-for-consistent-ranking-preemption-fixed/'
     # folder_name = 'consistent_ranking'
 
+    # bucket_name = 'ai2-llm'
+    # s3_prefix_list = 'analysis/data/cheap_decisions_paths.txt'
+    # folder_name = 'consistent_ranking_final'
+
     local_dir = f'{DATA_DIR}/{folder_name}'
+
     mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100)
+    # mirror_s3_to_local(bucket_name, None, local_dir, max_threads=100, s3_prefix_list=s3_prefix_list)
 
     # Launch preprocessing job!
     from preprocess import main
-    main(folder_name)
+    main(folder_name, file_type='metrics')
+    main(folder_name, file_type='predictions')
 
 if __name__ == '__main__':
     main()
