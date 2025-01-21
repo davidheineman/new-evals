@@ -104,6 +104,11 @@ LLM_COMPRESSION = [
     "cc::llm_compression",
     "python::llm_compression",
 ]
+CUSTOM_LOSS = [
+    'sky_t1::custom_loss', 
+    'numia_math::custom_loss', 
+    'tulu_if::custom_loss'
+]
 
 GEN_TASKS_OLMES = [
     # Core generation-based benchmarks

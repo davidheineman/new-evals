@@ -23,7 +23,7 @@ from analysis.utils.constants_tasks import BBH_MC, BBH_COT
 from analysis.utils.constants_tasks import PERTURB_COT_TASKS
 
 # Perplexity tasks
-from analysis.utils.constants_tasks import PALOMA, LLM_COMPRESSION
+from analysis.utils.constants_tasks import PALOMA, LLM_COMPRESSION, CUSTOM_LOSS
 
 MODEL_LIST_ALL = []
 MODEL_LIST_ALL += MODEL_LADDER_LIST + MODEL_LIST_INTERMEDIATE + MODEL_LIST_MIXES
@@ -40,7 +40,8 @@ TASK_LIST_ALL = []
 # TASK_LIST_ALL += MC_TASKS_OLMES
 
 # TASK_LIST_ALL += PALOMA
-TASK_LIST_ALL += LLM_COMPRESSION
+# TASK_LIST_ALL += LLM_COMPRESSION
+# TASK_LIST_ALL += CUSTOM_LOSS
 
 # TASK_LIST_ALL += MC_TASKS_COPY_COLORS
 # TASK_LIST_ALL += GEN_TASKS_OLMES
@@ -51,7 +52,7 @@ TASK_LIST_ALL += LLM_COMPRESSION
 # TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
 # TASK_LIST_ALL += PERTURB_COT_TASKS
 
-# TASK_LIST_ALL += ['autobencher::none']
+# TASK_LIST_ALL += ['autobencher::none', autobencher:mc::none]
 
 # # FOR MODEL LADDER
 # TASK_LIST_ALL += [
@@ -113,9 +114,13 @@ TASK_LIST_ALL += LLM_COMPRESSION
 # TASK_LIST_ALL = SYNTHETIC_TASKS # <- only use synthetic tasks!
 # TASK_LIST_ALL = AGI_EVAL_MC + BBH_COT
 # TASK_LIST_ALL = ['coqa::olmes:full', 'copycolors_4way:mc::none']
+# TASK_LIST_ALL = ['gsm_plus::none']
+# TASK_LIST_ALL = ['autobencher:mc::none']
+TASK_LIST_ALL = ['sky_t1::custom_loss', 'numia_math::custom_loss', 'tulu_if::custom_loss']
+# TASK_LIST_ALL = PALOMA
 
 
-def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_size=None):
+def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_size=None, save_requests=True):
     if isinstance(task_list, list): 
         task_list = ' '.join([f'"{task}"' for task in task_list])
 
@@ -141,6 +146,8 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_s
     if batch_size is not None: 
         print(f'Using a batch_size of {batch_size}')
         command += f" --batch-size {batch_size}"
+    if not save_requests:
+        command += ' --save-raw-requests false --delete-raw-requests'
     mb = len(command.encode('utf-8')) / (1024 * 1024) # compute size of command
 
     print(f'Executing command:\n{command}')
@@ -150,11 +157,12 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_s
 
 
 def main():
-    print(f'Launching {len(MODEL_LIST_ALL)} models on {len(TASK_LIST_ALL)} tasks (10 second sleep to confirm...)')
-    # time.sleep(10)
+    print(f'Launching {len(MODEL_LIST_ALL)} models on {len(TASK_LIST_ALL)} tasks (5 second sleep to confirm...)')
+    time.sleep(5)
 
     for model in MODEL_LIST_ALL:
         batch_size = None
+        save_requests = True
 
         if model in OE_EVAL_ALL_MODELS:
             # From my testing, looks like anything less than 4 GPUs on 13B+ models (or Gemma 7B+) breaks
@@ -176,7 +184,8 @@ def main():
             model_type = 'vllm'
             gpus = 1
 
-        if any(task in PALOMA + LLM_COMPRESSION for task in TASK_LIST_ALL):
+        if any(task in PALOMA + LLM_COMPRESSION + CUSTOM_LOSS for task in TASK_LIST_ALL):
+            save_requests = False # don't save the perplexity files
             model_type = 'hf' # we can only run perplexity on hf for now
             if model in OE_EVAL_BASE_MODELS or '10xC' in model:
                 batch_size = 1 # larger corpora will silent fail
@@ -187,7 +196,8 @@ def main():
             model_type=model_type, 
             gpus=gpus,
             # limit=10_000,
-            batch_size=batch_size
+            batch_size=batch_size,
+            save_requests=save_requests
         )
 
 

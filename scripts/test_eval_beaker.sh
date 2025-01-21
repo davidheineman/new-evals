@@ -56,8 +56,16 @@ ai2/ganymede-cirrascale
 # autobencher::none \
 # "
 
+# TASK_LIST="\
+# arxiv_math::llm_compression \
+# cc::llm_compression \
+# python::llm_compression \
+# "
+
 TASK_LIST="\
-paloma_dolma_100_programing_languages::paloma \
+sky_t1::custom_loss \
+numia_math::custom_loss \
+tulu_if::custom_loss \
 "
 
 # TASK_LIST="\
@@ -68,12 +76,20 @@ paloma_dolma_100_programing_languages::paloma \
 # weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm \
 # "
 
+# MODEL_LIST="\
+# weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-10xC/step162000-unsharded-hf \
+# "
+
 MODEL_LIST="\
-weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-10xC/step162000-unsharded-hf \
+weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-5xC \
 "
 
 # MODEL_LIST="\
 # llama3-70b \
+# "
+
+# MODEL_LIST="\
+# qwen2-1.5b \
 # "
 
 # GPUS=4
@@ -94,4 +110,9 @@ oe-eval \
     --gantry-secret-aws-secret-access AWS_SECRET_ACCESS_KEY \
     --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
     --recompute-metrics \
+    --delete-raw-requests \
+    --batch-size 1 \
     --beaker-priority normal
+
+# --limit 20 \
+# --dry-run
