@@ -169,10 +169,6 @@ def get_ladder_size(model_name):
 
 def get_ladder_data(df, task_name, train_models, eval_models, step='max'):
     """ Get slices of df and convert to ladder prediction format """
-    if isinstance(task_name, list):
-        assert len(task_name), f'Task suite needs to be only one list: {task_name}'
-        task_name = task_name[0]
-
     data_by_name = defaultdict(dict)
 
     for model in train_models + eval_models:

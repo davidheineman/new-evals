@@ -228,6 +228,43 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
     return sig_results, all_p_values, None
 
 
+def calculate_and_plot_total_variation(x, y, metric, model_name=None, num_scores=None, title=None, color=None, ax=None, add_text=True):
+    tv = calc_total_variation(y, improvement=True) * 100
+
+    # Add analytical CI
+    ci = None
+    # if num_scores is not None:
+    #     ci = 1.96 * calculate_standard_error(y, num_scores=num_scores)
+
+    if ax is not None:
+        _ = plot_training(
+            ax=ax, 
+            label=model_name,
+            x=x, y=y, ci=ci,
+            xlabel='step', ylabel=metric, 
+            title=title, color=color
+        )
+
+        if add_text:
+            # Add total variation text
+            text = ''
+            text += f'\nTV-I={tv:.3f}'
+            text = text.lstrip('\n')
+            if text != '':
+                ax.text(
+                    x=x[-1], y=y[-1], s=text, color=color, 
+                    va='center', ha='left', zorder=5, fontsize=10
+                )
+            
+                if metric != 'c4_loss' and metric != 'll_per_char': 
+                    ax.set_xlim(right=max(x) * 1.25)
+
+            if metric == 'logits_per_byte':
+                ax.set_ylim(top=max(y[int(len(y)*0.1):]), bottom=min(y)*0.95)
+
+    return tv
+
+
 def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None, color=None, add_text=True):
     tv_results = pd.DataFrame(index=['total_variation'], columns=tasks)
 
@@ -248,42 +285,21 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
                 step, scores = get_nd_array(df, 'step', metric, model=model, task=task)
                 acc = scores.mean(axis=1)
 
-            tv = calc_total_variation(acc, improvement=True) * 100
-
-            # Add analytical CI
-            ci = 1.96 * calculate_standard_error(acc, num_scores=scores.shape[1])
-
             task_name = task
             if isinstance(task, list):
                 task_name = 'aggregate'
 
-            tv_results.loc['total_variation', task_name] = tv
-
-            if axes is not None:
-                _ = plot_training(
-                    ax=axes[i], 
-                    label=model,
-                    x=step, y=acc, ci=ci,
-                    xlabel='step', ylabel=metric, 
-                    title=f'{task_name} (n={scores.shape[1]}) {"on " + models if len(models) == 0 else ""}', color=(color[j] if color else None)
-                )
-
-                if add_text:
-                    # Add total variation text
-                    text = ''
-                    text += f'\nTV-I={tv:.3f}'
-                    text = text.lstrip('\n')
-                    if text != '':
-                        axes[i].text(
-                            x=step[-1], y=acc[-1], s=text, color=(color[j] if color else None), 
-                            va='center', ha='left', zorder=5, fontsize=10
-                        )
-                    
-                        if metric != 'c4_loss' and metric != 'll_per_char': 
-                            axes[i].set_xlim(right=max(step) * 1.25)
-
-                    if metric == 'logits_per_byte':
-                        axes[i].set_ylim(top=max(acc[int(len(acc)*0.1):]), bottom=min(acc)*0.95)
+            tv_results.loc['total_variation', task_name] = calculate_and_plot_total_variation(
+                x=step,
+                y=acc,
+                metric=metric,
+                model_name=model,
+                num_scores=scores.shape[1],
+                color=(color[j] if color else None),
+                title=f'{task_name} (n={scores.shape[1]}) {"on " + models if len(models) == 0 else ""}',
+                ax=axes[i],
+                add_text=add_text
+            )
         
         if axes is not None:
             axes[i].legend(fontsize=8)
