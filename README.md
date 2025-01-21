@@ -45,6 +45,7 @@ nohup python analysis/download/aws.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 
 # (in case I need it)
 nohup python analysis/download/preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
+nohup python analysis/download/hf.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 ```
 
 ### Install Custom oe-eval 

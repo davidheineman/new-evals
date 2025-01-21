@@ -515,7 +515,7 @@ def cleanup_metrics_df(df):
     df = df.drop(columns=["Unnamed: 0"], errors='ignore')
 
     # Modify column order to move these up
-    desired_order = ['model', 'mix', 'step', 'size', 'token_ratio', 'task', 'primary_score', 'logits_per_byte_corr']
+    desired_order = ['task', 'model', 'step', 'mix', 'size', 'token_ratio', 'primary_score', 'logits_per_byte_corr']
     existing_columns = [col for col in desired_order if col in df.columns]
     remaining_cols = [col for col in df.columns if col not in existing_columns]
     df = df[existing_columns + remaining_cols]
@@ -569,8 +569,8 @@ def sanity_check(folder_name):
         if task in ["paloma_twitterAAE_HELM_fixed", "paloma_c4_100_domains", "paloma_dolma_100_subreddits"]:
             # these tasks are half-evaluated and shouldn't be in there anyways
             continue
-        if 'paloma' in task:
-            continue
+        # if 'paloma' in task:
+        #     continue
         # model_tasks[f'{model_name}-{step}'].add(task)
         model_tasks[f'{model_name}'].add(task)
 

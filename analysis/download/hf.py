@@ -12,6 +12,7 @@ def convert_csv_to_parquet(csv_file_path):
     parquet_file_path = csv_file_path.replace(".csv", ".parquet")
     print(f"Converting '{csv_file_path}' -> '{parquet_file_path}'")
     df = pd.read_csv(csv_file_path, encoding='utf-8')
+    df = df.drop(columns=["Unnamed: 0"], errors='ignore')
     df.to_parquet(parquet_file_path, index=False)
     return parquet_file_path
 
