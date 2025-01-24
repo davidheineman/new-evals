@@ -34,33 +34,73 @@ MODEL_COLORS = {
     '1B': 'purple',
 }
 
+# def add_ladder_data_cheap_decisions(data_by_name):
+#     # Manual override for Ian's toks seen
+#     TOKENS_SEEN = {
+#         '150M': 15003942912,
+#         '300M': 30006968320,
+#         '530M': 53009711104,
+#         '750M': 75012636672,
+#         '1B': 100015669248,
+#     }
+#     for k, v in data_by_name.items():
+#         n = TOKENS_SEEN[k]
+#         data_by_name[k]['ds'] = [n]
+
+#     # Taken from: https://github.com/allenai/oe-eval-internal/blob/eval-for-consistent-ranking/experiments/eval-for-consistent-ranking/metrics/scaling.py#L172
+#     MODEL_PARAMETERS = {
+#         "150M": 151898880,
+#         "300M": 319980544,
+#         "530M": 530074944,
+#         "750M": 681297408,
+#         "1B": 1176832000,
+#     }
+#     for k, v in data_by_name.items():
+#         d = TOKENS_SEEN[k]
+#         f = float(d * MODEL_PARAMETERS[k])
+#         data_by_name[k]["fs"] = [f]
+
+#     compute = 6*n*d
+
+#     return data_by_name
+
+
 def add_ladder_data_cheap_decisions(data_by_name):
-    # Manual override for Ian's toks seen
-    TOKENS_SEEN = {
-        '150M': 15003942912,
-        '300M': 30006968320,
-        '530M': 53009711104,
-        '750M': 75012636672,
-        '1B': 100015669248,
+    """ From Ian """
+    MODEL_TO_BATCH = {
+        '150M': 192,
+        '300M': 320,
+        '530M': 448,
+        '750M': 576,
+        '1B': 704
     }
-    for k, v in data_by_name.items():
-        n = TOKENS_SEEN[k]
-        data_by_name[k]['ds'] = [n]
 
-    # Taken from: https://github.com/allenai/oe-eval-internal/blob/eval-for-consistent-ranking/experiments/eval-for-consistent-ranking/metrics/scaling.py#L172
-    MODEL_PARAMETERS = {
-        "150M": 151898880,
-        "300M": 319980544,
-        "530M": 530074944,
-        "750M": 681297408,
-        "1B": 1176832000,
+    MODEL_TO_PARAMETERS = {
+        '150M': 151898880, 
+        '300M': 319980544, 
+        '530M': 530074944, 
+        '750M': 681297408, 
+        '1B': 1176832000
     }
-    for k, v in data_by_name.items():
-        d = TOKENS_SEEN[k]
-        f = float(d * MODEL_PARAMETERS[k])
-        data_by_name[k]["fs"] = [f]
 
-    compute = 6*n*d
+    sequence_length = 2048
+
+    def model_and_step_to_tokens(model, step):
+        return MODEL_TO_BATCH[model] * step * sequence_length
+
+    def model_and_step_to_compute(model, step):
+        return MODEL_TO_PARAMETERS[model] * model_and_step_to_tokens(model, step) * 6
+    
+    for k, v in data_by_name.items():
+        step = v['step'][-1]
+        c = model_and_step_to_compute(k, step)
+        n = MODEL_TO_PARAMETERS[k]
+        d = model_and_step_to_tokens(k, step)
+        f = float(n * d * 6)
+        data_by_name[k]['fs'] = [f]
+        data_by_name[k]["ds"] = [d]
+
+    # raise RuntimeError(data_by_name)
 
     return data_by_name
 
@@ -109,6 +149,7 @@ def get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models
             max_step_entry = _slice.loc[_slice['step'].idxmax()]
             x_val = max_step_entry[x_metric].tolist()
             y_val = max_step_entry[y_metric].tolist()
+            step_val = _slice['step'].max().tolist()
 
             # Remove duplicates
             if isinstance(x_val, list):
@@ -117,20 +158,28 @@ def get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models
             if isinstance(y_val, list):
                 assert len(np.unique(y_val)) == 1
                 y_val = y_val[0]
+            if isinstance(step_val, list):
+                assert len(np.unique(step_val)) == 1
+                step_val = step_val[0]
 
             x_val = [x_val]
             y_val = [y_val]
+            step_val = [step_val]
         else:
             _slice = _slice.sort_values(by='step', ascending=True)
             x_val = _slice[x_metric].tolist()
             y_val = _slice[y_metric].tolist()
+            step_val = _slice['step'].tolist()
 
             x_val = [x_val]
             y_val = [y_val]
+            step_val = [step_val]
         
         if 'xs' not in data_by_name[size]: data_by_name[size]['xs'] = []
         if 'ys' not in data_by_name[size]: data_by_name[size]['ys'] = []
+        if 'step' not in data_by_name[size]: data_by_name[size]['step'] = []
 
+        data_by_name[size]['step'] += step_val
         data_by_name[size]['xs'] += x_val
         data_by_name[size]['ys'] += y_val
         data_by_name[size]['mode'] = mode
@@ -163,7 +212,7 @@ def run_ladder(
         df, task_name, train_models, eval_models, x_metric, y_metric,
         use_flops=False, use_helper_points=False, 
         run_step1=True, run_step2=True, run_stacked=True,
-        axes=None, add_texts=False, color=None, return_preds=False):
+        axes=None, add_texts=False, color=None, return_preds=False, return_coeff=False):
     # Unfortunately there are local references, so we have to be in the OLMo repo
     os.chdir('/Users/dhei/ai2/new-evals/olmo-repos/OLMo')
 
@@ -331,6 +380,8 @@ def run_ladder(
             ax.set_title(task_name)
             ax.legend(fontsize=8)
 
+    if return_coeff:
+        return (step1_coefficients, step2_coefficients), (abs_error_step_1, abs_error_step_2, abs_error_stacked), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
     if return_preds:
         return (abs_error_step_1, abs_error_step_2, abs_error_stacked), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
     return abs_error_step_1, abs_error_step_2, abs_error_stacked
