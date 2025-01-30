@@ -14,6 +14,8 @@ from scaling.step1_flops import fit_step1 as fit_step1_flops, predict_step1 as p
 from scaling.predict_flops import predict_chained_flops, plot_chained as plot_chained_flops, str_chained_fit as str_chained_fit_flops
 from scaling.single_step import fit_single_step, predict_single_step, plot_single_step, str_combined_fit
 
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+
 FONTSIZE = 8
 
 TASK_KEY_MAP = {
@@ -36,55 +38,37 @@ MODEL_COLORS = {
     '1B': 'purple',
 }
 
-# def add_ladder_data_cheap_decisions(data_by_name):
-#     # Manual override for Ian's toks seen
-#     TOKENS_SEEN = {
-#         '150M': 15003942912,
-#         '300M': 30006968320,
-#         '530M': 53009711104,
-#         '750M': 75012636672,
-#         '1B': 100015669248,
-#     }
-#     for k, v in data_by_name.items():
-#         n = TOKENS_SEEN[k]
-#         data_by_name[k]['ds'] = [n]
+FULL_SCHEDULE = {
+    '150M': 38157,
+    '300M': 45787,
+    '530M': 57786,
+    '750M': 63589,
+    '1B': 69369,
+}
 
-#     # Taken from: https://github.com/allenai/oe-eval-internal/blob/eval-for-consistent-ranking/experiments/eval-for-consistent-ranking/metrics/scaling.py#L172
-#     MODEL_PARAMETERS = {
-#         "150M": 151898880,
-#         "300M": 319980544,
-#         "530M": 530074944,
-#         "750M": 681297408,
-#         "1B": 1176832000,
-#     }
-#     for k, v in data_by_name.items():
-#         d = TOKENS_SEEN[k]
-#         f = float(d * MODEL_PARAMETERS[k])
-#         data_by_name[k]["fs"] = [f]
+MODEL_TO_BATCH = {
+    '150M': 192,
+    '300M': 320,
+    '530M': 448,
+    '750M': 576,
+    '1B': 704
+}
 
-#     compute = 6*n*d
+MODEL_TO_PARAMETERS = {
+    '150M': 151898880,
+    '300M': 319980544,
+    '530M': 530074944,
+    '750M': 681297408,
+    '1B': 1176832000
+}
 
-#     return data_by_name
+
+def get_compute(scale):
+    return 2048 * 6 * MODEL_TO_BATCH[scale] * MODEL_TO_PARAMETERS[scale] * FULL_SCHEDULE[scale]
 
 
 def add_ladder_data_cheap_decisions(data_by_name):
     """ From Ian """
-    MODEL_TO_BATCH = {
-        '150M': 192,
-        '300M': 320,
-        '530M': 448,
-        '750M': 576,
-        '1B': 704
-    }
-
-    MODEL_TO_PARAMETERS = {
-        '150M': 151898880, 
-        '300M': 319980544, 
-        '530M': 530074944, 
-        '750M': 681297408, 
-        '1B': 1176832000
-    }
-
     sequence_length = 2048
 
     def model_and_step_to_tokens(model, step):
@@ -213,14 +197,16 @@ def create_ladder_config(task_name, train_models, eval_models, color=None):
 
 def run_ladder(
         df, task_name, train_models, eval_models, x_metric, y_metric,
-        use_flops=False, use_single_step=False, use_helper_points=False, 
+        use_flops=False, use_single_step=False, use_two_param=False, use_helper_points=False, 
         last_perc_step_2=0.9,
         run_step1=True, run_step2=True, run_stacked=True,
-        axes=None, add_texts=False, color=None, return_preds=False, return_coeff=False):
+        axes=None, add_texts=False, color=None, return_preds=False, return_reals=False, return_coeff=False):
     # Unfortunately there are local references, so we have to be in the OLMo repo
     os.chdir('/Users/dhei/ai2/new-evals/olmo-repos/OLMo')
 
     abs_error_step_1, abs_error_step_2, abs_error_stacked = None, None, None
+    step_1_y_pred, step_2_y_pred, stacked_y_pred = None, None, None
+    step_1_y, step_2_y, stacked_y = None, None, None
 
     # Get config
     task_key, configs = create_ladder_config(task_name, train_models, eval_models, color=color)
@@ -243,6 +229,7 @@ def run_ladder(
         y_metric_func = 'rc_acc'
 
     assert len(data_by_name) != 0, train_models
+    if use_two_param: assert use_flops, 'we only have a 2 param function for flops version'
 
     if use_single_step:
         assert not run_stacked and not run_step2, 'Single step prediction will only run step 1!'
@@ -253,27 +240,27 @@ def run_ladder(
         data_by_name = add_ladder_data_cheap_decisions(data_by_name)
         
         # Fit step 1
-        if use_flops:
-            step1_coefficients, cov = fit_step1_flops(data_by_name, y_metric_func)
-        elif use_single_step:
-            step1_coefficients = fit_single_step(data_by_name, y_metric_func)
+        if use_single_step:
+            step1_coefficients = fit_single_step(data_by_name, y_metric_func, use_flops=use_flops)
+        elif use_flops:
+            step1_coefficients, cov = fit_step1_flops(data_by_name, y_metric_func, use_two_param=use_two_param)
         else:
             step1_coefficients, cov = fit_step1(data_by_name, y_metric_func)
 
-        if use_flops:
-            (
-                predicted_data_by_name, plotted_predicted_data,
-                (step_1_y, step_1_y_pred, rel_error_step_1), all_rel_errors,
-            ) = predict_step1_flops(
-                configs, data_by_name, step1_coefficients, y_metric=y_metric_func, 
-            )
-        elif use_single_step:
+        if use_single_step:
             (
                 predicted_data_by_name, plotted_predicted_data,
                 (step_1_y, step_1_y_pred, rel_error_step_1),
             ) = predict_single_step(
                 # configs, data_by_name, step1_coefficients, y_metric=y_metric_func, 
-                data_by_name, step1_coefficients
+                data_by_name, step1_coefficients, use_flops=use_flops
+            )
+        elif use_flops:
+            (
+                predicted_data_by_name, plotted_predicted_data,
+                (step_1_y, step_1_y_pred, rel_error_step_1), all_rel_errors,
+            ) = predict_step1_flops(
+                configs, data_by_name, step1_coefficients, y_metric=y_metric_func, 
             )
         else:
             (
@@ -288,19 +275,19 @@ def run_ladder(
         if axes is not None and run_step1:
             ax = axes[ax_i]
             ax_i += 1
-            if use_flops:
-                plot_step1_flops(
-                    configs, data_by_name, predicted_data_by_name, plotted_predicted_data,
-                    task_name, str_chinchilla_flops_fit(step1_coefficients), y_metric_func,
-                    step1_coefficients, cov, ax,
-                )
-            elif use_single_step:
+            if use_single_step:
                 plot_single_step(
                     # configs, data_by_name, predicted_data_by_name, plotted_predicted_data,
                     # task_name, str_combined_fit(step1_coefficients), y_metric_func,
                     # step1_coefficients, cov, ax,
                     configs, data_by_name, predicted_data_by_name, plotted_predicted_data,
-                    task_name, str_combined_fit(step1_coefficients), ax,
+                    task_name, str_combined_fit(step1_coefficients), use_flops, ax,
+                )
+            elif use_flops:
+                plot_step1_flops(
+                    configs, data_by_name, predicted_data_by_name, plotted_predicted_data,
+                    task_name, str_chinchilla_flops_fit(step1_coefficients), y_metric_func,
+                    step1_coefficients, cov, ax,
                 )
             else:
                 plot_step1(
@@ -318,6 +305,8 @@ def run_ladder(
                 import math
                 # use last 90% of checkpoints
                 data_by_name[k1][k2] = v2[0][math.ceil((1-last_perc_step_2) * len(v2[0])):]
+    
+    # data_by_name = {k: v for k, v in data_by_name.items() if '150M' not in k and '300M' not in k and '530M' not in k}
 
     if run_step2 or run_stacked:
         task_key, configs = create_ladder_config(task_name, train_models, eval_models, color=color)
@@ -407,6 +396,8 @@ def run_ladder(
 
     if return_coeff:
         return (step1_coefficients, step2_coefficients), (abs_error_step_1, abs_error_step_2, abs_error_stacked), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
+    if return_reals:
+        return (abs_error_step_1, abs_error_step_2, abs_error_stacked), (step_1_y, step_2_y, stacked_y), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
     if return_preds:
         return (abs_error_step_1, abs_error_step_2, abs_error_stacked), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
     return abs_error_step_1, abs_error_step_2, abs_error_stacked
@@ -509,6 +500,9 @@ def process_mix(mix, df_multi_index, all_models, all_tasks, setup, x_metric, y_m
         'fitting_results_step_1': {},
         'fitting_results_step_2': {},
         'fitting_results_stacked': {},
+        'step_1_y': {},
+        'step_2_y': {},
+        'stacked_y': {},
         'step_1_y_preds': {},
         'step_2_y_preds': {},
         'stacked_y_preds': {}
@@ -517,19 +511,29 @@ def process_mix(mix, df_multi_index, all_models, all_tasks, setup, x_metric, y_m
     models = [model for model in all_models if '-'.join(model.split('-')[:-2]) == mix]
 
     for task in all_tasks:
-        if 'no_750M' in setup:
-            train_models = [m for m in models if '1B' not in m and '750M' not in m]
-            eval_models = [m for m in models if '1B' in m]
-        elif 'no_750M_no_530M' in setup:
+        if 'no_750M_no_530M' in setup:
             train_models = [m for m in models if '1B' not in m and '750M' not in m and '530M' not in m]
+            eval_models = [m for m in models if '1B' in m]
+        elif 'no_750M' in setup:
+            train_models = [m for m in models if '1B' not in m and '750M' not in m]
             eval_models = [m for m in models if '1B' in m]
         else:
             train_models = [m for m in models if '1B' not in m]
             eval_models = [m for m in models if '1B' in m]
 
         use_helper_points = 'helper_points' in setup
-        use_single_step = '1_step' in setup
-        use_flops = '5_param' in setup
+        use_single_step = '1_step' in setup or '2_param' in setup
+        use_flops = '3_param' in setup or '2_param' in setup
+
+        if '2_param' in setup:
+            assert use_single_step == True
+            use_two_param = True
+        else:
+            use_two_param = False
+
+
+        # new setup: 1_step_3_param -- use_single_step=True, use_flops=True
+        # new setup: 2_param -- use_single_step=False, use_flops=True, use_two_param=True
 
         last_perc_step_2 = 0.9 if 'step2=0.5' not in setup else 0.5
 
@@ -541,6 +545,7 @@ def process_mix(mix, df_multi_index, all_models, all_tasks, setup, x_metric, y_m
 
         try:
             (abs_error_step_1, abs_error_step_2, abs_error_step_stacked), \
+                (step_1_y, step_2_y, stacked_y), \
                 (step_1_y_pred, step_2_y_pred, stacked_y_pred) = run_ladder(
                 df_multi_index,
                 task_name=task,
@@ -552,71 +557,138 @@ def process_mix(mix, df_multi_index, all_models, all_tasks, setup, x_metric, y_m
                 y_metric=y_metric,
                 use_flops=use_flops,
                 use_single_step=use_single_step,
-                return_preds=True,
+                use_two_param=use_two_param,
+                # return_preds=True,
+                return_reals=True,
                 run_step1=run_step1, run_step2=run_step2, run_stacked=run_stacked
             )
         except Exception as e:
             abs_error_step_1 = abs_error_step_2 = abs_error_step_stacked = float('inf')
+            step_1_y = step_2_y = stacked_y = float('inf')
             step_1_y_pred = step_2_y_pred = stacked_y_pred = float('inf')
-            print(f'Failed to fit ({mix, task, x_metric, y_metric}): {e}')
+            if task != 'winograde' and task != 'boolq':
+                # raise RuntimeError(f'{task}, {setup}: {e}')
+                # We expect some of Winograde and BoolQ to fail due to missing data
+                print(f'Failed to fit ({setup, mix, task, x_metric, y_metric}): {e}')
 
         results['fitting_results_step_1'][task] = abs_error_step_1
         results['fitting_results_step_2'][task] = abs_error_step_2
         results['fitting_results_stacked'][task] = abs_error_step_stacked
+        results['step_1_y'][task] = step_1_y
+        results['step_2_y'][task] = step_2_y
+        results['stacked_y'][task] = stacked_y
         results['step_1_y_preds'][task] = step_1_y_pred
         results['step_2_y_preds'][task] = step_2_y_pred
         results['stacked_y_preds'][task] = stacked_y_pred
 
     return results
 
-def fit_all_mixes(df, mixes, all_models, all_tasks, x_metric='correct_logit_per_byte', y_metric='acc_per_char', setup='default', quiet=True):
-    fitting_results_step_1 = pd.DataFrame(index=[], columns=all_tasks)
-    fitting_results_step_2 = pd.DataFrame(index=[], columns=all_tasks)
-    fitting_results_stacked = pd.DataFrame(index=[], columns=all_tasks)
-    step_1_y_preds = pd.DataFrame(index=[], columns=all_tasks)
-    step_2_y_preds = pd.DataFrame(index=[], columns=all_tasks)
-    stacked_y_preds = pd.DataFrame(index=[], columns=all_tasks)
+
+def fit_all_mixes(df, all_models, mixes, tasks, y_metrics, setups, x_metric='correct_logit_per_byte', quiet=True):
+    all_predictions = []
 
     df_multi_index = df.set_index(['task', 'model']).sort_index()
 
-    with ProcessPoolExecutor() as executor:
-        futures = {
-            executor.submit(process_mix, mix, df_multi_index, all_models, all_tasks, setup, x_metric, y_metric): mix
-            for mix in mixes
-        }
+    # Use ProcessPoolExecutor for CPU-intensive mix processing
+    cpus = os.cpu_count()
+    results = []
+    with ProcessPoolExecutor(max_workers=cpus) as process_executor:
+        total_jobs = len(y_metrics)*len(setups)*len(mixes)
 
-        for future in tqdm(as_completed(futures), desc='Fitting model ladder predictions', total=len(mixes), disable=quiet):
-            result = future.result()
-            mix = result['mix']
-            for task in all_tasks:
-                fitting_results_step_1.loc[mix, task] = result['fitting_results_step_1'].get(task, float('inf'))
-                fitting_results_step_2.loc[mix, task] = result['fitting_results_step_2'].get(task, float('inf'))
-                fitting_results_stacked.loc[mix, task] = result['fitting_results_stacked'].get(task, float('inf'))
-                step_1_y_preds.loc[mix, task] = result['step_1_y_preds'].get(task, float('inf'))
-                step_2_y_preds.loc[mix, task] = result['step_2_y_preds'].get(task, float('inf'))
-                stacked_y_preds.loc[mix, task] = result['stacked_y_preds'].get(task, float('inf'))
+        # Submit all futures upfront
+        futures = []
+        future_info = {}
+        for y_metric in tqdm(y_metrics, desc=f"Submitting {total_jobs} fitting jobs on {cpus} CPUs", total=len(y_metrics)):
+            for setup in setups:
+                for mix in mixes:
+                    future = process_executor.submit(process_mix, mix, df_multi_index, all_models, tasks, setup, x_metric, y_metric)
+                    futures.append(future)
+                    future_info[future] = (mix, y_metric, setup)
 
-    def process_dataframe(df, calculate_abs=False):
-        df['avg'] = df.mean(axis=1)
-        if calculate_abs:
-            df = df.abs()
-        return df.sort_values(by='avg', ascending=False)
+            try:
+                for future in tqdm(futures, desc=f"Processing results for {y_metric}", total=total_jobs):
+                    result = future.result()
+                    mix, y_metric, setup = future_info[future]
+                    results.append((result, mix, y_metric, setup))
+                    future.done()  # Ensure all futures are complete
+                    del future  # Immediately remove future
+            finally:
+                for future in futures:
+                    future.cancel()  # Cancel any remaining futures
+                del futures[:]  # Free memory
+        process_executor.shutdown(wait=True)  # Shutdown the executor and wait for cleanup
 
-    fitting_results_step_1 = process_dataframe(fitting_results_step_1, calculate_abs=True)
-    fitting_results_step_2 = process_dataframe(fitting_results_step_2, calculate_abs=True)
-    fitting_results_stacked = process_dataframe(fitting_results_stacked, calculate_abs=True)
+    print(f'Done processing jobs!')
 
-    step_1_y_preds = process_dataframe(step_1_y_preds)
-    step_2_y_preds = process_dataframe(step_2_y_preds)
-    stacked_y_preds = process_dataframe(stacked_y_preds)
+    # Process results as they complete
+    for result, mix, y_metric, setup in tqdm(results, desc='Processing all predictions', total=len(results), disable=quiet):
+        fitting_results_step_1 = pd.DataFrame(index=[], columns=tasks)
+        fitting_results_step_2 = pd.DataFrame(index=[], columns=tasks)
+        fitting_results_stacked = pd.DataFrame(index=[], columns=tasks)
+        step_1_y = pd.DataFrame(index=[], columns=tasks)
+        step_2_y = pd.DataFrame(index=[], columns=tasks)
+        stacked_y = pd.DataFrame(index=[], columns=tasks)
+        step_1_y_preds = pd.DataFrame(index=[], columns=tasks)
+        step_2_y_preds = pd.DataFrame(index=[], columns=tasks)
+        stacked_y_preds = pd.DataFrame(index=[], columns=tasks)
 
-    if not quiet:
-        print('Absolute unsigned error for predicting 1B-5xC (stacked):')
-        display(fitting_results_stacked.map(lambda x: f'{round(x * 100, 1)}%'))
-        print('Predicted performance for 1B-5xC on all mixes:')
-        display(stacked_y_preds.map(lambda x: f'{round(x * 100, 1)}%'))
+        for task in tasks:
+            fitting_results_step_1.loc[mix, task] = result['fitting_results_step_1'].get(task, float('inf'))
+            fitting_results_step_2.loc[mix, task] = result['fitting_results_step_2'].get(task, float('inf'))
+            fitting_results_stacked.loc[mix, task] = result['fitting_results_stacked'].get(task, float('inf'))
+            step_1_y.loc[mix, task] = result['step_1_y'].get(task, float('inf'))
+            step_2_y.loc[mix, task] = result['step_2_y'].get(task, float('inf'))
+            stacked_y.loc[mix, task] = result['stacked_y'].get(task, float('inf'))
+            step_1_y_preds.loc[mix, task] = result['step_1_y_preds'].get(task, float('inf'))
+            step_2_y_preds.loc[mix, task] = result['step_2_y_preds'].get(task, float('inf'))
+            stacked_y_preds.loc[mix, task] = result['stacked_y_preds'].get(task, float('inf'))
 
-    return (fitting_results_step_1, fitting_results_step_2, fitting_results_stacked), (step_1_y_preds, step_2_y_preds, stacked_y_preds)
+        def process_dataframe(df, calculate_abs=False):
+            pd.set_option('future.no_silent_downcasting', True)
+            df = df.fillna(value=np.nan)
+            df['avg'] = df.mean(axis=1, skipna=True)
+            if calculate_abs:
+                df = df.abs()
+            return df.sort_values(by='avg', ascending=False)
+
+        # Process DataFrames sequentially
+        fitting_results_step_1 = process_dataframe(fitting_results_step_1, True)
+        fitting_results_step_2 = process_dataframe(fitting_results_step_2, True)
+        fitting_results_stacked = process_dataframe(fitting_results_stacked, True)
+        step_1_y = process_dataframe(step_1_y)
+        step_2_y = process_dataframe(step_2_y)
+        stacked_y = process_dataframe(stacked_y)
+        step_1_y_preds = process_dataframe(step_1_y_preds)
+        step_2_y_preds = process_dataframe(step_2_y_preds)
+        stacked_y_preds = process_dataframe(stacked_y_preds)
+
+        if not quiet:
+            print('Absolute unsigned error for predicting 1B-5xC (stacked):')
+            display(fitting_results_stacked.map(lambda x: f'{round(x * 100, 1)}%'))
+            print('Predicted performance for 1B-5xC on all mixes:')
+            display(stacked_y_preds.map(lambda x: f'{round(x * 100, 1)}%'))
+
+        (step_1_abs_error, step_2_abs_error, stacked_abs_error), \
+            (step_1_y_preds, step_2_y_preds, stacked_y_preds), \
+            (step_1_y, step_2_y, stacked_y) = \
+            (fitting_results_step_1, fitting_results_step_2, fitting_results_stacked), \
+            (step_1_y_preds, step_2_y_preds, stacked_y_preds), \
+            (step_1_y, step_2_y, stacked_y)
+        
+        all_predictions += [(
+            x, y, y_metric, setup,
+            step_1_y.loc[y, x], step_2_y.loc[y, x], stacked_y.loc[y, x],
+            step_1_y_preds.loc[y, x], step_2_y_preds.loc[y, x], stacked_y_preds.loc[y, x], 
+            step_1_abs_error.loc[y, x], step_2_abs_error.loc[y, x], stacked_abs_error.loc[y, x],
+        ) for x in stacked_y_preds.columns for y in stacked_y_preds.index]
+
+    results = pd.DataFrame(all_predictions, columns=[
+        'task', 'mix', 'metric', 'setup', 
+        'step_1_y', 'step_2_y', 'stacked_y',
+        'step_1_pred', 'step_2_pred', 'stacked_pred', 
+        'abs_error_step_1', 'abs_error_step_2', 'abs_error_stacked'
+    ])
+    return results
 
 
 def ian_clean_data(df, dirty_out=False, quiet=True):
