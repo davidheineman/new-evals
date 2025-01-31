@@ -218,6 +218,11 @@ def run_ladder(
     data_by_name = get_ladder_data(df, task_name, x_metric, y_metric, train_models, eval_models, step='all')
     for k1, v1 in data_by_name.items():
         for k2, v2 in v1.items():
+            if k2 == 'step': 
+                # grab final step
+                data_by_name[k1][k2] = [data_by_name[k1][k2][0][-1]]
+                continue
+            if k2 == 'mode': continue
             if isinstance(v2, list):
                 import math
                 data_by_name[k1][k2] = [np.mean(v2[0][math.ceil(0.9 * len(v2[0])):])]
@@ -260,7 +265,7 @@ def run_ladder(
                 predicted_data_by_name, plotted_predicted_data,
                 (step_1_y, step_1_y_pred, rel_error_step_1), all_rel_errors,
             ) = predict_step1_flops(
-                configs, data_by_name, step1_coefficients, y_metric=y_metric_func, 
+                configs, data_by_name, step1_coefficients, y_metric=y_metric_func, use_two_param=use_two_param
             )
         else:
             (
@@ -521,6 +526,8 @@ def process_mix(mix, df_multi_index, all_models, all_tasks, setup, x_metric, y_m
             train_models = [m for m in models if '1B' not in m]
             eval_models = [m for m in models if '1B' in m]
 
+        assert len(train_models) != 0 and len(eval_models) != 0, f'{mix}: ({train_models}, {eval_models}) {models}'
+
         use_helper_points = 'helper_points' in setup
         use_single_step = '1_step' in setup or '2_param' in setup
         use_flops = '3_param' in setup or '2_param' in setup
@@ -771,31 +778,31 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
 
     print(f'Step 3: {len(df)}')
 
-    # 4) Remove all steps without 3 seeds
-    if not dirty_out:
-        pre_filter_groups = df['group'].unique()
-        filtered_groups = []
-        throwaway_groups = []
-        for name, data in df.groupby(['model', 'group', 'step']): # understand why token and compute effecting this so much? ['model', 'group', 'step', 'tokens', 'compute']
-            if len(set(data['seed'])) == 3:
-                filtered_groups.append(data)
-            else:
-                throwaway_groups.append(data)
-        df = pd.concat(filtered_groups)
-        df_throwaway = pd.concat(throwaway_groups)
-        df_throwaway['group'].value_counts()
+    # # 4) Remove all steps without 3 seeds
+    # if not dirty_out:
+    #     pre_filter_groups = df['group'].unique()
+    #     filtered_groups = []
+    #     throwaway_groups = []
+    #     for name, data in df.groupby(['model', 'group', 'step']): # understand why token and compute effecting this so much? ['model', 'group', 'step', 'tokens', 'compute']
+    #         if len(set(data['seed'])) == 3:
+    #             filtered_groups.append(data)
+    #         else:
+    #             throwaway_groups.append(data)
+    #     df = pd.concat(filtered_groups)
+    #     df_throwaway = pd.concat(throwaway_groups)
+    #     df_throwaway['group'].value_counts()
 
-        if not quiet: print(len(df['group'].unique()))
-        post_filter_groups = df['group'].unique()
-        if not quiet: print(set(pre_filter_groups) - set(post_filter_groups))
+    #     if not quiet: print(len(df['group'].unique()))
+    #     post_filter_groups = df['group'].unique()
+    #     if not quiet: print(set(pre_filter_groups) - set(post_filter_groups))
 
-        # are any steps missing some groups?
-        missing_groups = []
-        for (model, step), data in df.groupby(['model', 'step']):
-            present_groups = set(data['group'].unique())
-            missing = set(post_filter_groups) - present_groups
-            if missing:
-                missing_groups.append((model, step, missing))
+    #     # are any steps missing some groups?
+    #     missing_groups = []
+    #     for (model, step), data in df.groupby(['model', 'step']):
+    #         present_groups = set(data['group'].unique())
+    #         missing = set(post_filter_groups) - present_groups
+    #         if missing:
+    #             missing_groups.append((model, step, missing))
 
     print(f'Step 4: {len(df)}')
     
@@ -849,25 +856,25 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
     print(f'Step 5: {len(df)}')
     
     # 6) [RESOLVED] remove groups that don't have targets for 3 seeds for final result
-    # target_df = df[df['model'] == '1B']
-    # group_seeds = {}
-    # for _, row in target_df[['group', 'seed']].iterrows():
-    #     group = row['group']
-    #     seed = row['seed']
-    #     if group not in group_seeds:
-    #         group_seeds[group] = set()
-    #     group_seeds[group].add(seed)
+    target_df = df[df['model'] == '1B']
+    group_seeds = {}
+    for _, row in target_df[['group', 'seed']].iterrows():
+        group = row['group']
+        seed = row['seed']
+        if group not in group_seeds:
+            group_seeds[group] = set()
+        group_seeds[group].add(seed)
 
     # group_seeds
 
-    # for group in target_df['group'].unique():
-    #     assert len(target_df['seed'].unique()) == 1, f"Uncomment the next line for more seeds: {target_df['seed'].value_counts()}"
-    #     # for seed in {4, 5, 6198}:
-    #     for seed in {4}:
-    #         latest_step = target_df[(target_df['group'] == group) & (target_df['seed'] == seed)]['step'].max()
-    #         assert latest_step == 69369, f"seed {seed} latest step: {latest_step}"
-    #         # if latest_step != 69369:
-    #         #     print(f"seed {seed} latest step: {latest_step}")
+    for group in target_df['group'].unique():
+        # assert len(target_df['seed'].unique()) == 1, f"Uncomment the next line for more seeds: {target_df['seed'].value_counts()}"
+        for seed in {4, 5, 6198}:
+        # for seed in {4}:
+            latest_step = target_df[(target_df['group'] == group) & (target_df['seed'] == seed)]['step'].max()
+            assert latest_step == 69369, f"seed {seed} latest step: {latest_step}"
+            if latest_step != 69369:
+                print(f"seed {seed} latest step: {latest_step}")
 
     print(f'Step 6 (excluded): {len(df)}')
     
@@ -882,14 +889,14 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
                 raise
 
     # prove to myself that these are just duplicates before dropping them (uncomment to run)
-    # check_duplicates(df.fillna(0).round(6).drop_duplicates())
+    check_duplicates(df.fillna(0).round(6).drop_duplicates())
 
     # drop duplicates
     df = df.groupby(['model', 'group', 'task', 'step', 'seed']).first().reset_index()
-    if not dirty_out:
-        assert all(len(d) == 1 for n,d in df.groupby(['model', 'group', 'task', 'step','seed']) ), f"There are duplicates in the data; max size per models X group X steps X seed X task was {max((len(d) for n, d in df.groupby(['model', 'group', 'task', 'step','seed'])))}"
-        assert all(len(d) == 3 for n, d in df.groupby(['model', 'group', 'task', 'step'])['seed']), f"Not all models X group X steps X task have 3 seeds; min size was {df.groupby(['model', 'group', 'step'])['seed'].size().min()}"
-        assert all(d['seed'].nunique() ==3 for n, d in df.groupby(['model', 'group', 'task', 'step'])), f"Not all models X group X steps X task have 3 seeds; min size was {df.groupby(['model', 'group', 'step'])['seed'].nunique().min()}"
+    # if not dirty_out:
+    #     assert all(len(d) == 1 for n,d in df.groupby(['model', 'group', 'task', 'step','seed']) ), f"There are duplicates in the data; max size per models X group X steps X seed X task was {max((len(d) for n, d in df.groupby(['model', 'group', 'task', 'step','seed'])))}"
+    #     assert all(len(d) == 3 for n, d in df.groupby(['model', 'group', 'task', 'step'])['seed']), f"Not all models X group X steps X task have 3 seeds; min size was {df.groupby(['model', 'group', 'step'])['seed'].size().min()}"
+    #     assert all(d['seed'].nunique() ==3 for n, d in df.groupby(['model', 'group', 'task', 'step'])), f"Not all models X group X steps X task have 3 seeds; min size was {df.groupby(['model', 'group', 'step'])['seed'].nunique().min()}"
 
     print(f'Step 7: {len(df)}')
     
@@ -943,27 +950,27 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
     print(f'Step 8: {len(df)}')
     
     # 9) Remove all steps that don't have all groups
-    # if dirty_out:
-    #     df = df[df['seed'] == 6198]
+    if dirty_out:
+        df = df[df['seed'] == 6198]
 
-    # def remove_incomplete_model_steps(df):
-    #     available_groups = set(df.group.unique())
-    #     df = df.copy()
-    #     # Group by model and step
-    #     grouped = df.groupby(['model', 'step'])
+    def remove_incomplete_model_steps(df):
+        available_groups = set(df.group.unique())
+        df = df.copy()
+        # Group by model and step
+        grouped = df.groupby(['model', 'step'])
         
-    #     # Filter out groups that don't have all available groups
-    #     complete_groups = [name for name, group in grouped if set(group['group'].unique()) == available_groups]
+        # Filter out groups that don't have all available groups
+        complete_groups = [name for name, group in grouped if set(group['group'].unique()) == available_groups]
         
-    #     # Filter the dataframe to keep only the complete groups
-    #     filtered_df = df[df.set_index(['model', 'step']).index.isin(complete_groups)]
+        # Filter the dataframe to keep only the complete groups
+        filtered_df = df[df.set_index(['model', 'step']).index.isin(complete_groups)]
         
-    #     return filtered_df
+        return filtered_df
 
-    # available_groups = set(df.group.unique())
+    available_groups = set(df.group.unique())
     # assert all(set(d.group.unique()) == available_groups for n, d in remove_incomplete_model_steps(df).groupby(['model', 'task', 'step', 'seed']))
 
-    print(f'Step 9 (excluded): {len(df)}')
+    print(f'Step 9 (now included!): {len(df)}')
     
     # restore model col
     df['model'] = df['model_full']
