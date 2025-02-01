@@ -229,6 +229,12 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
 
 
 def calculate_and_plot_total_variation(x, y, metric, model_name=None, num_scores=None, title=None, color=None, ax=None, add_text=True):
+    # Sort by x
+    x, y = np.array(x), np.array(y)
+    sorted_indices = np.argsort(x)
+    x = x[sorted_indices]
+    y = y[sorted_indices]
+    
     tv = calc_total_variation(y, improvement=True) * 100
 
     # Add analytical CI
@@ -282,23 +288,31 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
                 acc = correct_bpb.mean(axis=1)
                 scores = correct_bpb
             else:
-                step, scores = get_nd_array(df, 'step', metric, model=model, task=task)
-                acc = scores.mean(axis=1)
+                # step, scores = get_nd_array(df, 'step', metric, model=model, task=task)
+                step, scores = get_nd_array(df, ['task', 'step'], metric, model=model, task=task)
+                
+                if scores.ndim > 1:
+                    # Average all dims except dim 1
+                    acc = np.nanmean(scores, axis=tuple(range(1, scores.ndim)))
+                else:
+                    acc = scores
 
             task_name = task
             if isinstance(task, list):
                 task_name = 'aggregate'
+
+            num_scores = scores.shape[1] if scores.ndim == 2 else None
 
             tv_results.loc['total_variation', task_name] = calculate_and_plot_total_variation(
                 x=step,
                 y=acc,
                 metric=metric,
                 model_name=model,
-                num_scores=scores.shape[1],
+                num_scores=num_scores,
                 # color=(color[j] if isinstance(color, list) else None),
                 color=(color[j] if isinstance(color, list) else color),
-                title=f'{task_name} (n={scores.shape[1]}) {"on " + models if len(models) == 0 else ""}',
-                ax=axes[i],
+                title=f'{task_name} (n={num_scores}) {"on " + models if len(models) == 0 else ""}',
+                ax=axes[i] if axes is not None else None,
                 add_text=add_text
             )
         
