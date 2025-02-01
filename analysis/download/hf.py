@@ -87,13 +87,11 @@ def main():
     #     hf_dataset_name='allenai/olmo2-soups-evals',
     #     overwrite=True
     # )
-
     # push_parquet_to_hf(
     #     parquet_file_path='analysis/data/all_olmo2_anneals_predictions.parquet',
     #     hf_dataset_name='allenai/olmo2-anneals-evals',
     #     overwrite=True
     # )
-
     # push_parquet_to_hf(
     #     parquet_file_path='analysis/data/all_olmo2_microanneals_predictions.parquet',
     #     hf_dataset_name='allenai/olmo2-microanneals-evals',
@@ -113,25 +111,22 @@ def main():
     #     overwrite=True
     # )
 
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/all_consistent_ranking_predictions.parquet',
-    #     hf_dataset_name='davidheineman/consistent-ranking-evals',
-    #     overwrite=True,
-    #     private=False,
-    # )
-
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/all_consistent_ranking_predictions.parquet',
-    #     hf_dataset_name='allenai/consistent-ranking-evals',
-    #     overwrite=True
-    # )
-
-    push_parquet_to_hf(
-        parquet_file_path='analysis/data/all_consistent_ranking_final_predictions.parquet',
-        hf_dataset_name='davidheineman/consistent-ranking-evals',
-        overwrite=True,
-        private=False,
-    )
+    for org_name in ['allenai', 'davidheineman']:
+        is_private = (org_name != 'davidheineman') # make everything not davidheineman private
+        push_parquet_to_hf(
+            parquet_file_path='analysis/data/consistent_ranking_final_metrics.csv',
+            hf_dataset_name=f'{org_name}/consistent-ranking-evals',
+            split_name='benchmarks',
+            overwrite=True,
+            private=is_private,
+        )
+        push_parquet_to_hf(
+            parquet_file_path='analysis/data/all_consistent_ranking_final_predictions.parquet',
+            hf_dataset_name=f'{org_name}/consistent-ranking-evals',
+            split_name='instances',
+            overwrite=True,
+            private=is_private,
+        )
 
 
 if __name__ == '__main__': main()
