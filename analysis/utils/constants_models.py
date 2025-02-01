@@ -1,5 +1,5 @@
 WEKA_CLUSTERS = ",".join(
-    ["ai2/jupiter-cirrascale-2", "ai2/saturn-cirrascale"]
+    ["ai2/jupiter-cirrascale-2", "ai2/saturn-cirrascale", "ai2/ceres-cirrascale"]
 )
 # "ai2/neptune-cirrascale", # L40s, can't load 70B+
 

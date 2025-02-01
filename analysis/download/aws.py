@@ -187,6 +187,10 @@ def main():
     # s3_prefix_list = 'analysis/data/cheap_decisions_paths.txt'
     # folder_name = 'consistent_ranking_final'
 
+    # bucket_name = 'ai2-llm' # pull from the folder instead
+    # s3_prefix = 'eval-results/downstream/eval-for-consistent-ranking/'
+    # folder_name = 'consistent_ranking_final'
+
     local_dir = f'{DATA_DIR}/{folder_name}'
 
     mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100)
@@ -196,6 +200,10 @@ def main():
     from preprocess import main
     main(folder_name, file_type='metrics')
     main(folder_name, file_type='predictions')
+
+    # Push to HF!
+    from hf import main
+    main()
 
 if __name__ == '__main__':
     main()
