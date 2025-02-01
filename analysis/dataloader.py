@@ -92,34 +92,35 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
             columns = slices[col[0]].to_numpy()
             scores  = slices[metric].to_numpy()
         else:
-            pivoted = slices.pivot(index='index', columns=col, values=metric)
+            pivoted = slices.pivot(index=col[0], columns=col[1:], values=metric)
             columns = pivoted.columns
             scores = pivoted.to_numpy()
 
-    # If there are multiple cols, reshape the output nd array
-    if len(col) > 1:
-        # pivoted = pivoted.sort_index(axis=1)
-        # expanded_columns = pivoted.columns.to_frame(index=False)
-        # pivoted.columns = pd.MultiIndex.from_tuples(
-        #     [tuple(col) for col in expanded_columns.to_numpy()],
-        #     names=expanded_columns.columns.tolist()
-        # )
-        # scores = pivoted.to_numpy()
-        # scores = scores.reshape(
-        #     (pivoted.shape[0], len(expanded_columns['mix'].unique()), len(expanded_columns['step'].unique()))
-        # )
-        pivoted = pivoted.sort_index(axis=1)
-        expanded_columns = pivoted.columns.to_frame(index=False)
-        pivoted.columns = pd.MultiIndex.from_tuples(
-            [tuple(col) for col in expanded_columns.to_numpy()],
-            names=expanded_columns.columns.tolist()
-        )
-        scores = pivoted.to_numpy()
-        unique_counts = [len(expanded_columns[level].unique()) for level in expanded_columns.columns]
-        scores = scores.reshape((pivoted.shape[0], *unique_counts))
+    if is_multiindex:
+        # If there are multiple cols, reshape the output nd array
+        if len(col) > 1:
+            # pivoted = pivoted.sort_index(axis=1)
+            # expanded_columns = pivoted.columns.to_frame(index=False)
+            # pivoted.columns = pd.MultiIndex.from_tuples(
+            #     [tuple(col) for col in expanded_columns.to_numpy()],
+            #     names=expanded_columns.columns.tolist()
+            # )
+            # scores = pivoted.to_numpy()
+            # scores = scores.reshape(
+            #     (pivoted.shape[0], len(expanded_columns['mix'].unique()), len(expanded_columns['step'].unique()))
+            # )
+            pivoted = pivoted.sort_index(axis=1)
+            expanded_columns = pivoted.columns.to_frame(index=False)
+            pivoted.columns = pd.MultiIndex.from_tuples(
+                [tuple(col) for col in expanded_columns.to_numpy()],
+                names=expanded_columns.columns.tolist()
+            )
+            scores = pivoted.to_numpy()
+            unique_counts = [len(expanded_columns[level].unique()) for level in expanded_columns.columns]
+            scores = scores.reshape((pivoted.shape[0], *unique_counts))
 
-    # # Add a new axis for dim=1 if necessary
-    # scores = np.expand_dims(scores, axis=1)
+        # # Add a new axis for dim=1 if necessary
+        # scores = np.expand_dims(scores, axis=1)
 
     # Move instances dim to final dim
     scores = np.moveaxis(scores, 0, -1)

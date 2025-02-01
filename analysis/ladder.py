@@ -306,11 +306,10 @@ def run_ladder(
         df, task_name, train_models, eval_models, config_path, 
         y_metric='rc_bpb', intermediate_feature='bpb', use_flops=False, 
         run_step1=True, run_step2=True, run_stacked=True,
-        axes=None, add_texts=False, return_preds=False):
+        axes=None, add_texts=False, return_preds=False, return_reals=False):
     # os.chdir('/Users/dhei/ai2/new-evals/olmo-repos/OLMo') # Unfortunately there are local references, so we have to be in the OLMo repo
 
     data_by_name_tokens = DATA_BY_NAME_LADDER
-    rel_error_step_1, rel_error_step_2, rel_error_stacked = None, None, None
     ax_i = 0
 
     # Get config
@@ -337,14 +336,14 @@ def run_ladder(
 
         if use_flops:
             (
-                predicted_data_by_name, plotted_predicted_data,
+                predicted_data_by_name_step_1, plotted_predicted_data,
                 (y, step_1_y_pred, rel_error_step_1), all_rel_errors,
             ) = predict_step1_flops(
                 configs, data_by_name, step1_coefficients, y_metric=y_metric, 
             )
         else:
             (
-                predicted_data_by_name, plotted_predicted_data,
+                predicted_data_by_name_step_1, plotted_predicted_data,
                 (y, step_1_y_pred, rel_error_step_1), all_rel_errors,
             ) = predict_step1(
                 configs, data_by_name, step1_coefficients, y_metric=y_metric, 
@@ -356,13 +355,13 @@ def run_ladder(
             ax_i += 1
             if use_flops:
                 plot_step1_flops(
-                    configs, data_by_name, predicted_data_by_name, plotted_predicted_data,
+                    configs, data_by_name, predicted_data_by_name_step_1, plotted_predicted_data,
                     task_name, str_chinchilla_flops_fit(step1_coefficients), y_metric,
                     step1_coefficients, cov, ax,
                 )
             else:
                 plot_step1(
-                    configs, data_by_name, predicted_data_by_name, plotted_predicted_data,
+                    configs, data_by_name, predicted_data_by_name_step_1, plotted_predicted_data,
                     task_name, str_chinchilla_n_d_fit(step1_coefficients), y_metric,
                     step1_coefficients, cov, ax,
                 )
@@ -385,7 +384,7 @@ def run_ladder(
             step2_coefficients, cov = fit_step2(data_by_name_step_2, task_key, y_metric=None, _min=_min, _max=_max, use_log_sigmoid=False)
 
             (
-                predicted_data_by_name, plotted_predicted_data,
+                predicted_data_by_name_step_2, plotted_predicted_data_step_2,
                 (y, step_2_y_pred, rel_error_step_2, delta_error), all_rel_errors,
             ) = predict_step2(
                 configs, data_by_name_step_2, step2_coefficients, cov, y_metric=None, use_log_sigmoid=False
@@ -396,7 +395,7 @@ def run_ladder(
                 ax = axes[ax_i]
                 ax_i += 1
                 plot_step2(
-                    configs, data_by_name_step_2, predicted_data_by_name, plotted_predicted_data, task_key, None, y_metric, 'rc_acc',
+                    configs, data_by_name_step_2, predicted_data_by_name_step_2, plotted_predicted_data_step_2, task_key, None, y_metric, 'rc_acc',
                     step2_coefficients, cov, use_log_sigmoid=False, add_texts=add_texts, ax=ax
                 )
         except Exception as e:
@@ -407,14 +406,14 @@ def run_ladder(
         # Predict stacked
         if use_flops:
             (
-                predicted_data_by_name, plotted_predicted_data_by_name, 
+                predicted_data_by_name_stacked, plotted_predicted_data_by_name_stacked, 
                 (y, stacked_y_pred, rel_error)
             ) = predict_chained_flops(
                 data_by_name, step1_coefficients, step2_coefficients
             )
         else:
             (
-                predicted_data_by_name, plotted_predicted_data_by_name, 
+                predicted_data_by_name_stacked, plotted_predicted_data_by_name_stacked, 
                 (y, stacked_y_pred, rel_error)
             ) = predict_chained(
                 data_by_name, step1_coefficients, step2_coefficients, use_log_sigmoid=False
@@ -431,8 +430,8 @@ def run_ladder(
                 plot_chained_flops(
                     configs,
                     data_by_name,
-                    predicted_data_by_name,
-                    plotted_predicted_data_by_name,
+                    predicted_data_by_name_stacked,
+                    plotted_predicted_data_by_name_stacked,
                     task_name,
                     str_chained_fit_flops(step1_coefficients, step2_coefficients),
                     ax,
@@ -441,38 +440,81 @@ def run_ladder(
                 plot_chained(
                     configs,
                     data_by_name,
-                    predicted_data_by_name,
-                    plotted_predicted_data_by_name,
+                    predicted_data_by_name_stacked,
+                    plotted_predicted_data_by_name_stacked,
                     task_name,
                     str_chained_fit(step1_coefficients, step2_coefficients, use_log_sigmoid=False),
                     ax,
                 )
             ax.legend(loc='upper left')
 
-        if 'peteish7' in eval_models:
-            # make 7B prediction
-            n = 6887575552 
-            d = 3945065873408 
-            target_name = '7B-4T'
+        # if 'peteish7' in eval_models:
+        #     # make 7B prediction
+        #     n = 6887575552 
+        #     d = 3945065873408 
+        #     target_name = '7B-4T'
 
-            pred_loss = chinchilla_n_d_fit([n, d], step1_coefficients)
-            fit_fn = sigmoid
-            pred_acc = fit_fn(pred_loss, *step2_coefficients)
-            data = data_by_name[target_name]
-            rel_error_stacked = 0
-            if "ys" in data:
-                actual_acc = data["ys"][-1]
-                delta_error=pred_acc - actual_acc
-                rel_error_stacked = np.abs(delta_error) / actual_acc if actual_acc > 0 else float('inf')
+        #     pred_loss = chinchilla_n_d_fit([n, d], step1_coefficients)
+        #     fit_fn = sigmoid
+        #     pred_acc = fit_fn(pred_loss, *step2_coefficients)
+        #     data = data_by_name[target_name]
+        #     if "ys" in data:
+        #         actual_acc = data["ys"][-1]
+        #         delta_error=pred_acc - actual_acc
+        #         rel_error_stacked = np.abs(delta_error) / actual_acc if actual_acc > 0 else float('inf')
+        #         rel_errors_stacked += [rel_error_stacked]
 
     if axes is not None:
         for ax in axes:
             ax.set_title(task_name)
             # ax.legend(fontsize=6)
 
+    # Add prediction results for models
+    rel_error_step_1, rel_error_step_2, rel_errors_stacked = [], [], []
+    step_1_y, step_2_y, stacked_y = [], [], []
+    step_1_y_pred, step_2_y_pred, stacked_y_pred = [], [], []
+
+    def compute_rel_error(data, predicted_data, target_name, key):
+        y = data[target_name][key][0]
+        y_pred = predicted_data[target_name][key][0]
+        rel_error = np.abs(y_pred - y) / y if y > 0 else float('inf')
+        return y, y_pred, rel_error
+
+    def process_step(data, predicted_data, target_name, key, y_list, y_pred_list, rel_error_list):
+        y, y_pred, rel_error = compute_rel_error(data, predicted_data, target_name, key)
+        y_list.append(y)
+        y_pred_list.append(y_pred)
+        rel_error_list.append(rel_error)
+
+    def process_model(eval_models, model_name, target_name):
+        if model_name in eval_models:
+            if run_step1:
+                process_step(data_by_name, predicted_data_by_name_step_1, target_name, 'xs', step_1_y, step_1_y_pred, rel_error_step_1)
+            if run_step2:
+                process_step(data_by_name_step_2, predicted_data_by_name_step_2, target_name, 'ys', step_2_y, step_2_y_pred, rel_error_step_2)
+            if run_stacked:
+                process_step(data_by_name, predicted_data_by_name_stacked, target_name, 'ys', stacked_y, stacked_y_pred, rel_errors_stacked)
+
+    process_model(eval_models, 'peteish7', '7B-4T')
+    process_model(eval_models, 'peteish13-highlr', '13B-5T')
+
+    def simplify_list(lst):
+        return lst[0] if len(lst) == 1 else lst
+
+    step_1_y = simplify_list(step_1_y)
+    step_2_y = simplify_list(step_2_y)
+    stacked_y = simplify_list(stacked_y)
+    step_1_y_pred = simplify_list(step_1_y_pred)
+    step_2_y_pred = simplify_list(step_2_y_pred)
+    rel_error_step_1 = simplify_list(rel_error_step_1)
+    rel_error_step_2 = simplify_list(rel_error_step_2)
+    rel_errors_stacked = simplify_list(rel_errors_stacked)
+    
+    if return_reals:
+        return (rel_error_step_1, rel_error_step_2, rel_errors_stacked), (step_1_y, step_2_y, stacked_y), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
     if return_preds:
-        return (rel_error_step_1, rel_error_step_2, None), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
-    return rel_error_step_1, rel_error_step_2, rel_error_stacked
+        return (rel_error_step_1, rel_error_step_2, rel_errors_stacked), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
+    return rel_error_step_1, rel_error_step_2, rel_errors_stacked
 
 
 def run_variance_analysis(df, tasks, eval_models, config_path, last_n_points=10, ax=None):
