@@ -32,6 +32,23 @@ def generate_distractors(all_questions):
 
     return all_questions
 
+
+def clean_math_answers(all_questions):
+    """ Attempt to filter the math answers to a single statement """
+    from filters import answer_to_latex
+
+    new_questions = []
+    for question in all_questions:
+        answer_new = answer_to_latex(question['answer'])
+        if not answer_new:
+            continue
+        question['answer'] = answer_new
+        new_questions += [question]
+
+    print(f'Filtered {len(all_questions)}-{len(all_questions)-len(new_questions)}={len(new_questions)}')
+
+    return new_questions
+
 def merge_datasets(path, pattern, filename):
     # Merge all generated question files
     question_files = sorted([os.path.join(path, f) for f in os.listdir(path) if re.match(pattern, f)])
@@ -52,7 +69,8 @@ def merge_datasets(path, pattern, filename):
             all_questions.extend(questions)
 
     # all_questions = all_questions[:5]
-    # all_questions = generate_distractors(all_questions)
+    all_questions = generate_distractors(all_questions)
+    # all_questions = clean_math_answers(all_questions)
 
     assert len(all_questions) != 0, all_questions
 
