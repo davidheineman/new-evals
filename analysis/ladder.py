@@ -306,7 +306,7 @@ def run_ladder(
         df, task_name, train_models, eval_models, config_path, 
         y_metric='rc_bpb', intermediate_feature='bpb', use_flops=False, 
         run_step1=True, run_step2=True, run_stacked=True,
-        axes=None, add_texts=False, return_preds=False, return_reals=False):
+        axes=None, add_texts=False, return_preds=False, return_reals=False, return_fit_error=False):
     # os.chdir('/Users/dhei/ai2/new-evals/olmo-repos/OLMo') # Unfortunately there are local references, so we have to be in the OLMo repo
 
     data_by_name_tokens = DATA_BY_NAME_LADDER
@@ -398,6 +398,21 @@ def run_ladder(
                     configs, data_by_name_step_2, predicted_data_by_name_step_2, plotted_predicted_data_step_2, task_key, None, y_metric, 'rc_acc',
                     step2_coefficients, cov, use_log_sigmoid=False, add_texts=add_texts, ax=ax
                 )
+
+            all_y, all_pred_y = [], []
+            for name, data in data_by_name_step_2.items():
+                config = configs[name]
+                if config.mode == "train":
+                    continue
+                predicted_data = predicted_data_by_name_step_2[name]
+                all_y.extend(data["ys"])
+                all_pred_y.extend(predicted_data["ys"])
+            
+            if len(all_y) > 0:
+                fit_error = np.mean(np.abs(np.array(all_y) - np.array(all_pred_y)))
+                # print(f"Mean error for all eval points: {me:.4f}")
+                # mse = np.mean((np.array(all_y) - np.array(all_pred_y)) ** 2)
+                # print(f"Mean squared error for all eval points: {mse:.4f}")
         except Exception as e:
             print(data_by_name_step_2)
             raise RuntimeError(f'Step 2 failed to fit: {e}')
@@ -514,6 +529,8 @@ def run_ladder(
         return (rel_error_step_1, rel_error_step_2, rel_errors_stacked), (step_1_y, step_2_y, stacked_y), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
     if return_preds:
         return (rel_error_step_1, rel_error_step_2, rel_errors_stacked), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
+    if return_fit_error:
+        return (rel_error_step_1, rel_error_step_2, rel_errors_stacked), fit_error
     return rel_error_step_1, rel_error_step_2, rel_errors_stacked
 
 
