@@ -332,9 +332,12 @@ def parse_train_name(path):
     if "all_olmes" in path:
         task = None
         if "_rc_tasks" in path:
-            task_re = re.search(r"task-\d+-(.*?)-predictions\.jsonl", parts[6])
-            if task_re:
-                task = task_re.group(1)
+            metrics_match = re.search(r"task-\d+-(.*?)-metrics\.json", parts[6])
+            predictions_match = re.search(r"task-\d+-(.*?)-predictions\.jsonl", parts[6])
+            if metrics_match:
+                task = metrics_match.group(1)
+            elif predictions_match:
+                task = predictions_match.group(1)
     else:
         task = parts[5]
     return group, model, chinchilla, task, step, seed
@@ -357,7 +360,11 @@ def debug_aggregation(metrics_dict: Dict[str, Any]) -> Dict[str, float]:
         try:
             # Try to convert to numpy array and get mean
             arr = np.array(values)
-            mean_metrics[key] = np.mean(arr)
+            try:
+                mean_metrics[key] = np.mean(arr)
+            except Exception as e:
+                print(f'Couldnt divide on {key}: {arr}')
+                mean_metrics[key] = 0
             
         except ValueError as e:
             # # Debug info for problematic values
@@ -402,11 +409,13 @@ def process_prediction_path(path, rows_list):
     #     print(f"Skipping results for: {task}")
     #     return None
 
+    if task not in TASK_REGISTRY:
+        print(f'Could not find "{task}" on path {path}!')
+
     task_config = TASK_REGISTRY[task].__dict__.get('TASK_CONFIG_DEFAULTS', {})
     
     # Get primary_metric in this order
     primary_metric = task_config.get("primary_metric", None)
-    primary_metric = None
     possible_metrics = [
         "primary_metric",
         "acc_raw",

@@ -15,7 +15,7 @@ parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
 
 from utils import DATA_DIR
-# from utils_cheap_decisions import process_predictions_cheap_decisions, process_prediction_path
+from utils_cheap_decisions import process_predictions_cheap_decisions, process_prediction_path
 
 # Metrics to use when converting to table:
 METRICS_TO_KEEP = [
@@ -210,6 +210,10 @@ def process_metrics(file_path):
                 continue
             results[metric] = results['metrics'][metric]
 
+    # Get token spend if it exists (num_instances is already a col)
+    if 'extra_metrics' in results and 'num_tokens' in results["extra_metrics"]:
+        results["num_tokens"] = results['extra_metrics']["num_tokens"]
+
     # Rename bpb to logits_per_byte_corr if it exists
     if 'bits_per_byte' in results and results['bits_per_byte'] is not None:
         results['logits_per_byte_corr'] = results['bits_per_byte']
@@ -342,16 +346,18 @@ def load_file(file_data, _type):
 
     model_name, mix_name, step, step_str, size, token_ratio, task = get_metadata_from_file_name(root, file)
 
-    if _type == 'predictions':
+    if _type == 'predictions' or 'consistent_ranking' in str(root):
         # Load predictions
         if 'predictions.jsonl' not in file_path: 
             return []
         results = process_predictions(file_path)
     elif _type == 'metrics':
-        if 'metrics.json' not in file_path: 
+        if 'metrics.json' not in file_path:
             return []
         if 'verbose-metrics.json' in file_path:
             return []
+        if file == 'metrics.json' and 'consistent_ranking' in str(root):
+            raise RuntimeError('For consistent rankings, we only process predictions.jsonl -> metrics file')
         metrics = process_metrics(file_path)
         results = [metrics]
 
@@ -479,8 +485,8 @@ def recursive_pull(data_dir, file_type):
     if 'consistent_ranking' in str(data_dir):
         all_files = [f for f in all_files if ':para' not in f]
 
-    if 'consistent_ranking_final' in str(data_dir):
-        all_files = filter_model_seeds(all_files)
+    # if 'consistent_ranking_final' in str(data_dir):
+    #     all_files = filter_model_seeds(all_files) # This will filter out all but some of the seed runs
 
     # all_files = all_files[:10_000] # for testing
     # all_files = all_files[:1_000_000] # for testing
@@ -569,15 +575,16 @@ def sanity_check(folder_name):
         if task in ["paloma_twitterAAE_HELM_fixed", "paloma_c4_100_domains", "paloma_dolma_100_subreddits"]:
             # these tasks are half-evaluated and shouldn't be in there anyways
             continue
-        # if 'paloma' in task:
+        # if 'paloma' in task or 'llm_compression' in task or 'custom_loss' in task:
         #     continue
-        # model_tasks[f'{model_name}-{step}'].add(task)
-        model_tasks[f'{model_name}'].add(task)
+        model_tasks[f'{model_name}-{step}'].add(task)
+        # model_tasks[f'{model_name}'].add(task)
 
     all_tasks = set(task for tasks in model_tasks.values() for task in tasks)
     incomplete_models = {model for model, tasks in model_tasks.items() if tasks != all_tasks}
     for model in incomplete_models:
-        print(f"Model {model} is missing tasks. Missing tasks: {all_tasks - model_tasks[model]}")
+        # print(f"Model {model} is missing tasks. Missing tasks: {all_tasks - model_tasks[model]}")
+        print(f"({model}, {list(all_tasks - model_tasks[model])})")
 
 
 def main(folder_name, file_type='predictions'):
@@ -599,7 +606,7 @@ def main(folder_name, file_type='predictions'):
     print(f"Converted to pandas in: {time.time() - start_time:.4f} seconds")
     # verify_df(df)
 
-    if file_type == 'metrics':
+    if file_type == 'metrics' or folder_name == 'consistent_ranking_final':
         df = cleanup_metrics_df(df)
         df.to_csv(csv_path)
         print('Done!')

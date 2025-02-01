@@ -323,3 +323,16 @@ AGI_EVAL_TULU_3 = [
     "agi_eval_sat-en-without-passage:0shot_cot::tulu3",
     "agi_eval_gaokao-english:0shot_cot::tulu3",
 ]
+
+MISSING_EVALS = [
+    ("falcon_and_cc_eli5_oh_top20p-1B-5xC", ["aime::none"]),
+    ("prox_fineweb_pro-1B-5xC", ["aime::none"]),
+    ("falcon-1B-5xC", ["aime::none"]),
+    ("fineweb_edu_dedup-1B-5xC", ["aime::none"]),
+    ("falcon_and_cc_og_eli5_oh_top10p-1B-5xC", ["aime::none"]),
+    ("falcon_and_cc-1B-5xC", ["aime::none"]),
+    ("falcon_and_cc_tulu_qc_top10-1B-5xC", ["aime::none"]),
+    ("falcon_and_cc_eli5_oh_top10p-1B-5xC", ["aime::none"]),
+    ("redpajama-1B-5xC", ["aime::none"]),
+    ("c4-1B-5xC", ["aime::none"]),
+]

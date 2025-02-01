@@ -12,7 +12,13 @@ def convert_csv_to_parquet(csv_file_path):
     parquet_file_path = csv_file_path.replace(".csv", ".parquet")
     print(f"Converting '{csv_file_path}' -> '{parquet_file_path}'")
     df = pd.read_csv(csv_file_path, encoding='utf-8')
+
+    # Remove fake added index
     df = df.drop(columns=["Unnamed: 0"], errors='ignore')
+
+    # Remove erroneous columns
+    df = df[[col for col in df.columns if '_bits_per_byte' not in col and '_ppl_byte' not in col and '_ppl_word' not in col and '_ppl_char' not in col and '_ppl_token' not in col and '_sub_' not in col]]
+    
     df.to_parquet(parquet_file_path, index=False)
     return parquet_file_path
 
@@ -94,18 +100,18 @@ def main():
     #     overwrite=True
     # )
 
-    push_parquet_to_hf(
-        parquet_file_path='analysis/data/aws_metrics.csv',
-        hf_dataset_name='allenai/ladder-evals',
-        split_name='benchmarks',
-        overwrite=True
-    )
-    push_parquet_to_hf(
-        parquet_file_path='analysis/data/all_aws_predictions.parquet',
-        hf_dataset_name='allenai/ladder-evals',
-        split_name='instances',
-        overwrite=True
-    )
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/aws_metrics.csv',
+    #     hf_dataset_name='allenai/ladder-evals',
+    #     split_name='benchmarks',
+    #     overwrite=True
+    # )
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/all_aws_predictions.parquet',
+    #     hf_dataset_name='allenai/ladder-evals',
+    #     split_name='instances',
+    #     overwrite=True
+    # )
 
     # push_parquet_to_hf(
     #     parquet_file_path='analysis/data/all_consistent_ranking_predictions.parquet',
@@ -120,12 +126,12 @@ def main():
     #     overwrite=True
     # )
 
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/all_consistent_ranking_final_predictions.parquet',
-    #     hf_dataset_name='davidheineman/consistent-ranking-evals',
-    #     overwrite=True,
-    #     private=False,
-    # )
+    push_parquet_to_hf(
+        parquet_file_path='analysis/data/all_consistent_ranking_final_predictions.parquet',
+        hf_dataset_name='davidheineman/consistent-ranking-evals',
+        overwrite=True,
+        private=False,
+    )
 
 
 if __name__ == '__main__': main()

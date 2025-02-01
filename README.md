@@ -46,6 +46,7 @@ nohup python analysis/download/aws.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 # (in case I need it)
 nohup python analysis/download/preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 nohup python analysis/download/hf.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
+nohup python scripts/download_checkpoints.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 ```
 
 ### Install Custom oe-eval 
@@ -86,5 +87,7 @@ conda activate metaeval
 /root/ai2/metaeval/convert_checkpoints_peteish.sh
 
 # Detatch from current session
-nohup /root/ai2/metaeval/convert_checkpoints_peteish.sh > out.out 2>&1 & tail -f out.out
+nohup ./scripts/convert_checkpoints_peteish.sh > /tmp/out.out 2>&1 & tail -f /tmp/out.out
+
+nohup python scripts/download_checkpoints.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 ```
