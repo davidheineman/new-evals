@@ -443,6 +443,7 @@ def compute_intersection(p1s1, p1s2, p2s1, p2s2, x_range):
     
     return max(intersections)  # Return the last (rightmost) intersection
 
+
 def pairwise_intersections(coeffs, x_range):
     """ Compute pairwise intersection between N scaling law fits """
     n = len(coeffs)
