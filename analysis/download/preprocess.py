@@ -1,6 +1,6 @@
 import json, os, re, sys
 from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Pool
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -15,7 +15,7 @@ parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
 
 from utils import DATA_DIR
-from utils_cheap_decisions import process_predictions_cheap_decisions, process_prediction_path
+from utils_cheap_decisions import process_predictions_cheap_decisions, process_prediction_path, clean_data_and_compute_averages
 
 # Metrics to use when converting to table:
 METRICS_TO_KEEP = [
@@ -476,7 +476,7 @@ def scan_dir(data_input):
 
 def recursive_pull(data_dir, file_type):
     # # for testing
-    # data_dir = Path('/root/ai2/metaeval/analysis/data/consistent_ranking_final/eval-results/downstream/eval-for-consistent-ranking/baseline-1B-5xC-2')
+    # data_dir = Path('/root/ai2/metaeval/analysis/data/consistent_ranking/eval-results/downstream/eval-for-consistent-ranking/baseline-1B-5xC-2')
     
     all_files = scan_dir(data_dir)
 
@@ -485,7 +485,7 @@ def recursive_pull(data_dir, file_type):
     if 'consistent_ranking' in str(data_dir):
         all_files = [f for f in all_files if ':para' not in f]
 
-    # if 'consistent_ranking_final' in str(data_dir):
+    # if 'consistent_ranking' in str(data_dir):
     #     all_files = filter_model_seeds(all_files) # This will filter out all but some of the seed runs
 
     # all_files = all_files[:10_000] # for testing
@@ -591,9 +591,9 @@ def main(folder_name, file_type='predictions'):
     data_dir = Path(DATA_DIR).resolve()
     data_dir.mkdir(exist_ok=True)
 
-    aws_dir      = data_dir / folder_name
-    parquet_path = data_dir / f"all_{folder_name}_predictions.parquet"
-    csv_path     = data_dir / f"{folder_name}_metrics.csv"
+    aws_dir         = data_dir / folder_name
+    prediction_path = data_dir / f"{folder_name}_predictions.parquet"
+    metrics_path    = data_dir / f"{folder_name}_metrics.csv"
 
     predictions_df = recursive_pull(aws_dir, file_type)
 
@@ -606,9 +606,12 @@ def main(folder_name, file_type='predictions'):
     print(f"Converted to pandas in: {time.time() - start_time:.4f} seconds")
     # verify_df(df)
 
-    if file_type == 'metrics' or folder_name == 'consistent_ranking_final':
+    if file_type == 'metrics' or folder_name == 'consistent_ranking':
+        if folder_name == 'consistent_ranking':
+            # Use Ian's script to clean up the df
+            df = clean_data_and_compute_averages(df, quiet=False)
         df = cleanup_metrics_df(df)
-        df.to_csv(csv_path)
+        df.to_parquet(metrics_path)
         print('Done!')
         return
 
@@ -616,18 +619,17 @@ def main(folder_name, file_type='predictions'):
     df.set_index(['task', 'model', 'step', 'mix'], inplace=True)
     
     # Save to parquet
-    df.to_parquet(parquet_path, index=True)
-    print(f"Predictions saved to {parquet_path} ({fsize(parquet_path):.2f} GB)")
+    df.to_parquet(prediction_path, index=True)
+    print(f"Predictions saved to {prediction_path} ({fsize(prediction_path):.2f} GB)")
 
     print('Done!')
 
 
 if __name__ == '__main__': 
     folder_name = "aws" # 1hr
-    # folder_name = "consistent_ranking" # 3hr
-    # folder_name = 'consistent_ranking_final'
+    # folder_name = "consistent_ranking" # 8hr
 
-    sanity_check(folder_name)
+    # sanity_check(folder_name)
 
-    # main(folder_name, file_type='metrics')
-    # main(folder_name, file_type='predictions')
+    main(folder_name, file_type='metrics')
+    main(folder_name, file_type='predictions')

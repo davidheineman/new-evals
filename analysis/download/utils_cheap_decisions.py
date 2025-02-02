@@ -3,10 +3,260 @@ import json
 import numpy as np
 import pandas as pd
 
-import sys
+# import sys
+# sys.path.append('/root/ai2/metaeval/olmo-repos/oe-eval-internal')
+# from oe_eval.tasks.oe_eval_tasks import TASK_REGISTRY
+# primary_metrics = {}
+# for task in TASK_REGISTRY.keys():
+#     task_config = TASK_REGISTRY[task].__dict__.get('TASK_CONFIG_DEFAULTS', {})
+#     primary_metric = task_config.get("primary_metric", None)
+#     primary_metrics[task] = primary_metric
+# raise RuntimeError(primary_metrics)
 
-sys.path.append('/root/ai2/metaeval/olmo-repos/oe-eval-internal')
-from oe_eval.tasks.oe_eval_tasks import TASK_REGISTRY
+
+PRIMARY_METRICS_OLMES = {
+    'aime': 'exact_match_flex', 
+    'alpaca_eval': 'win_rate', 
+    'arc_challenge': 'acc_uncond', 
+    'arc_challenge:mc': 'acc_raw', 
+    'arc_easy': 'acc_per_char', 
+    'arc_easy:mc': 'acc_raw', 
+    'autobencher': 'logits_per_byte', 
+    'autobencher:mc': 'acc_raw', 
+    'autobencher_math': 'exact_match', 
+    'bigcodebench': 'pass_at_1', 
+    'bigcodebench_hard': 'pass_at_1', 
+    'boolq': 'acc_raw', 
+    'boolq:mc': None, 'custom_loss_sky_t1': 'bits_per_byte', 
+    'custom_loss_numia_math': 'bits_per_byte', 
+    'custom_loss_tulu_if': 'bits_per_byte', 
+    'codex_humaneval': 'pass_at_1', 
+    'codex_humanevalplus': 'pass_at_1', 
+    'copa': 'acc_raw', 
+    'copycolors': 'acc_uncond', 
+    'copycolors:mc': 'acc_raw', 
+    'coqa': 'f1', 
+    'cosmosqa': 'acc_per_char', 
+    'cosmosqa:mc': 'acc_raw', 
+    'csqa': 'acc_uncond', 
+    'csqa:mc': 'acc_raw', 
+    'drop': 'f1', 
+    'gsm8k': 'exact_match', 
+    'gsm8k_selfc': 'maj_at_10', 
+    'gsm_plus': 'exact_match', 
+    'gsm_plus_selfc': None, 'gsm_symbolic_main': 'exact_match', 
+    'gsm_symbolic_p1': 'exact_match', 
+    'gsm_symbolic_p2': 'exact_match', 
+    'gpqa': 'exact_match', 
+    'hellaswag': 'acc_per_char', 
+    'hellaswag:mc': 'acc_raw', 
+    'ifeval': 'inst_level_loose_acc', 
+    'jeopardy': 'f1', 
+    'logiqa': 'acc_per_char', 
+    'logiqa:mc': 'acc_raw', 
+    'minerva_math_algebra': None, 'minerva_math_counting_and_probability': None, 'minerva_math_geometry': None, 'minerva_math_intermediate_algebra': None, 'minerva_math_number_theory': None, 'minerva_math_prealgebra': None, 'minerva_math_precalculus': None, 'minerva_math_500': 'exact_match', 
+    'mbpp': 'pass_at_1', 
+    'mbppplus': 'pass_at_1', 
+    'medmcqa': 'acc_per_char', 
+    'medmcqa:mc': 'acc_per_char', 
+    'mmlu_abstract_algebra:mc': None, 'mmlu_abstract_algebra': None, 'mmlu_abstract_algebra:cot': 'exact_match', 
+    'mmlu_anatomy:mc': None, 'mmlu_anatomy': None, 'mmlu_anatomy:cot': 'exact_match', 
+    'mmlu_astronomy:mc': None, 'mmlu_astronomy': None, 'mmlu_astronomy:cot': 'exact_match', 
+    'mmlu_business_ethics:mc': None, 'mmlu_business_ethics': None, 'mmlu_business_ethics:cot': 'exact_match', 
+    'mmlu_clinical_knowledge:mc': None, 'mmlu_clinical_knowledge': None, 'mmlu_clinical_knowledge:cot': 'exact_match', 
+    'mmlu_college_biology:mc': None, 'mmlu_college_biology': None, 'mmlu_college_biology:cot': 'exact_match', 
+    'mmlu_college_chemistry:mc': None, 'mmlu_college_chemistry': None, 'mmlu_college_chemistry:cot': 'exact_match', 
+    'mmlu_college_computer_science:mc': None, 'mmlu_college_computer_science': None, 'mmlu_college_computer_science:cot': 'exact_match', 
+    'mmlu_college_mathematics:mc': None, 'mmlu_college_mathematics': None, 'mmlu_college_mathematics:cot': 'exact_match', 
+    'mmlu_college_medicine:mc': None, 'mmlu_college_medicine': None, 'mmlu_college_medicine:cot': 'exact_match', 
+    'mmlu_college_physics:mc': None, 'mmlu_college_physics': None, 'mmlu_college_physics:cot': 'exact_match', 
+    'mmlu_computer_security:mc': None, 'mmlu_computer_security': None, 'mmlu_computer_security:cot': 'exact_match', 
+    'mmlu_conceptual_physics:mc': None, 'mmlu_conceptual_physics': None, 'mmlu_conceptual_physics:cot': 'exact_match', 
+    'mmlu_econometrics:mc': None, 'mmlu_econometrics': None, 'mmlu_econometrics:cot': 'exact_match', 
+    'mmlu_electrical_engineering:mc': None, 'mmlu_electrical_engineering': None, 'mmlu_electrical_engineering:cot': 'exact_match', 
+    'mmlu_elementary_mathematics:mc': None, 'mmlu_elementary_mathematics': None, 'mmlu_elementary_mathematics:cot': 'exact_match', 
+    'mmlu_formal_logic:mc': None, 'mmlu_formal_logic': None, 'mmlu_formal_logic:cot': 'exact_match', 
+    'mmlu_global_facts:mc': None, 'mmlu_global_facts': None, 'mmlu_global_facts:cot': 'exact_match', 
+    'mmlu_high_school_biology:mc': None, 'mmlu_high_school_biology': None, 'mmlu_high_school_biology:cot': 'exact_match', 
+    'mmlu_high_school_chemistry:mc': None, 'mmlu_high_school_chemistry': None, 'mmlu_high_school_chemistry:cot': 'exact_match', 
+    'mmlu_high_school_computer_science:mc': None, 'mmlu_high_school_computer_science': None, 'mmlu_high_school_computer_science:cot': 'exact_match', 
+    'mmlu_high_school_european_history:mc': None, 'mmlu_high_school_european_history': None, 'mmlu_high_school_european_history:cot': 'exact_match', 
+    'mmlu_high_school_geography:mc': None, 'mmlu_high_school_geography': None, 'mmlu_high_school_geography:cot': 'exact_match', 
+    'mmlu_high_school_government_and_politics:mc': None, 'mmlu_high_school_government_and_politics': None, 'mmlu_high_school_government_and_politics:cot': 'exact_match', 
+    'mmlu_high_school_macroeconomics:mc': None, 'mmlu_high_school_macroeconomics': None, 'mmlu_high_school_macroeconomics:cot': 'exact_match', 
+    'mmlu_high_school_mathematics:mc': None, 'mmlu_high_school_mathematics': None, 'mmlu_high_school_mathematics:cot': 'exact_match', 
+    'mmlu_high_school_microeconomics:mc': None, 'mmlu_high_school_microeconomics': None, 'mmlu_high_school_microeconomics:cot': 'exact_match', 
+    'mmlu_high_school_physics:mc': None, 'mmlu_high_school_physics': None, 'mmlu_high_school_physics:cot': 'exact_match', 
+    'mmlu_high_school_psychology:mc': None, 'mmlu_high_school_psychology': None, 'mmlu_high_school_psychology:cot': 'exact_match', 
+    'mmlu_high_school_statistics:mc': None, 'mmlu_high_school_statistics': None, 'mmlu_high_school_statistics:cot': 'exact_match', 
+    'mmlu_high_school_us_history:mc': None, 'mmlu_high_school_us_history': None, 'mmlu_high_school_us_history:cot': 'exact_match', 
+    'mmlu_high_school_world_history:mc': None, 'mmlu_high_school_world_history': None, 'mmlu_high_school_world_history:cot': 'exact_match', 
+    'mmlu_human_aging:mc': None, 'mmlu_human_aging': None, 'mmlu_human_aging:cot': 'exact_match', 
+    'mmlu_human_sexuality:mc': None, 'mmlu_human_sexuality': None, 'mmlu_human_sexuality:cot': 'exact_match', 
+    'mmlu_international_law:mc': None, 'mmlu_international_law': None, 'mmlu_international_law:cot': 'exact_match', 
+    'mmlu_jurisprudence:mc': None, 'mmlu_jurisprudence': None, 'mmlu_jurisprudence:cot': 'exact_match', 
+    'mmlu_logical_fallacies:mc': None, 'mmlu_logical_fallacies': None, 'mmlu_logical_fallacies:cot': 'exact_match', 
+    'mmlu_machine_learning:mc': None, 'mmlu_machine_learning': None, 'mmlu_machine_learning:cot': 'exact_match', 
+    'mmlu_management:mc': None, 'mmlu_management': None, 'mmlu_management:cot': 'exact_match', 
+    'mmlu_marketing:mc': None, 'mmlu_marketing': None, 'mmlu_marketing:cot': 'exact_match', 
+    'mmlu_medical_genetics:mc': None, 'mmlu_medical_genetics': None, 'mmlu_medical_genetics:cot': 'exact_match', 
+    'mmlu_miscellaneous:mc': None, 'mmlu_miscellaneous': None, 'mmlu_miscellaneous:cot': 'exact_match', 
+    'mmlu_moral_disputes:mc': None, 'mmlu_moral_disputes': None, 'mmlu_moral_disputes:cot': 'exact_match', 
+    'mmlu_moral_scenarios:mc': None, 'mmlu_moral_scenarios': None, 'mmlu_moral_scenarios:cot': 'exact_match', 
+    'mmlu_nutrition:mc': None, 'mmlu_nutrition': None, 'mmlu_nutrition:cot': 'exact_match', 
+    'mmlu_philosophy:mc': None, 'mmlu_philosophy': None, 'mmlu_philosophy:cot': 'exact_match', 
+    'mmlu_prehistory:mc': None, 'mmlu_prehistory': None, 'mmlu_prehistory:cot': 'exact_match', 
+    'mmlu_professional_accounting:mc': None, 'mmlu_professional_accounting': None, 'mmlu_professional_accounting:cot': 'exact_match', 
+    'mmlu_professional_law:mc': None, 'mmlu_professional_law': None, 'mmlu_professional_law:cot': 'exact_match', 
+    'mmlu_professional_medicine:mc': None, 'mmlu_professional_medicine': None, 'mmlu_professional_medicine:cot': 'exact_match', 
+    'mmlu_professional_psychology:mc': None, 'mmlu_professional_psychology': None, 'mmlu_professional_psychology:cot': 'exact_match', 
+    'mmlu_public_relations:mc': None, 'mmlu_public_relations': None, 'mmlu_public_relations:cot': 'exact_match', 
+    'mmlu_security_studies:mc': None, 'mmlu_security_studies': None, 'mmlu_security_studies:cot': 'exact_match', 
+    'mmlu_sociology:mc': None, 'mmlu_sociology': None, 'mmlu_sociology:cot': 'exact_match', 
+    'mmlu_us_foreign_policy:mc': None, 'mmlu_us_foreign_policy': None, 'mmlu_us_foreign_policy:cot': 'exact_match', 
+    'mmlu_virology:mc': None, 'mmlu_virology': None, 'mmlu_virology:cot': 'exact_match', 
+    'mmlu_world_religions:mc': None, 'mmlu_world_religions': None, 'mmlu_world_religions:cot': 'exact_match', 
+    'mmlu_pro_math:cot': 'exact_match', 
+    'mmlu_pro_health:cot': 'exact_match', 
+    'mmlu_pro_physics:cot': 'exact_match', 
+    'mmlu_pro_business:cot': 'exact_match', 
+    'mmlu_pro_biology:cot': 'exact_match', 
+    'mmlu_pro_chemistry:cot': 'exact_match', 
+    'mmlu_pro_computer science:cot': 'exact_match', 
+    'mmlu_pro_economics:cot': 'exact_match', 
+    'mmlu_pro_engineering:cot': 'exact_match', 
+    'mmlu_pro_philosophy:cot': 'exact_match', 
+    'mmlu_pro_other:cot': 'exact_match', 
+    'mmlu_pro_history:cot': 'exact_match', 
+    'mmlu_pro_psychology:cot': 'exact_match', 
+    'mmlu_pro_law:cot': 'exact_match', 
+    'mmlu_pro_math': None, 'mmlu_pro_health': None, 'mmlu_pro_physics': None, 'mmlu_pro_business': None, 'mmlu_pro_biology': None, 'mmlu_pro_chemistry': None, 'mmlu_pro_computer science': None, 'mmlu_pro_economics': None, 'mmlu_pro_engineering': None, 'mmlu_pro_philosophy': None, 'mmlu_pro_other': None, 'mmlu_pro_history': None, 'mmlu_pro_psychology': None, 'mmlu_pro_law': None, 'mmlu_pro_math:rc': None, 'mmlu_pro_health:rc': None, 'mmlu_pro_physics:rc': None, 'mmlu_pro_business:rc': None, 'mmlu_pro_biology:rc': None, 'mmlu_pro_chemistry:rc': None, 'mmlu_pro_computer science:rc': None, 'mmlu_pro_economics:rc': None, 'mmlu_pro_engineering:rc': None, 'mmlu_pro_philosophy:rc': None, 'mmlu_pro_other:rc': None, 'mmlu_pro_history:rc': None, 'mmlu_pro_psychology:rc': None, 'mmlu_pro_law:rc': None, 'mt_eval_refinement_single': 'llm_score', 
+    'mt_eval_refinement_multi': 'llm_score', 
+    'mt_eval_expansion_single': 'llm_score', 
+    'mt_eval_expansion_multi': 'llm_score', 
+    'mt_eval_follow-up_single': 'llm_score', 
+    'mt_eval_follow-up_multi': 'llm_score', 
+    'mt_eval_recollection_single_cls': 'llm_score', 
+    'mt_eval_recollection_multi_cls': 'llm_score', 
+    'mt_eval_recollection_single_global-inst': 'llm_score', 
+    'mt_eval_recollection_multi_global-inst': 'llm_score', 
+    'naturalqs_open': 'f1', 
+    'openbookqa': 'acc_uncond', 
+    'openbookqa:mc': 'acc_raw', 
+    'paloma_4chan_meta_sep': None, 'paloma_c4_100_domains': None, 'paloma_c4_en': None, 'paloma_dolma_100_programing_languages': None, 'paloma_dolma_100_subreddits': None, 'paloma_dolma-v1_5': None, 'paloma_falcon-refinedweb': None, 'paloma_gab': None, 'paloma_m2d2_s2orc_unsplit': None, 'paloma_m2d2_wikipedia_unsplit': None, 'paloma_manosphere_meta_sep': None, 'paloma_mc4': None, 'paloma_ptb': None, 'paloma_redpajama': None, 'paloma_twitterAAE_HELM_fixed': None, 'paloma_wikitext_103': None, 'llm_compression_arxiv_math': None, 'llm_compression_cc': None, 'llm_compression_python': None, 'piqa': 'acc_per_char', 
+    'piqa:mc': 'acc_raw', 
+    'popqa': 'exact_match', 
+    'sciq': 'acc_raw', 
+    'socialiqa': 'acc_per_char', 
+    'socialiqa:mc': 'acc_raw', 
+    'squad': 'f1', 
+    'squad2': 'f1', 
+    'triviaqa': 'f1', 
+    'truthfulqa': 'mc1', 
+    'tydiqa_english': None, 'tydiqa_arabic': None, 'tydiqa_bengali': None, 'tydiqa_finnish': None, 'tydiqa_indonesian': None, 'tydiqa_korean': None, 'tydiqa_russian': None, 'tydiqa_swahili': None, 'tydiqa_telugu': None, 'winogrande': 'acc_raw', 
+    'winogrande:mc': 'acc_raw', 
+    'zero_scrolls_gov_report': 'rougeL_f1', 
+    'zero_scrolls_summ_screen_fd': 'rougeL_f1', 
+    'zero_scrolls_qmsum': 'rougeL_f1', 
+    'zero_scrolls_qasper': 'f1', 
+    'zero_scrolls_narrative_qa': 'f1', 
+    'zero_scrolls_quality': 'exact_match', 
+    'arc_challenge:para': 'acc_per_char', 
+    'arc_easy:para': 'acc_per_char', 
+    'boolq:para': 'acc_raw', 
+    'csqa:para': 'acc_uncond', 
+    'hellaswag:para': 'acc_per_char', 
+    'openbookqa:para': 'acc_uncond', 
+    'piqa:para': 'acc_per_char', 
+    'socialiqa:para': 'acc_per_char', 
+    'winogrande:para': 'acc_raw', 
+    'mmlu_abstract_algebra:para': 'acc_per_char', 
+    'mmlu_anatomy:para': 'acc_per_char', 
+    'mmlu_astronomy:para': 'acc_per_char', 
+    'mmlu_business_ethics:para': 'acc_per_char', 
+    'mmlu_clinical_knowledge:para': 'acc_per_char', 
+    'mmlu_college_biology:para': 'acc_per_char', 
+    'mmlu_college_chemistry:para': 'acc_per_char', 
+    'mmlu_college_computer_science:para': 'acc_per_char', 
+    'mmlu_college_mathematics:para': 'acc_per_char', 
+    'mmlu_college_medicine:para': 'acc_per_char', 
+    'mmlu_college_physics:para': 'acc_per_char', 
+    'mmlu_computer_security:para': 'acc_per_char', 
+    'mmlu_conceptual_physics:para': 'acc_per_char', 
+    'mmlu_econometrics:para': 'acc_per_char', 
+    'mmlu_electrical_engineering:para': 'acc_per_char', 
+    'mmlu_elementary_mathematics:para': 'acc_per_char', 
+    'mmlu_formal_logic:para': 'acc_per_char', 
+    'mmlu_global_facts:para': 'acc_per_char', 
+    'mmlu_high_school_biology:para': 'acc_per_char', 
+    'mmlu_high_school_chemistry:para': 'acc_per_char', 
+    'mmlu_high_school_computer_science:para': 'acc_per_char', 
+    'mmlu_high_school_european_history:para': 'acc_per_char', 
+    'mmlu_high_school_geography:para': 'acc_per_char', 
+    'mmlu_high_school_government_and_politics:para': 'acc_per_char', 
+    'mmlu_high_school_macroeconomics:para': 'acc_per_char', 
+    'mmlu_high_school_mathematics:para': 'acc_per_char', 
+    'mmlu_high_school_microeconomics:para': 'acc_per_char', 
+    'mmlu_high_school_physics:para': 'acc_per_char', 
+    'mmlu_high_school_psychology:para': 'acc_per_char', 
+    'mmlu_high_school_statistics:para': 'acc_per_char', 
+    'mmlu_high_school_us_history:para': 'acc_per_char', 
+    'mmlu_high_school_world_history:para': 'acc_per_char', 
+    'mmlu_human_aging:para': 'acc_per_char', 
+    'mmlu_human_sexuality:para': 'acc_per_char', 
+    'mmlu_international_law:para': 'acc_per_char', 
+    'mmlu_jurisprudence:para': 'acc_per_char', 
+    'mmlu_logical_fallacies:para': 'acc_per_char', 
+    'mmlu_machine_learning:para': 'acc_per_char', 
+    'mmlu_management:para': 'acc_per_char', 
+    'mmlu_marketing:para': 'acc_per_char', 
+    'mmlu_medical_genetics:para': 'acc_per_char', 
+    'mmlu_miscellaneous:para': 'acc_per_char', 
+    'mmlu_moral_disputes:para': 'acc_per_char', 
+    'mmlu_moral_scenarios:para': 'acc_per_char', 
+    'mmlu_nutrition:para': 'acc_per_char', 
+    'mmlu_philosophy:para': 'acc_per_char', 
+    'mmlu_prehistory:para': 'acc_per_char', 
+    'mmlu_professional_accounting:para': 'acc_per_char', 
+    'mmlu_professional_law:para': 'acc_per_char', 
+    'mmlu_professional_medicine:para': 'acc_per_char', 
+    'mmlu_professional_psychology:para': 'acc_per_char', 
+    'mmlu_public_relations:para': 'acc_per_char', 
+    'mmlu_security_studies:para': 'acc_per_char', 
+    'mmlu_sociology:para': 'acc_per_char', 
+    'mmlu_us_foreign_policy:para': 'acc_per_char', 
+    'mmlu_virology:para': 'acc_per_char', 
+    'mmlu_world_religions:para': 'acc_per_char', 
+    'minerva_math_geometry:perturb_cot': 'acc_per_char', 
+    'gsm8k:perturb_cot': 'acc_per_char', 
+    'minerva_math_intermediate_algebra:perturb_cot': 'acc_per_char', 
+    'minerva_math_number_theory:perturb_cot': 'acc_per_char', 
+    'minerva_math_algebra:perturb_cot': 'acc_per_char', 
+    'minerva_math_prealgebra:perturb_cot': 'acc_per_char', 
+    'minerva_math_counting_and_probability:perturb_cot': 'acc_per_char', 
+    'arc_challenge:enlarge': 'acc_uncond', 
+    'arc_easy:enlarge': 'acc_per_char', 
+    'boolq:enlarge': 'acc_raw', 
+    'csqa:enlarge': 'acc_uncond', 
+    'hellaswag:enlarge': 'acc_per_char', 
+    'openbookqa:enlarge': 'acc_uncond', 
+    'piqa:enlarge': 'acc_per_char', 
+    'socialiqa:enlarge': 'acc_per_char', 
+    'arc_challenge:distractors': 'acc_uncond', 
+    'arc_easy:distractors': 'acc_per_char', 
+    'boolq:distractors': 'acc_raw', 
+    'csqa:distractors': 'acc_uncond', 
+    'hellaswag:distractors': 'acc_per_char', 
+    'openbookqa:distractors': 'acc_uncond', 
+    'piqa:distractors': 'acc_per_char', 
+    'socialiqa:distractors': 'acc_per_char', 
+    'drop:perturb_rc': 'acc_per_char', 
+    'gsm8k:perturb_rc': 'acc_per_char', 
+    'jeopardy:perturb_rc': 'acc_per_char', 
+    'naturalqs:perturb_rc': 'acc_per_char', 
+    'squad:perturb_rc': 'acc_per_char', 
+    'triviaqa:perturb_rc': 'acc_per_char'
+}
 
 
 generate_primary_metrics = [
@@ -491,3 +741,348 @@ def clean_nans(arr1, arr2):
     filtered_arr1 = arr1[mask].tolist()
     filtered_arr2 = arr2[mask].tolist()
     return filtered_arr1, filtered_arr2, changed
+
+
+def clean_data_and_compute_averages(df, quiet=True):
+    """ Wrapper around Ian's data cleaning to compute macro averages """
+    if "Unnamed: 0" in df.columns:
+        df = df.drop(columns=["Unnamed: 0"], errors='ignore')
+
+    # Preprocess the df into a usuable format
+    if not quiet: print('Converting metrics dict to a set of cols...')
+    df["metrics"] = df["metrics"].apply(eval)
+    metrics_df = df["metrics"].apply(pd.Series)
+    df = pd.concat([df.drop(columns=["metrics"]), metrics_df], axis=1)
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    # Remove bad mixes
+    BAD_MIXES = ["DCLM-baseline-25p", "DCLM-baseline-50p", "DCLM-baseline-75p"]
+    for bad_mix in BAD_MIXES:
+        df = df[df["group"] != bad_mix]
+
+    df.loc[df['group'] == 'baseline', 'group'] = 'dolma17'
+
+    df['size'] = df['model']
+    df['model'] = df['group'] + '-' + df['model'] + '-' + df['chinchilla']
+
+    if not quiet: print('Launching data cleaning!')
+
+    df = ian_clean_data(df, dirty_out=False, quiet=quiet)
+
+    if not quiet: print('Computing macro averages...')
+
+    # Compute MMLU macro-average
+    group_cols = ['group', 'model', 'chinchilla', 'step', 'seed']
+    agg_cols = [col for col in df.columns if col not in group_cols and col != 'task']
+    mmlu_rows = df[df['task'].str.contains("MMLU", case=False)]
+    numeric_cols = mmlu_rows[agg_cols].select_dtypes(include=['number']).columns.tolist()
+    aggregated = mmlu_rows.groupby(group_cols, as_index=False)[numeric_cols].mean()
+    aggregated['task'] = 'mmlu'
+    df = df[~df['task'].str.contains("MMLU", case=False)]
+    df = pd.concat([df, aggregated], ignore_index=True)
+
+    # Compute olmes macro-average
+    group_cols = ['group', 'model', 'chinchilla', 'step', 'seed']
+    agg_cols = [col for col in df.columns if col not in group_cols and col != 'task']
+    olmes_rows = df # olmes_rows = df[df['task'].str.contains("olmes", case=False)]
+    numeric_cols = olmes_rows[agg_cols].select_dtypes(include=['number']).columns.tolist()
+    aggregated = olmes_rows.groupby(group_cols, as_index=False)[numeric_cols].mean()
+    aggregated['task'] = 'olmes_10_macro_avg'
+    df = pd.concat([df, aggregated], ignore_index=True)
+
+    df['size'] = df['model'].str.split('-').str[-2]
+
+    # Remove extra metrics columns that were not used everywhere
+    df = df.drop(columns=[
+        "predicted_index_per_byte", 
+        "acc_per_byte", 
+        "sum_logits_corr", 
+        "logits_per_token_corr", 
+        "logits_per_char_corr", 
+        "logits_per_byte_corr"
+    ], errors='ignore')
+
+    if not quiet: print('Done!')
+
+    return df
+
+
+def ian_clean_data(df, dirty_out=False, quiet=True):
+    """ Clean data according to https://github.com/allenai/oe-eval-internal/blob/eval-for-consistent-ranking/experiments/eval-for-consistent-ranking/metrics/project/data_exploration_and_cleaning.ipynb """
+    
+    print(f'Step 0: {len(df)}')
+    
+    # Ian uses only the size for "model"
+    if 'model_full' not in df.columns:
+        df['model_full'] = df['model']
+        df['model'] = df['model'].apply(lambda x: x.split('-')[-2] if '-' in x else None)
+    
+    # 1) Clean group names
+    # print(len(df['group'].unique()))
+    df.loc[df['group'] == 'baseline', 'group'] = 'dolma17'
+
+    bad_mixes = [
+        'DCLM-baseline-25p',
+        'DCLM-baseline-50p',
+        'DCLM-baseline-75p',
+    ]
+
+    cannonical_groups = set([
+        'DCLM-baseline',
+        'c4',
+        'dclm_ft7percentile_fw2',
+        'dclm_ft7percentile_fw3',
+        'dclm_fw_top10',
+        'dclm_fw_top3',
+        'dolma-v1-6-and-sources-baseline',
+        'dolma17',
+        'dolma17-25p-DCLM-baseline-75p',
+        'dolma17-50p-DCLM-baseline-50p',
+        'dolma17-75p-DCLM-baseline-25p',
+        'falcon',
+        'falcon_and_cc',
+        'falcon_and_cc_eli5_oh_top10p',
+        'falcon_and_cc_eli5_oh_top20p',
+        'falcon_and_cc_og_eli5_oh_top10p',
+        'falcon_and_cc_tulu_qc_top10',
+        'fineweb_edu_dedup',
+        'no_code',
+        'no_flan',
+        'no_math_no_code',
+        'no_reddit',
+        'pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top10p',
+        'pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top20p',
+        'prox_fineweb_pro'
+    ])
+
+    df = df[~df['group'].isin(bad_mixes)]
+
+    # print(len(df['group'].unique()))
+    assert set(sorted(df['group'].unique())) == cannonical_groups
+
+    print(f'Step 1: {len(df)}')
+
+    # 2) Normalize seeds
+    if not quiet:
+        print('raw seeds:')
+        print(df['seed'].unique())
+
+    def normalize_seeds(df):
+        df = df.copy()
+        df['seed'] = df['seed'].fillna(6198)
+        df['seed'] = df['seed'].astype(int)
+        df.loc[df['seed'] == 2, 'seed'] = 6198
+        return df
+
+    df = normalize_seeds(df)
+
+    if not quiet:
+        print('normalized seeds:')
+        print(df['seed'].unique())
+
+    print(f'Step 2: {len(df)}')
+
+    # 3) Throw out 1B seed 14 and 15 cuz we have full seed runs from 4 and 5
+    df = df[~((df['model'] == '1B') & (df['seed'].isin([14, 15])))]
+
+    print(f'Step 3: {len(df)}')
+
+    # # 4) Remove all steps without 3 seeds
+    # if not dirty_out:
+    #     pre_filter_groups = df['group'].unique()
+    #     filtered_groups = []
+    #     throwaway_groups = []
+    #     for name, data in df.groupby(['model', 'group', 'step']): # understand why token and compute effecting this so much? ['model', 'group', 'step', 'tokens', 'compute']
+    #         if len(set(data['seed'])) == 3:
+    #             filtered_groups.append(data)
+    #         else:
+    #             throwaway_groups.append(data)
+    #     df = pd.concat(filtered_groups)
+    #     df_throwaway = pd.concat(throwaway_groups)
+    #     df_throwaway['group'].value_counts()
+
+    #     if not quiet: print(len(df['group'].unique()))
+    #     post_filter_groups = df['group'].unique()
+    #     if not quiet: print(set(pre_filter_groups) - set(post_filter_groups))
+
+    #     # are any steps missing some groups?
+    #     missing_groups = []
+    #     for (model, step), data in df.groupby(['model', 'step']):
+    #         present_groups = set(data['group'].unique())
+    #         missing = set(post_filter_groups) - present_groups
+    #         if missing:
+    #             missing_groups.append((model, step, missing))
+
+    print(f'Step 4: {len(df)}')
+    
+    # 5) Throw out all steps beyond the end of LR schedule
+    full_schedule_last_step_per_model = {
+        '150M': 38157,
+        '300M': 45787,
+        '530M': 57786,
+        '750M': 63589,
+        '1B': 69369,
+    }
+
+    # have to round up for the models that ran to long to make sure we get a checkpoint after the LR fully decays
+    def round_up(value, increment):
+        return (value + increment - 1) // increment * increment
+    for model, step in full_schedule_last_step_per_model.items():
+        if model == '1B':
+            full_schedule_last_step_per_model[model] = round_up(step, 2500)
+        else:
+            full_schedule_last_step_per_model[model] = round_up(step, 1250)
+
+    df = df[df.apply(lambda row: row['step'] <= full_schedule_last_step_per_model[row['model']], axis=1)]
+
+    # are there some groups that have fewer steps for a given model size?
+    min_last_step_per_model = {}
+    for name, data in df.groupby(['model', 'seed']):
+        max_per_model = -1
+        max_steps = None
+        max_group = None
+        min_per_model = 100000
+        min_group = None
+        min_steps = None
+        for group in data['group'].unique():
+            group_data = data[data['group'] == group]
+            if len(group_data['step'].unique()) > max_per_model:
+                max_per_model = len(group_data['step'].unique())
+                max_group = group
+                max_steps = sorted(group_data['step'].unique())
+            if len(group_data['step'].unique()) < min_per_model:
+                min_per_model = len(group_data['step'].unique())
+                min_group = group
+                min_steps = sorted(group_data['step'].unique())
+        min_last_step_per_model[name] = min_steps[-1]
+        if not quiet:
+            if max_per_model != min_per_model:
+                print(f"max steps for {name}: {max_per_model}")
+                print(f"min steps for {name}: {min_per_model}")
+                print(f"min group for {name}: {min_group}")
+
+
+    print(f'Step 5: {len(df)}')
+    
+    # 6) [RESOLVED] remove groups that don't have targets for 3 seeds for final result
+    target_df = df[df['model'] == '1B']
+    group_seeds = {}
+    for _, row in target_df[['group', 'seed']].iterrows():
+        group = row['group']
+        seed = row['seed']
+        if group not in group_seeds:
+            group_seeds[group] = set()
+        group_seeds[group].add(seed)
+
+    # group_seeds
+
+    for group in target_df['group'].unique():
+        # assert len(target_df['seed'].unique()) == 1, f"Uncomment the next line for more seeds: {target_df['seed'].value_counts()}"
+        for seed in {4, 5, 6198}:
+        # for seed in {4}:
+            latest_step = target_df[(target_df['group'] == group) & (target_df['seed'] == seed)]['step'].max()
+            assert latest_step == 69369, f"seed {seed} latest step: {latest_step}"
+            if latest_step != 69369:
+                print(f"seed {seed} latest step: {latest_step}")
+
+    print(f'Step 6 (excluded): {len(df)}')
+    
+    # 7) Throw out duplicate rows based on ['model', 'group', 'task', 'step', 'seed']
+    def check_duplicates(df):
+        for name, data in df.groupby(['model', 'group', 'task', 'step','seed']):
+            if len(data) != 1:
+                print(f"there are duplicates here in {name}: {data}")
+                diff_columns = data.loc[:, (data != data.iloc[0]).any()].columns
+                print(f"Different columns: {diff_columns}")
+                print(f"The different values are:\n{data[diff_columns]}")
+                raise
+
+    # prove to myself that these are just duplicates before dropping them (uncomment to run)
+    check_duplicates(df.fillna(0).round(6).drop_duplicates())
+
+    # drop duplicates
+    df = df.groupby(['model', 'group', 'task', 'step', 'seed']).first().reset_index()
+    # if not dirty_out:
+    #     assert all(len(d) == 1 for n,d in df.groupby(['model', 'group', 'task', 'step','seed']) ), f"There are duplicates in the data; max size per models X group X steps X seed X task was {max((len(d) for n, d in df.groupby(['model', 'group', 'task', 'step','seed'])))}"
+    #     assert all(len(d) == 3 for n, d in df.groupby(['model', 'group', 'task', 'step'])['seed']), f"Not all models X group X steps X task have 3 seeds; min size was {df.groupby(['model', 'group', 'step'])['seed'].size().min()}"
+    #     assert all(d['seed'].nunique() ==3 for n, d in df.groupby(['model', 'group', 'task', 'step'])), f"Not all models X group X steps X task have 3 seeds; min size was {df.groupby(['model', 'group', 'step'])['seed'].nunique().min()}"
+
+    print(f'Step 7: {len(df)}')
+    
+    # 8) Resolve NaNs by recomputing token and compute values for all rows
+    # These columns are not really used now
+    columns_to_drop = [
+        'eval/c4_en-validation/CrossEntropyLoss',
+        'eval/dolma_common-crawl-validation/CrossEntropyLoss',
+        'eval/pile-validation/CrossEntropyLoss',
+        'eval/wikitext_103-validation/CrossEntropyLoss',
+        'train/CrossEntropyLoss',
+        'throughput/total_tokens'
+    ]
+
+    df = df.drop(columns=columns_to_drop, errors='ignore')
+
+    model_to_batch = {
+        '150M': 192,
+        '300M': 320,
+        '530M': 448,
+        '750M': 576,
+        '1B': 704
+    }
+    
+    model_to_params = {'150M': 151898880, '300M': 319980544, '530M': 530074944, '750M': 681297408, '1B': 1176832000}
+    model_to_params = {k: float(v) for k, v in model_to_params.items()}
+
+    sequence_length = 2048
+
+    def model_and_step_to_tokens(model, step):
+        return model_to_batch[model] * step * sequence_length
+
+    def model_and_step_to_compute(model, step):
+        return model_to_params[model] * model_and_step_to_tokens(model, step) * 6
+
+    # Prove to myself that we can just recompute these values
+    # for rows in df.dropna().itertuples():
+    #     estimated_compute = model_and_step_to_compute(rows.model, rows.step)
+    #     estimated_tokens = model_and_step_to_tokens(rows.model, rows.step)
+    #     assert abs(estimated_compute - rows.compute) < 1e-6, f"Compute mismatch for model {rows.model}, step {rows.step}"
+    #     assert abs(estimated_tokens - rows.tokens) < 1e-6, f"Tokens mismatch for model {rows.model}, step {rows.step}"
+
+    def recompute_tokens_and_compute(df):
+        df = df.copy()
+        df['tokens'] = df.apply(lambda row: model_and_step_to_tokens(row['model'], row['step']), axis=1)
+        df['compute'] = df.apply(lambda row: model_and_step_to_compute(row['model'], row['step']), axis=1)
+        return df
+
+    df = recompute_tokens_and_compute(df)
+
+    print(f'Step 8: {len(df)}')
+    
+    # 9) Remove all steps that don't have all groups
+    if dirty_out:
+        df = df[df['seed'] == 6198]
+
+    def remove_incomplete_model_steps(df):
+        available_groups = set(df.group.unique())
+        df = df.copy()
+        # Group by model and step
+        grouped = df.groupby(['model', 'step'])
+        
+        # Filter out groups that don't have all available groups
+        complete_groups = [name for name, group in grouped if set(group['group'].unique()) == available_groups]
+        
+        # Filter the dataframe to keep only the complete groups
+        filtered_df = df[df.set_index(['model', 'step']).index.isin(complete_groups)]
+        
+        return filtered_df
+
+    available_groups = set(df.group.unique())
+    # assert all(set(d.group.unique()) == available_groups for n, d in remove_incomplete_model_steps(df).groupby(['model', 'task', 'step', 'seed']))
+
+    print(f'Step 9 (now included!): {len(df)}')
+    
+    # restore model col
+    df['model'] = df['model_full']
+    df.drop(columns=['model_full'], errors='ignore', inplace=True)
+
+    return df
