@@ -410,6 +410,84 @@ def run_ladder(
     return abs_error_step_1, abs_error_step_2, abs_error_stacked
 
 
+def compute_intersection(p1s1, p1s2, p2s1, p2s2, x_range):
+    """ Compute the intersection between two scaling law curves """
+    from scipy.optimize import root_scalar
+    from olmo.scaling.scaling_laws.fitting_functions import sigmoid, chinchilla_flops_fit
+
+    def diff(x):
+        y1 = sigmoid(chinchilla_flops_fit(x, p1s1), *p1s2)
+        y2 = sigmoid(chinchilla_flops_fit(x, p2s1), *p2s2)
+        return y1 - y2
+    
+    # Split the range into multiple segments to check for multiple intersections
+    num_segments = 100
+    x_segments = np.logspace(np.log10(x_range[0] + 1e-10), np.log10(x_range[1]), num_segments+1)
+    intersections = []
+    
+    for i in range(num_segments):
+        segment_range = (x_segments[i], x_segments[i+1])
+        f_a = diff(segment_range[0])
+        f_b = diff(segment_range[1])
+        
+        if np.sign(f_a) != np.sign(f_b):
+            try:
+                result = root_scalar(diff, bracket=segment_range, method='brentq')
+                if result.converged:
+                    intersections.append(result.root)
+            except ValueError:
+                continue
+    
+    if not intersections:
+        raise ValueError(f"No intersections found in the specified range.")
+    
+    return max(intersections)  # Return the last (rightmost) intersection
+
+def pairwise_intersections(coeffs, x_range):
+    """ Compute pairwise intersection between N scaling law fits """
+    n = len(coeffs)
+    intersections = np.zeros((n, n))
+
+    x_range = (float(x_range[0]), float(x_range[1])) # convert range to floats
+    
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                intersections[i, j] = 0
+                continue
+            
+            p1s1, p1s2 = coeffs[i][0], coeffs[i][1]
+            p2s1, p2s2 = coeffs[j][0], coeffs[j][1]
+            
+            try:
+                x_intersection = compute_intersection(p1s1, p1s2, p2s1, p2s2, x_range)
+                intersections[i, j] = x_intersection
+            except ValueError:
+                intersections[i, j] = 0
+    
+    return intersections
+
+
+def get_perf(coeffs, C):
+    """ Get the performance of a scaling law fit for some compute C """
+    from olmo.scaling.scaling_laws.fitting_functions import sigmoid, chinchilla_flops_fit
+
+    n = len(coeffs)
+    perf = np.zeros((n))
+    
+    for i in range(n):
+        p1s1, p1s2 = coeffs[i][0], coeffs[i][1]
+        
+        try:
+            y1 = sigmoid(chinchilla_flops_fit(C, p1s1), *p1s2)
+        except ValueError:
+            perf = 0
+
+        perf[i] = y1
+    
+    return perf
+
+
 def process_mix(mix, df_multi_index, all_models, all_tasks, setup, x_metric, y_metric):
     warnings.filterwarnings("ignore", category=RuntimeWarning) # supress function fitting warnings
 
@@ -600,7 +678,94 @@ def fit_all_mixes(df, all_models, mixes, tasks, y_metrics, setups, x_metric='cor
         'step_1_pred', 'step_2_pred', 'stacked_pred', 
         'abs_error_step_1', 'abs_error_step_2', 'abs_error_stacked'
     ])
+
+    # For single step setups, only the step_1 pred is reported. Copy over the values
+    for col_base in ['y', 'pred', 'abs_error']:
+        if col_base in ['y', 'pred']:
+            step_1_col = f'step_1_{col_base}'
+            step_2_col = f'step_2_{col_base}'
+            stacked_col = f'stacked_{col_base}'
+        if col_base in ['abs_error']:
+            step_1_col = f'{col_base}_step_1'
+            step_2_col = f'{col_base}_step_2'
+            stacked_col = f'{col_base}_stacked'
+        
+        # Where step_1 exists but step_2 and stacked are NaN, copy the values
+        mask = results[step_1_col].notna() & results[step_2_col].isna() & results[stacked_col].isna()
+        results.loc[mask, step_2_col] = results.loc[mask, step_1_col]
+        results.loc[mask, stacked_col] = results.loc[mask, step_1_col]
+
+    # Re-compute rel error
+    results['rel_error_stacked'] = results['abs_error_stacked'] / results['stacked_pred']
+
+    # remove "avg" task before returning
+    results = results[results['task'] != "avg"]
+
     return results
+
+
+def clean_data_and_compute_averages(df, quiet=True):
+    """ Wrapper around Ian's data cleaning to compute macro averages """
+    if "Unnamed: 0" in df.columns:
+        df = df.drop(columns=["Unnamed: 0"], errors='ignore')
+
+    # Preprocess the df into a usuable format
+    if not quiet: print('Converting metrics dict to a set of cols...')
+    df["metrics"] = df["metrics"].apply(eval)
+    metrics_df = df["metrics"].apply(pd.Series)
+    df = pd.concat([df.drop(columns=["metrics"]), metrics_df], axis=1)
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    # Remove bad mixes
+    BAD_MIXES = ["DCLM-baseline-25p", "DCLM-baseline-50p", "DCLM-baseline-75p"]
+    for bad_mix in BAD_MIXES:
+        df = df[df["group"] != bad_mix]
+
+    df.loc[df['group'] == 'baseline', 'group'] = 'dolma17'
+
+    df['size'] = df['model']
+    df['model'] = df['group'] + '-' + df['model'] + '-' + df['chinchilla']
+
+    if not quiet: print('Launching data cleaning!')
+
+    df = ian_clean_data(df, dirty_out=False, quiet=quiet)
+
+    if not quiet: print('Computing macro averages...')
+
+    # Compute MMLU macro-average
+    group_cols = ['group', 'model', 'chinchilla', 'step', 'seed']
+    agg_cols = [col for col in df.columns if col not in group_cols and col != 'task']
+    mmlu_rows = df[df['task'].str.contains("MMLU", case=False)]
+    numeric_cols = mmlu_rows[agg_cols].select_dtypes(include=['number']).columns.tolist()
+    aggregated = mmlu_rows.groupby(group_cols, as_index=False)[numeric_cols].mean()
+    aggregated['task'] = 'mmlu'
+    df = df[~df['task'].str.contains("MMLU", case=False)]
+    df = pd.concat([df, aggregated], ignore_index=True)
+
+    # Compute olmes macro-average
+    group_cols = ['group', 'model', 'chinchilla', 'step', 'seed']
+    agg_cols = [col for col in df.columns if col not in group_cols and col != 'task']
+    olmes_rows = df # olmes_rows = df[df['task'].str.contains("olmes", case=False)]
+    numeric_cols = olmes_rows[agg_cols].select_dtypes(include=['number']).columns.tolist()
+    aggregated = olmes_rows.groupby(group_cols, as_index=False)[numeric_cols].mean()
+    aggregated['task'] = 'olmes_10_macro_avg'
+    df = pd.concat([df, aggregated], ignore_index=True)
+
+    df['size'] = df['model'].str.split('-').str[-2]
+
+    # Remove extra metrics columns that were not used everywhere
+    df = df.drop(columns=[
+        "predicted_index_per_byte", 
+        "acc_per_byte", 
+        "sum_logits_corr", 
+        "logits_per_token_corr", 
+        "logits_per_char_corr", 
+        "logits_per_byte_corr"
+    ], errors='ignore')
+
+    if not quiet: print('Done!')
+
+    return df
 
 
 def ian_clean_data(df, dirty_out=False, quiet=True):
@@ -882,3 +1047,110 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
     df.drop(columns=['model_full'], errors='ignore', inplace=True)
 
     return df
+
+
+def render_result_table(results, index, agg_col='setup', only_use_default_scaling_law=False, raw_values=False):
+    """ Convert a df of results to LaTeX """
+    from utils.constants_ian import SETUP_NAME_LATEX
+
+    if index != 'metric':
+        filtered_results = results[results['metric'] == 'primary_metric']
+    else:
+        filtered_results = results
+
+    # Select numeric columns for aggregation
+    agg_cols = ['abs_error_stacked', 'rel_error_stacked', 'stacked_y']
+
+    # Compute averages for each unique value in 'setup'
+    average_by_setup = filtered_results.groupby([index, agg_col])[agg_cols].mean().reset_index()
+
+    # Pivot the table to have 'setup' as columns for comparison
+    pivoted_results = average_by_setup.pivot(index=index, columns=agg_col, values=agg_cols).reset_index()
+
+    # Flatten the multi-index columns
+    pivoted_results.columns = ['_'.join(col).strip('_') for col in pivoted_results.columns.values]
+
+    # Format percentage columns
+    for col in pivoted_results.columns:
+        if 'abs_error_stacked' in col or 'rel_error_stacked' in col:
+            pivoted_results[col] = (pivoted_results[col] * 100).round(2)
+
+    # Calculate averages for each column and append as a new row
+    avg_row = {col: pivoted_results[col].mean() if 'abs_error_stacked' in col or 'rel_error_stacked' in col else 'Average' for col in pivoted_results.columns}
+    pivoted_results = pd.concat([pivoted_results, pd.DataFrame([avg_row])], ignore_index=True)
+
+    # Display results
+    pivoted_results = pivoted_results.set_index(index)
+
+    # Multiply OLMES Avg col by 100
+    for col in pivoted_results.columns:
+        if 'stacked_y_' in col and index != 'metric':
+            pivoted_results[col] = pivoted_results[col].apply(lambda x: x * 100 if isinstance(x, float) else x)
+    
+    if not raw_values:
+        pivoted_results = pivoted_results.map(lambda x: (f"{x:.2f}" if isinstance(x, float) else x) + "%")
+
+    if only_use_default_scaling_law:
+        pivoted_results = pivoted_results[[col for col in pivoted_results.columns if col.endswith("3_param-default") or col.endswith("3_param-no_750M") or col.endswith("3_param-no_750M_no_530M")]]
+        pivoted_results = pivoted_results.sort_values('abs_error_stacked_3_param-default')
+        pivoted_results.rename(columns=lambda col: col.replace("stacked_y_", "OLMES Avg. ").replace("abs_error_stacked_", "Abs Error ").replace("rel_error_stacked_", "Rel Error ").replace("3_param-", "").replace("no_", "-").replace("_", " "), inplace=True)
+        pivoted_results = pd.concat([pivoted_results.loc[pivoted_results.index != "Average"], pivoted_results.loc[["Average"]]])
+
+    if index == 'setup':
+        # Create a mapping from index values to their order in SETUP_NAME_LATEX
+        setup_order = {k: i for i, k in enumerate(SETUP_NAME_LATEX.keys())}
+        
+        # Sort the index based on the order in SETUP_NAME_LATEX
+        pivoted_results = pivoted_results.reindex(sorted(pivoted_results.index, 
+                                                       key=lambda x: setup_order.get(x, float('inf')) if x != 'Average' else float('inf')))
+
+    cols_to_drop = [col for col in pivoted_results.columns if "OLMES Avg." in col and 'default' not in col]
+    pivoted_results = pivoted_results.drop(columns=cols_to_drop)
+
+    if index == 'metric':
+        cols_to_drop = [col for col in pivoted_results.columns if "Rel Error" in col]
+        pivoted_results = pivoted_results.drop(columns=cols_to_drop)
+    
+    return pivoted_results
+
+
+def fix_table_rendering(table):
+    """ Fix formatting issues with pandas table formatter """
+    from utils.constants_ian import DATA_NAME_LATEX, SETUP_NAME_LATEX, TASK_NAME_LATEX
+
+    lines = table.split('\n')
+    # Process each line of the table
+    for i, line in enumerate(lines):
+        # if 'Task' in table: continue
+        if not line or line.startswith(' ') or line.startswith('\\'): continue
+        if 'Recipe' in line: continue
+        
+        # Map the data mix name to the latex name
+        for key, value in DATA_NAME_LATEX.items():
+            if line.split(' ')[0] == key: 
+                lines[i] = lines[i].replace(key, value)
+        
+        # Map the data mix name to the latex name
+        for key, value in SETUP_NAME_LATEX.items():
+            if line.split(' ')[0] == key: 
+                lines[i] = lines[i].replace(key, value)
+        
+        # Map the data mix name to the latex name
+        for key, value in TASK_NAME_LATEX.items():
+            if line.split(' ')[0] == key: 
+                lines[i] = lines[i].replace(key, value)
+
+    # Add midrule before Average row
+    for i, line in enumerate(lines):
+        if line.strip().startswith('Average'):
+            lines.insert(i, '\\midrule')
+            break
+    
+    # Rejoin and print
+    table_str = '\n'.join(lines).replace('%', '\%')
+
+    if 'Scaling Law Functional Form' in table:
+        table_str = table_str.replace('\n    ', '\n\\hspace{1em}\\hspace{1em}').replace('\n  ', '\n\\hspace{1em}')
+
+    return table_str
+    
