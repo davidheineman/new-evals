@@ -367,30 +367,6 @@ def debug_aggregation(metrics_dict: Dict[str, Any]) -> Dict[str, float]:
                 mean_metrics[key] = 0
             
         except ValueError as e:
-            # # Debug info for problematic values
-            # print(f"\nDebug info for key '{key}':")
-            # print(f"Type of values: {type(values)}")
-            
-            # if hasattr(values, '__iter__'):
-            #     # Check individual elements
-            #     print("\nFirst few values and their types:")
-            #     for i, val in enumerate(values):
-            #         if i > 5:  # Limit to first 5 elements
-            #             break
-            #         print(f"Index {i}: {type(val)} - Value: {val}")
-                    
-            #     # Check for varying lengths if dealing with nested sequences
-            #     if any(hasattr(x, '__len__') for x in values):
-            #         lengths = [len(x) if hasattr(x, '__len__') else 1 for x in values]
-            #         unique_lengths = set(lengths)
-            #         print(f"\nUnique lengths found: {unique_lengths}")
-                    
-            #         if len(unique_lengths) > 1:
-            #             print("Warning: Inconsistent lengths detected!")
-                        
-            # raise ValueError(f"Failed to process key '{key}': {str(e)}")
-
-            # Just don't combine this metric...
             pass
             
     return mean_metrics
