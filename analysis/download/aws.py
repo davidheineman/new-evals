@@ -185,11 +185,11 @@ def main():
 
     # bucket_name = 'ai2-llm'
     # s3_prefix_list = 'analysis/data/cheap_decisions_paths.txt'
-    # folder_name = 'consistent_ranking_final'
+    # folder_name = 'consistent_ranking'
 
     # bucket_name = 'ai2-llm' # pull from the folder instead
     # s3_prefix = 'eval-results/downstream/eval-for-consistent-ranking/'
-    # folder_name = 'consistent_ranking_final'
+    # folder_name = 'consistent_ranking'
 
     local_dir = f'{DATA_DIR}/{folder_name}'
 

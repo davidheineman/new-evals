@@ -8,10 +8,10 @@ from huggingface_hub import HfApi, login, hf_hub_download
 from utils import DATA_DIR
 
 
-def convert_csv_to_parquet(csv_file_path):
-    parquet_file_path = csv_file_path.replace(".csv", ".parquet")
-    print(f"Converting '{csv_file_path}' -> '{parquet_file_path}'")
-    df = pd.read_csv(csv_file_path, encoding='utf-8')
+def convert_parquet_to_parquet(parquet_file_path):
+    parquet_file_path = parquet_file_path.replace(".parquet", ".parquet")
+    print(f"Converting '{parquet_file_path}' -> '{parquet_file_path}'")
+    df = pd.read_parquet(parquet_file_path, encoding='utf-8')
 
     # Remove fake added index
     df = df.drop(columns=["Unnamed: 0"], errors='ignore')
@@ -24,9 +24,9 @@ def convert_csv_to_parquet(csv_file_path):
 
 
 def push_parquet_to_hf(parquet_file_path, hf_dataset_name, split_name='main', private=True, overwrite=False):
-    if parquet_file_path.endswith(".csv"):
-        parquet_file_path = convert_csv_to_parquet(parquet_file_path)
-        parquet_file_path = parquet_file_path.replace('.csv', '.parquet')
+    if parquet_file_path.endswith(".parquet"):
+        parquet_file_path = convert_parquet_to_parquet(parquet_file_path)
+        parquet_file_path = parquet_file_path.replace('.parquet', '.parquet')
 
     file_name = os.path.basename(parquet_file_path)
 
@@ -83,50 +83,43 @@ def pull_predictions_from_hf(repo_id, split_name, local_path=DATA_DIR):
 
 def main():
     # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/all_olmo2_soups_predictions.parquet',
+    #     parquet_file_path='analysis/data/olmo2_soups_predictions.parquet',
     #     hf_dataset_name='allenai/olmo2-soups-evals',
     #     overwrite=True
     # )
     # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/all_olmo2_anneals_predictions.parquet',
+    #     parquet_file_path='analysis/data/olmo2_anneals_predictions.parquet',
     #     hf_dataset_name='allenai/olmo2-anneals-evals',
     #     overwrite=True
     # )
     # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/all_olmo2_microanneals_predictions.parquet',
+    #     parquet_file_path='analysis/data/olmo2_microanneals_predictions.parquet',
     #     hf_dataset_name='allenai/olmo2-microanneals-evals',
     #     overwrite=True
     # )
 
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/aws_metrics.csv',
-    #     hf_dataset_name='allenai/ladder-evals',
-    #     split_name='benchmarks',
-    #     overwrite=True
-    # )
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/all_aws_predictions.parquet',
-    #     hf_dataset_name='allenai/ladder-evals',
-    #     split_name='instances',
-    #     overwrite=True
-    # )
+    push_parquet_to_hf(
+        parquet_file_path='analysis/data/aws_metrics.parquet',
+        hf_dataset_name='allenai/ladder-evals',
+        split_name='benchmarks',
+        overwrite=True
+    )
+    push_parquet_to_hf(
+        parquet_file_path='analysis/data/aws_predictions.parquet',
+        hf_dataset_name='allenai/ladder-evals',
+        split_name='instances',
+        overwrite=True
+    )
 
-    for org_name in ['allenai', 'davidheineman']:
-        is_private = (org_name != 'davidheineman') # make everything not davidheineman private
-        push_parquet_to_hf(
-            parquet_file_path='analysis/data/consistent_ranking_final_metrics.csv',
-            hf_dataset_name=f'{org_name}/consistent-ranking-evals',
-            split_name='benchmarks',
-            overwrite=True,
-            private=is_private,
-        )
-        push_parquet_to_hf(
-            parquet_file_path='analysis/data/all_consistent_ranking_final_predictions.parquet',
-            hf_dataset_name=f'{org_name}/consistent-ranking-evals',
-            split_name='instances',
-            overwrite=True,
-            private=is_private,
-        )
+    # for org_name in ['allenai', 'davidheineman']:
+    #     is_private = (org_name != 'davidheineman') # make everything not davidheineman private
+    #     push_parquet_to_hf(
+    #         parquet_file_path='analysis/data/consistent_ranking_metrics.parquet',
+    #         hf_dataset_name=f'{org_name}/consistent-ranking-evals',
+    #         split_name='benchmarks',
+    #         overwrite=True,
+    #         private=is_private,
+    #     )
 
 
 if __name__ == '__main__': main()
