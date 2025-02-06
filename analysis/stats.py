@@ -22,6 +22,13 @@ def calc_total_variation(arr, norm=False, improvement=False):
     return tv
 
 
+def calc_monotonicity(arr):
+    diffs = np.diff(arr)
+    pos = np.sum(diffs > 0)
+    neg = np.sum(diffs < 0)
+    return (pos - neg) / (pos + neg) if (pos + neg) != 0 else 0
+
+
 def calc_improvement(arr):
     return (arr[-1] - arr[0]) / len(arr)
 
@@ -236,6 +243,8 @@ def calculate_and_plot_total_variation(x, y, metric, model_name=None, num_scores
     y = y[sorted_indices]
     
     tv = calc_total_variation(y, improvement=True) * 100
+    monotonicity = calc_monotonicity(y) * 100
+    late_improvement = calc_improvement(y[int(len(y)*0.1):]) * 100 * 100
 
     # Add analytical CI
     ci = None
@@ -267,6 +276,17 @@ def calculate_and_plot_total_variation(x, y, metric, model_name=None, num_scores
 
             if metric == 'logits_per_byte':
                 ax.set_ylim(top=max(y[int(len(y)*0.1):]), bottom=min(y)*0.95)
+
+            # Add monotonicity text
+            text = f'Monotonicity={monotonicity:.2f}%'
+            ax.text(0.98, 0.02, text, transform=ax.transAxes, 
+                    verticalalignment='bottom', horizontalalignment='right', fontsize=8)
+
+            if 'logits' not in metric:
+                # Add improvement text
+                text = f'Improvement after 20% of steps={late_improvement:.2f}%'
+                ax.text(0.98, 0.09, text, transform=ax.transAxes, 
+                        verticalalignment='bottom', horizontalalignment='right', fontsize=8)
 
     return tv
 
@@ -302,6 +322,13 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
                 task_name = 'aggregate'
 
             num_scores = scores.shape[1] if scores.ndim == 2 else None
+
+            # Remove the NaN entries
+            step = np.array(step, dtype=np.float64)
+            acc = np.array(acc, dtype=np.float64)
+            mask = ~np.isnan(acc)
+            step = step[mask]
+            acc = acc[mask]
 
             tv_results.loc['total_variation', task_name] = calculate_and_plot_total_variation(
                 x=step,

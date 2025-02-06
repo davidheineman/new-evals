@@ -17,6 +17,8 @@ from scaling.single_step import fit_single_step, predict_single_step, plot_singl
 
 from concurrent.futures import ProcessPoolExecutor
 
+from scipy.interpolate import UnivariateSpline
+
 FONTSIZE = 8
 
 TASK_KEY_MAP = {
@@ -37,6 +39,14 @@ MODEL_COLORS = {
     '530M': 'green',
     '750M': 'blue',
     '1B': 'purple',
+}
+
+SIZE_COLORS = {
+    '150M': '#1f77b4',
+    '300M': '#2ca02c',
+    '530M': '#ff7f0e',
+    '750M': '#d62728',
+    '1B': '#9467bd'
 }
 
 FULL_SCHEDULE = {
@@ -66,6 +76,29 @@ MODEL_TO_PARAMETERS = {
 
 def get_compute(scale):
     return 2048 * 6 * MODEL_TO_BATCH[scale] * MODEL_TO_PARAMETERS[scale] * FULL_SCHEDULE[scale]
+
+
+def compute_2_class(ranking_a, ranking_b):
+    """ Compute 2-class accuracy """
+    ranking_a = list(ranking_a)
+    ranking_b = list(ranking_b)
+
+    assert len(ranking_b) == len(ranking_b)
+    
+    n = len(ranking_a)
+    same_order_count = 0
+    total_pairs = 0
+    
+    for i in range(n):
+        for j in range(i + 1, n):
+            i_pred = ranking_b.index(ranking_a[i])
+            j_pred = ranking_b.index(ranking_a[j])
+            
+            if (i < j and i_pred < j_pred) or (i > j and i_pred > j_pred):
+                same_order_count += 1
+            total_pairs += 1
+    
+    return same_order_count / total_pairs if total_pairs > 0 else 0.0
 
 
 def add_ladder_data_cheap_decisions(data_by_name):
@@ -655,9 +688,9 @@ def fit_all_mixes(df, all_models, mixes, tasks, y_metrics, setups, x_metric='cor
 
         if not quiet:
             print('Absolute unsigned error for predicting 1B-5xC (stacked):')
-            display(fitting_results_stacked.map(lambda x: f'{round(x * 100, 1)}%'))
+            # display(fitting_results_stacked.map(lambda x: f'{round(x * 100, 1)}%'))
             print('Predicted performance for 1B-5xC on all mixes:')
-            display(stacked_y_preds.map(lambda x: f'{round(x * 100, 1)}%'))
+            # display(stacked_y_preds.map(lambda x: f'{round(x * 100, 1)}%'))
 
         (step_1_abs_error, step_2_abs_error, stacked_abs_error), \
             (step_1_y_preds, step_2_y_preds, stacked_y_preds), \
@@ -809,4 +842,66 @@ def fix_table_rendering(table):
         table_str = table_str.replace('\n    ', '\n\\hspace{1em}\\hspace{1em}').replace('\n  ', '\n\\hspace{1em}')
 
     return table_str
+
+def plot_task_accuracy(ax, two_class_results, task, sizes, show_legend=False, size_colors=SIZE_COLORS):
+    FLOPS_150M, FLOPS_300M, FLOPS_530M, FLOPS_750M, FLOPS_1B = sizes
     
+    # First plot all scatter points
+    all_x = []
+    all_y = []
+    for size in list(size_colors.keys()):
+        data = two_class_results.loc[size]
+        x = np.array(two_class_results.columns, dtype=np.float64)
+        y = np.array(data.values, dtype=np.float64)
+        
+        # Plot scatter points with consistent colors
+        ax.scatter(x, y, marker='o', label=f'{size}', s=5, color=size_colors[size])
+        
+        # Collect valid points for overall spline
+        mask = ~np.isnan(y) & ~np.isnan(x) & ~np.isneginf(y) & ~np.isneginf(x)
+        all_x.extend(x[mask])
+        all_y.extend(y[mask])
+    
+    # Add interpolating spline, ignoring nans
+    mask = ~np.isnan(all_y) & ~np.isnan(all_x)
+    if np.sum(mask) >= 3:  # Need at least 4 points for cubic spline
+        all_x = np.array(np.array(all_x)[mask]) # exclude compute=0
+        all_y = np.array(np.array(all_y)[mask]) # exclude compute=0
+
+        x_nonzero = all_x != 0
+        all_x = all_x[x_nonzero] # exclude x=0 values
+        all_y = all_y[x_nonzero] # exclude x=0 values
+        
+        # Sort points by x value
+        sort_idx = np.argsort(all_x)
+        all_x = all_x[sort_idx]
+        all_y = all_y[sort_idx]
+        
+        # Fit smoothed B-spline with high smoothing parameter
+        x_smooth = np.logspace(np.log10(min(all_x)), np.log10(max(all_x)), len(all_x))
+        # Use UnivariateSpline with high smoothing for a smoother fit
+        spline = UnivariateSpline(np.log10(all_x), all_y, s=len(all_x))
+        y_smooth = spline(np.log10(x_smooth))
+
+        ax.plot(x_smooth, y_smooth, color='k', linestyle='--', label='spline', linewidth=1)
+    
+    # Add random baseline
+    ax.axhline(y=0.5, color='r', linestyle='-', label='random', linewidth=0.5)
+    
+    ax.set_xlabel('Compute')
+    ax.set_ylabel('2-class Accuracy')
+    ax.set_title(f'{task}')
+    ax.set_xscale('log', base=10)
+    if show_legend: ax.legend(loc='lower right', fontsize=10, ncols=2)
+
+    # Add vertical lines at specific FLOPS values with matching colors and accuracies
+    for flops, size in zip([FLOPS_150M, FLOPS_300M, FLOPS_530M, FLOPS_750M, FLOPS_1B],
+                           ['150M', '300M', '530M', '750M', '1B']):
+        try:
+            acc = two_class_results.loc[size].get(np.float64(flops), np.nan)
+            if not np.isnan(acc) and not np.isneginf(acc):
+                ax.axvline(x=flops, color=size_colors[size], linestyle=':', alpha=0.7)
+                ax.text(flops, 0.98, f' {acc:.2f}', rotation=0, 
+                    color=size_colors[size], ha='left', va='bottom')
+        except Exception as e:
+            print(f'Cant graph autobench lines: {e}')
