@@ -515,6 +515,7 @@ MODEL_LIST_MIXES_FINAL = [
     'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top20p-750M-5xC/step63599-unsharded-hf',
     'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/prox_fineweb_pro-750M-5xC-2/step63589-unsharded-hf'
 ]
+DDOS_MODEL_NAMES = sorted([model.split('benb/')[1].split('/step')[0] for model in MODEL_LIST_MIXES_FINAL])
 
 # Officially supported models in oe-eval as of 12/6/2024
 OE_EVAL_BASE_MODELS = [

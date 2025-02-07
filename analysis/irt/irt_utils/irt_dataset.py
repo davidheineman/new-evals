@@ -139,20 +139,34 @@ class Dataset(BaseModel):
         )
 
     @classmethod
-    def from_ndarray(cls, predictions: np.ndarray, model_names: List[str], instance_names: List[str]):
+    def from_ndarray(cls, instance_names: List[str], train_items: np.ndarray = None, train_model_names: List[str] = [], test_items: np.ndarray = None, test_model_names: List[str] = []):
         """Create a Dataset from a numpy array of predictions and model names.
         
         Args:
             predictions: numpy array of shape (num_instances, num_models) containing model predictions
             model_names: list of model names corresponding to the columns in predictions
         """
-        num_instances, num_models = predictions.shape
-        if len(model_names) != num_models:
-            raise ValueError(f"Number of model names ({len(model_names)}) must match number of models in predictions ({num_models})")
+        if train_items is None:
+            all_items = test_items
+            is_training = np.zeros_like(all_items, dtype=bool)
+        elif test_items is None:
+            all_items = train_items
+            is_training = np.ones_like(all_items, dtype=bool)
+        else:
+            if train_items.shape[0] != test_items.shape[0]:
+                raise ValueError(f"Train and test need the same number of instances: {train_items.shape} vs. {test_items.shape}")
+            all_items = np.concatenate([train_items, test_items], axis=1)
+            is_training = np.zeros_like(all_items, dtype=bool)
+            is_training[:, :train_items.shape[1]] = True
+            n_model_names = len(train_model_names) + len(test_model_names)
+            if n_model_names != all_items.shape[1]:
+                raise ValueError(f"Number of model names ({n_model_names}) must match number of models in predictions ({num_models})")
 
+        num_instances, num_models = all_items.shape
+        
         # Create synthetic IDs
         item_ids = OrderedSet(instance_names)
-        subject_ids = OrderedSet(model_names)
+        subject_ids = OrderedSet(train_model_names + test_model_names)
 
         # Create ID mappings
         item_id_to_ix = {item_id: idx for idx, item_id in enumerate(item_ids)}
@@ -170,8 +184,8 @@ class Dataset(BaseModel):
             for j in range(num_models):
                 observation_items.append(i)
                 observation_subjects.append(j)
-                observations.append(float(predictions[i, j]))
-                training_example.append(True)
+                observations.append(float(all_items[i, j]))
+                training_example.append(is_training[i, j])
 
         return cls(
             item_ids=item_ids,
