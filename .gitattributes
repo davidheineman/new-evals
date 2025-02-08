@@ -1,2 +1,2 @@
 notebooks/** linguist-documentation
-*.ipynb -linguist-detectable
+*.ipynb filter=lfs diff=lfs merge=lfs -text
