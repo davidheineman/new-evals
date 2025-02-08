@@ -1,8 +1,7 @@
 CLUSTER="\
 ai2/jupiter-cirrascale-2,\
 ai2/neptune-cirrascale,\
-ai2/saturn-cirrascale,\
-ai2/ganymede-cirrascale
+ai2/saturn-cirrascale,
 "
 
 # Test configuration

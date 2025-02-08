@@ -635,13 +635,11 @@ def process_prediction_path(path, rows_list):
     #     print(f"Skipping results for: {task}")
     #     return None
 
-    if task not in TASK_REGISTRY:
-        print(f'Could not find "{task}" on path {path}!')
-
-    task_config = TASK_REGISTRY[task].__dict__.get('TASK_CONFIG_DEFAULTS', {})
+    if task not in PRIMARY_METRICS_OLMES:
+        raise RuntimeError(f'Could not find "{task}" on path {path}!')
+    primary_metric = PRIMARY_METRICS_OLMES[task]
     
     # Get primary_metric in this order
-    primary_metric = task_config.get("primary_metric", None)
     possible_metrics = [
         "primary_metric",
         "acc_raw",
@@ -742,6 +740,14 @@ def clean_nans(arr1, arr2):
     filtered_arr2 = arr2[mask].tolist()
     return filtered_arr1, filtered_arr2, changed
 
+import ast
+
+def safe_eval(x):
+    try:
+        return ast.literal_eval(x) if isinstance(x, str) else x
+    except (ValueError, SyntaxError, TypeError) as e:
+        print(f"Error processing value: {x} | Error: {e}")
+        return x  # Keep the original value if it fails
 
 def clean_data_and_compute_averages(df, quiet=True):
     """ Wrapper around Ian's data cleaning to compute macro averages """
@@ -750,7 +756,8 @@ def clean_data_and_compute_averages(df, quiet=True):
 
     # Preprocess the df into a usuable format
     if not quiet: print('Converting metrics dict to a set of cols...')
-    df["metrics"] = df["metrics"].apply(eval)
+    # df["metrics"] = df["metrics"].apply(eval)
+    df["metrics"] = df["metrics"].apply(safe_eval)
     metrics_df = df["metrics"].apply(pd.Series)
     df = pd.concat([df.drop(columns=["metrics"]), metrics_df], axis=1)
     df = df.loc[:, ~df.columns.duplicated()]

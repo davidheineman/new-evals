@@ -4,10 +4,10 @@ from pathlib import Path
 parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
 
-from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_INTERMEDIATE, MODEL_LIST_MIXES, OE_EVAL_BASE_MODELS, OE_EVAL_INSTRUCT_MODELS, OE_EVAL_ALL_MODELS
+from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_MIXES_FINAL, MODEL_LIST_INTERMEDIATE, MODEL_LIST_INTERMEDIATE_13B, MODEL_LIST_MIXES, OE_EVAL_BASE_MODELS, OE_EVAL_INSTRUCT_MODELS, OE_EVAL_ALL_MODELS
 from analysis.utils.constants_final_6_ckpts import MODEL_LIST_FINAL_SIX_CKPTS
 from analysis.utils.constants_models import WEKA_CLUSTERS
-from analysis.utils.constants_tasks import MC_TASKS_COPY_COLORS
+from analysis.utils.constants_tasks import MC_TASKS_COPY_COLORS, MISSING_EVALS
 
 # OLMES Classic Tasks
 from analysis.utils.constants_tasks import RC_TASKS_OLMES, MC_TASKS_OLMES, PARA_TASKS_OLMES, ENLARGE_TASKS_OLMES, DISTRACTORS_TASKS_OLMES
@@ -26,39 +26,37 @@ from analysis.utils.constants_tasks import PERTURB_COT_TASKS
 from analysis.utils.constants_tasks import PALOMA, LLM_COMPRESSION, CUSTOM_LOSS
 
 MODEL_LIST_ALL = []
-MODEL_LIST_ALL += MODEL_LADDER_LIST + MODEL_LIST_INTERMEDIATE + MODEL_LIST_MIXES
-MODEL_LIST_ALL += OE_EVAL_BASE_MODELS
-# MODEL_LIST_ALL += OE_EVAL_INSTRUCT_MODELS
-# MODEL_LIST_ALL += MODEL_LIST_FINAL_SIX_CKPTS
+# MODEL_LIST_ALL += MODEL_LADDER_LIST + MODEL_LIST_INTERMEDIATE
+# MODEL_LIST_ALL += OE_EVAL_BASE_MODELS
+# MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_13B # 13B intermediate ckpts
+MODEL_LIST_ALL += MODEL_LIST_MIXES_FINAL # ian's new mixes
+
+# MODEL_LIST_ALL += MODEL_LIST_MIXES # not used for now
+# MODEL_LIST_ALL += OE_EVAL_INSTRUCT_MODELS # not used for now
+# MODEL_LIST_ALL += MODEL_LIST_FINAL_SIX_CKPTS # not used for now
 
 TASK_LIST_ALL = []
 
 # TASK_LIST_ALL += RC_TASKS_OLMES
-# TASK_LIST_ALL += PARA_TASKS_OLMES
+# TASK_LIST_ALL += PARA_TASKS_OLMES 
 # TASK_LIST_ALL += ENLARGE_TASKS_OLMES
 # TASK_LIST_ALL += DISTRACTORS_TASKS_OLMES
-# TASK_LIST_ALL += MC_TASKS_OLMES
+# TASK_LIST_ALL += MC_TASKS_OLMES 
 
-# TASK_LIST_ALL += PALOMA
-# TASK_LIST_ALL += LLM_COMPRESSION
-# TASK_LIST_ALL += CUSTOM_LOSS
-
-# TASK_LIST_ALL += MC_TASKS_COPY_COLORS
+# # TASK_LIST_ALL += MC_TASKS_COPY_COLORS # broken!!!
 # TASK_LIST_ALL += GEN_TASKS_OLMES
-# TASK_LIST_ALL += AGI_EVAL_MC + BBH_MC + MMLU_PRO_MC # + MINERVA_MC
+TASK_LIST_ALL += AGI_EVAL_MC + BBH_MC + MMLU_PRO_MC # + MINERVA_MC
 # TASK_LIST_ALL += AGI_EVAL_COT # + MMLU_PRO_COT
 
-# TASK_LIST_ALL += MMLU_PRO_RC + AGI_EVAL_RC
+TASK_LIST_ALL += MMLU_PRO_RC + AGI_EVAL_RC
 # TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
 # TASK_LIST_ALL += PERTURB_COT_TASKS
 
-# TASK_LIST_ALL += ['autobencher::none', autobencher:mc::none]
+# TASK_LIST_ALL += ['autobencher::none', 'autobencher:mc::none']
 
-# # FOR MODEL LADDER
 # TASK_LIST_ALL += [
 #     # GSM CoT
 #     "gsm8k::olmes",
-
 #     # Minerva CoT (olmes version)
 #     "minerva_math_algebra::olmes:full",
 #     "minerva_math_counting_and_probability::olmes:full",
@@ -67,15 +65,13 @@ TASK_LIST_ALL = []
 #     "minerva_math_number_theory::olmes:full",
 #     "minerva_math_prealgebra::olmes:full",
 #     "minerva_math_precalculus::olmes:full",
-
 #     # Coding
 #     "mbpp::ladder",
 #     "mbppplus::ladder",
 #     "codex_humaneval:temp0.8",
-#     "codex_humanevalplus::ladder",
+#     "codex_humanevalplus::ladder", 
 # ]
 
-# # NEW TASKS
 # TASK_LIST_ALL += [
 #     'deepmind_math_large::none',
 #     'medmcqa:rc::none',
@@ -85,12 +81,16 @@ TASK_LIST_ALL = []
 #     'gsm_symbolic_p1::none',
 #     'gsm_symbolic_p2::none',
 #     'gpqa::none',
-#     'minerva_math_500::none',
+#     'minerva_math_500::none', 
 # ]
 
 # TASK_LIST_ALL += [
 #     'aime::none',
 # ]
+
+# TASK_LIST_ALL += PALOMA
+# TASK_LIST_ALL += LLM_COMPRESSION
+# TASK_LIST_ALL += CUSTOM_LOSS
 
 
 # # FOR TESTING
@@ -110,14 +110,18 @@ TASK_LIST_ALL = []
 # MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if 'qwen2.5-7b' in model]
 # MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if model in ['llama3.1-8b', 'pythia-1b', 'olmoe-1b-7b-0924', 'llama3.2-1b', 'qwen2.5-72b', 'llama2-7b', 'llama3-8b']]
 # MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if model in ['gemma-2b', 'llama2-13b', 'phi-1.5', 'olmo-7b-0724', 'olmo-1b', "llama3.1-70b"]]
+# MODEL_LIST_ALL = ["llama3.1-70b", "qwen2.5-3b", "qwen2.5-7b", "qwen2.5-72b"] # autobencher mc
+# MODEL_LIST_ALL = ["qwen2.5-32b", "qwen2.5-14b", "qwen2.5-72b"] # llm compression
 # MODEL_LIST_ALL = OE_EVAL_BASE_MODELS
 # TASK_LIST_ALL = SYNTHETIC_TASKS # <- only use synthetic tasks!
 # TASK_LIST_ALL = AGI_EVAL_MC + BBH_COT
 # TASK_LIST_ALL = ['coqa::olmes:full', 'copycolors_4way:mc::none']
 # TASK_LIST_ALL = ['gsm_plus::none']
 # TASK_LIST_ALL = ['autobencher:mc::none']
-TASK_LIST_ALL = ['sky_t1::custom_loss', 'numia_math::custom_loss', 'tulu_if::custom_loss']
+# TASK_LIST_ALL = LLM_COMPRESSION
+# TASK_LIST_ALL = ['sky_t1::custom_loss', 'numia_math::custom_loss', 'tulu_if::custom_loss']
 # TASK_LIST_ALL = PALOMA
+# TASK_LIST_ALL = ['arc_challenge:rc::olmes:full']
 
 
 def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_size=None, save_requests=True):
@@ -131,13 +135,13 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_s
         --cluster {WEKA_CLUSTERS} \
         --model-type {model_type} \
         --gpus {gpus} \
-        --beaker-workspace ai2/davidh \
+        --beaker-workspace ai2/ladder-evals \
         --beaker-image davidh/oe-eval-metaeval \
         --gantry-secret-aws-access-key-id AWS_ACCESS_KEY_ID \
         --gantry-secret-aws-secret-access AWS_SECRET_ACCESS_KEY \
         --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
         --recompute-metrics \
-        --beaker-priority normal
+        --beaker-priority low
     """
     command = command.replace('\n', '').replace('  ', '') # remove extra spacing!
     if limit is not None: 
@@ -160,7 +164,15 @@ def main():
     print(f'Launching {len(MODEL_LIST_ALL)} models on {len(TASK_LIST_ALL)} tasks (5 second sleep to confirm...)')
     time.sleep(5)
 
+    # for (model, task_list) in MISSING_EVALS:
+    #     matches = [model_full for model_full in MODEL_LIST_ALL if model in model_full]
+    #     # matches = [model_full for model_full in MODEL_LIST_ALL if model == model_full]
+    #     assert len(matches) == 1, (model, matches)
+    #     model = matches[0]
+
+    task_list = TASK_LIST_ALL
     for model in MODEL_LIST_ALL:
+
         batch_size = None
         save_requests = True
 
@@ -175,7 +187,7 @@ def main():
         elif 'peteish13' in model or 'peteish7' in model:
             model_type = 'vllm'
             gpus = 4
-        elif model in MODEL_LIST_MIXES or ('-3B-' in model):
+        elif model in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL or ('-3B-' in model):
             # Our 3B models have a head size of 208. This is not supported by PagedAttention and will throw errors.
             model_type = 'hf'
             gpus = 1
@@ -184,7 +196,7 @@ def main():
             model_type = 'vllm'
             gpus = 1
 
-        if any(task in PALOMA + LLM_COMPRESSION + CUSTOM_LOSS for task in TASK_LIST_ALL):
+        if any(task in PALOMA + LLM_COMPRESSION + CUSTOM_LOSS for task in task_list):
             save_requests = False # don't save the perplexity files
             model_type = 'hf' # we can only run perplexity on hf for now
             if model in OE_EVAL_BASE_MODELS or '10xC' in model:
@@ -192,7 +204,7 @@ def main():
 
         run_eval(
             model_list=model, 
-            task_list=TASK_LIST_ALL, 
+            task_list=task_list, 
             model_type=model_type, 
             gpus=gpus,
             # limit=10_000,

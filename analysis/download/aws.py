@@ -155,13 +155,14 @@ def main():
     Mirror AWS bucket to a local folder
     https://us-east-1.console.aws.amazon.com/s3/buckets/ai2-llm?prefix=eval-results/downstream/metaeval/OLMo-ladder/&region=us-east-1&bucketType=general
     """
-    # #### GET REQUESTS FROM IAN'S PROJECT FOR BPB CALCULATION ####
+    # # #### GET REQUESTS FROM IAN'S PROJECT FOR BPB CALCULATION ####
+    # # '/oe-eval-default/davidh/metaeval/analysis/data/consistent_ranking/eval-results/downstream/eval-for-consistent-ranking/baseline-150M-5xC-2/step38157-unsharded-hf'
     # bucket_name = 'ai2-llm'
-    # s3_prefix = 'eval-results/downstream/eval-for-consistent-ranking-preemption-fixed/baseline-150M-5xC/step38157-unsharded-hf/'
+    # s3_prefix = 'eval-results/downstream/eval-for-consistent-ranking/baseline-150M-5xC-2/step38157-unsharded-hf/'
     # folder_name = 'consistent_ranking'
     # local_dir = f'{DATA_DIR}/{folder_name}'
     # mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100, excluded_file_names=[])
-    # #############################################################
+    # # #############################################################
 
     # bucket_name = 'ai2-llm'
     # s3_prefix = 'evaluation/microanneal-peteish-7b-postmortem/'

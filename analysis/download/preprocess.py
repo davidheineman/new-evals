@@ -118,8 +118,8 @@ def process_predictions(file_path):
 
     request_ids_to_bytes = None
     if 'consistent_ranking' in str(file_path):
-        # Load the requests file
-        requests_folder = '/oe-eval-default/davidh/metaeval/analysis/data/consistent_ranking/eval-results/downstream/eval-for-consistent-ranking-preemption-fixed/baseline-150M-5xC/step38157-unsharded-hf'
+        # Load the requests file to compute BPB
+        requests_folder = '/oe-eval-default/davidh/metaeval/analysis/data/consistent_ranking/eval-results/downstream/eval-for-consistent-ranking/baseline-150M-5xC-2/step38157-unsharded-hf'
         file_name = Path(file_path).name.replace('predictions.jsonl', 'requests.jsonl')
         requests_path = f"{requests_folder}/{Path(file_path).parent.name}/{file_name}"
         requests = process_jsonl(requests_path)
@@ -206,7 +206,7 @@ def process_metrics(file_path):
 
     if 'metrics' in results:
         for metric in results['metrics']:
-            if 'paloma' in file_path and metric not in PALOMA_METRICS:
+            if ('paloma' in file_path or 'llm_compression' in file_path or 'custom_loss' in file_path) and metric not in PALOMA_METRICS:
                 continue
             results[metric] = results['metrics'][metric]
 
@@ -359,6 +359,11 @@ def load_file(file_data, _type):
         if file == 'metrics.json' and 'consistent_ranking' in str(root):
             raise RuntimeError('For consistent rankings, we only process predictions.jsonl -> metrics file')
         metrics = process_metrics(file_path)
+
+        # Sometimes the metrics file causes OOM errors, so we will delete if it's too big
+        if 'metrics' in metrics and len(str(metrics['metrics'])) > 1000:
+            metrics['metrics'] = None
+        
         results = [metrics]
 
     # Add metadata to parquet file
@@ -377,6 +382,17 @@ def load_file(file_data, _type):
     if 'consistent_ranking' in str(root):
         # Use Tai's code to compute aggregate metrics for each prediction file
         metrics = process_prediction_path(file_path, results)
+
+        # Add S3 path and other metrics data
+        metrics_path = file_path.replace('predictions.jsonl', 'metrics.json')
+        with open(metrics_path, 'r') as f:
+            orig_metrics = json.load(f)
+        metrics['num_instances']   = int(orig_metrics['num_instances'])
+        metrics['processing_time'] = int(orig_metrics['processing_time'])
+        metrics['num_shots']       = int(orig_metrics['task_config']['num_shots'])
+        metrics['s3_path']         = str(orig_metrics['model_config']['model_path'])
+        metrics['primary_metric_name'] = str(orig_metrics['task_config']['primary_metric'])
+        
         results = [metrics]
     
     return results
@@ -570,6 +586,29 @@ def sanity_check(folder_name):
     model_tasks = defaultdict(set)
     for (root, file) in all_files:
         model_name, mix_name, step, step_str, size, token_ratio, task = get_metadata_from_file_name(root, file)
+        # synthetic evals (excluded from Ian's model for now)
+        if ':cot' in task:
+            continue
+        if ':pertub_cot' in task:
+            continue
+        if ':para' in task:
+            continue
+        if ':perturb_cot' in task:
+            continue
+        if ':distractors' in task:
+            continue
+        if ':enlarge' in task:
+            continue
+        if ':perturb_rc' in task:
+            continue
+        if 'bbh_' in task:
+            continue
+
+        # only math/code
+        if not ('gsm8k' in task or 'mbpp' in task or 'codex' in task or 'minerva' in task):
+            continue
+
+        # perplexity evals
         if '-verbose' in task:
             continue
         if task in ["paloma_twitterAAE_HELM_fixed", "paloma_c4_100_domains", "paloma_dolma_100_subreddits"]:
@@ -593,7 +632,7 @@ def main(folder_name, file_type='predictions'):
 
     aws_dir         = data_dir / folder_name
     prediction_path = data_dir / f"{folder_name}_predictions.parquet"
-    metrics_path    = data_dir / f"{folder_name}_metrics.csv"
+    metrics_path    = data_dir / f"{folder_name}_metrics.parquet"
 
     predictions_df = recursive_pull(aws_dir, file_type)
 
@@ -608,16 +647,20 @@ def main(folder_name, file_type='predictions'):
 
     if file_type == 'metrics' or folder_name == 'consistent_ranking':
         if folder_name == 'consistent_ranking':
+            # df.to_csv(str(metrics_path).replace('.parquet', '_dirty.csv')) # save csv before cleaning
             # Use Ian's script to clean up the df
             df = clean_data_and_compute_averages(df, quiet=False)
         df = cleanup_metrics_df(df)
+
+        print(df.columns)
+
         df.to_parquet(metrics_path)
         print('Done!')
         return
 
     # Reset the df index (for faster indexing)
     df.set_index(['task', 'model', 'step', 'mix'], inplace=True)
-    
+
     # Save to parquet
     df.to_parquet(prediction_path, index=True)
     print(f"Predictions saved to {prediction_path} ({fsize(prediction_path):.2f} GB)")
@@ -629,7 +672,7 @@ if __name__ == '__main__':
     folder_name = "aws" # 1hr
     # folder_name = "consistent_ranking" # 8hr
 
-    # sanity_check(folder_name)
+    sanity_check(folder_name)
 
-    main(folder_name, file_type='metrics')
-    main(folder_name, file_type='predictions')
+    # main(folder_name, file_type='metrics')
+    # main(folder_name, file_type='predictions')
