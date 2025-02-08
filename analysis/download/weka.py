@@ -47,6 +47,8 @@ def pull_predictions_from_weka(name):
 
     download_from_weka(bucket_name, file_key, local_path)
 
+    return local_path
+
 
 if __name__ == '__main__':
     pull_predictions_from_weka()

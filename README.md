@@ -1,24 +1,27 @@
 Analysis tools for pre-training evaluation
 
-### Setup
+### Quick Start
 ```sh
 pip install -r requirements.txt
 mkdir olmo-repos # clone olmo repos here if applicable!
 
-# (optional) Download model ladder code
-git clone https://github.com/allenai/OLMo/ olmo-repos/olmo
-cd olmo-repos/olmo
-git checkout ladder-1xC
-pip install -e .
+# Download model ladder code
+git clone https://github.com/allenai/OLMo-ladder olmo-repos/OLMo-ladder
+cd olmo-repos/OLMo-ladder
+git checkout datados
+pip install -e ".[all]"
+```
 
+## Other Features
+
+### Setup custom oe-eval-internal
+```sh
 # (optional) Download custom oe-eval-internal
 git clone git@github.com:allenai/oe-eval-internal.git olmo-repos/oe-eval-internal
 cd olmo-repos/oe-eval-internal/
 git checkout paraphrase # get current project branch
 pip install -e ".[dev]" # --no-deps
 ```
-
-## Other Features
 
 ### Download Model Ladder Data
 ```sh

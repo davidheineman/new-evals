@@ -9,18 +9,17 @@ from download.preprocess import SIZE_PREFIXES, SIZE_PREFIXES_FIX, str_find
 
 from utils.constants_ladder import DATA_BY_NAME_LADDER
 
-from olmo.scaling.scaling_laws.utils import FinalConfig
-from olmo.scaling.scaling_laws.utils import get_final_configs, get_step2_data_by_name
-from olmo.scaling.scaling_laws.utils import get_final_configs, get_step1_data_by_name
-from olmo.scaling.scaling_laws.fitting_functions import chinchilla_n_d_fit, sigmoid
+from scaling.utils import FinalConfig
+from scaling.utils import get_final_configs, get_step2_data_by_name
+from scaling.utils import get_final_configs, get_step1_data_by_name
 
-from scaling.step1 import fit_step1, predict_step1, plot_step1, str_chinchilla_n_d_fit
-from scaling.step2 import fit_step2, predict_step2, plot_step2
-from scaling.predict import predict_chained, plot_chained, str_chained_fit
-from scaling.variance_analysis import plot_variance_analysis
+from fitting.step1 import fit_step1, predict_step1, plot_step1, str_chinchilla_n_d_fit
+from fitting.step2 import fit_step2, predict_step2, plot_step2
+from fitting.predict import predict_chained, plot_chained, str_chained_fit
+# from fitting.variance_analysis import plot_variance_analysis
 
-from scaling.step1_flops import fit_step1 as fit_step1_flops, predict_step1 as predict_step1_flops, plot_step1 as plot_step1_flops, str_chinchilla_flops_fit
-from scaling.predict_flops import predict_chained_flops, plot_chained as plot_chained_flops, str_chained_fit as str_chained_fit_flops
+from fitting.step1_flops import fit_step1 as fit_step1_flops, predict_step1 as predict_step1_flops, plot_step1 as plot_step1_flops, str_chinchilla_flops_fit
+from fitting.predict_flops import predict_chained_flops, plot_chained as plot_chained_flops, str_chained_fit as str_chained_fit_flops
 
 FONTSIZE = 8
 
@@ -326,6 +325,11 @@ def run_ladder(
         # data_by_name_tokens = get_step1_data_by_name(configs, 'arc_easy_test_5shot', y_metric=y_metric, moving_avg=1) # we are only using this for the num tokens
         data_by_name = {k: v for k, v in data_by_name.items() if k in data_by_name_tokens.keys()}
         data_by_name_tokens = {k: v for k, v in data_by_name_tokens.items() if k in data_by_name.keys()}
+        
+        # I shouldn't have to do this. Something is broken when I use external models
+        if '1.3B' in data_by_name_tokens: del data_by_name_tokens['1.3B']
+        if '1.3B' in data_by_name: del data_by_name['1.3B']
+        
         data_by_name = merge_dicts(data_by_name, data_by_name_tokens, overwrite_xs=(y_metric == 'c4')) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
 
         # Fit step 1

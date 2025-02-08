@@ -174,7 +174,7 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
         else:
             if metric == 'logits_per_byte':
                 # TMP: Handle 3D array
-                from ladder import map_corr_labels
+                from ladder_wrapper import map_corr_labels
                 mixes, bpb = get_nd_array(df, ['model', 'step', 'mix'], metric, model=models, task=task, step=step)
                 mixes = np.array([mix for mix, _, _ in mixes])
                 bpb = bpb[:, 0, :]
@@ -303,7 +303,7 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
                 step, bpb  = get_nd_array(df, 'step', metric, model=model, task=task)
                 _, corr = get_nd_array(df, 'step', 'correct_choice', model=model, task=task)
 
-                from ladder import map_corr_labels
+                from ladder_wrapper import map_corr_labels
                 correct_bpb = map_corr_labels(bpb, corr, task_name=task)
                 acc = correct_bpb.mean(axis=1)
                 scores = correct_bpb

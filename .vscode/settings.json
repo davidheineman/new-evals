@@ -5,10 +5,7 @@
         "./analysis",
         "./generation",
         "./olmo-repos/oe-eval-internal",
-        "./olmo-repos/olmo",
         "./olmo-repos/OLMo",
-        "./olmo-repos/OLMo/scripts",
-        "./olmo-repos/OLMo/scripts/scaling",
         "./olmo-repos/oe-eval-internal"
     ],
     "python.analysis.exclude": ["data/**", "**/data/**", "**/data", "analysis/data/**", "olmo-repos/**"]

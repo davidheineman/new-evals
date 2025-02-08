@@ -8,7 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from dataloader import get_slice
-from ladder import run_ladder
+from ladder_wrapper import run_ladder
 from stats import compute_significance, compute_total_variation
 from table import display_task_variants
 
@@ -18,7 +18,7 @@ from utils.constants_models import DDOS_MODEL_NAMES
 DEFAULT_LADDER_CONFIG_PATH = f'{ROOT_DIR}/analysis/utils/ladder_config.json'
 
 ALL_METRICS = ['logits_per_char_corr', 'primary_score']
-REVERSED_METRICS = ['margin_per_byte', 'norm_correct_prob_per_byte', 'correct_prob_per_byte', 'correct_logit_per_byte', 'logits_per_char_corr']
+REVERSED_METRICS = ['margin_per_byte', 'norm_correct_prob_per_byte', 'correct_prob_per_byte', 'correct_logit_per_byte', 'logits_per_char_corr', 'logits_per_byte_corr']
 DDOS_SIZES = ['150M', '300M', '530M', '750M', '1B']
 DDOS_COMPUTE_SIZES = (get_compute('150M'), get_compute('300M'), get_compute('530M'), get_compute('750M'), get_compute('1B'))
 
@@ -232,6 +232,17 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
     # Consistent rankings analysis
     if axes is not None:
         try:
+            ax = axes[1, 2]
+            two_class, acc_pivot, metric_pivot = construct_2class_table(
+                df, [task], small_metric='logits_per_byte_corr', target_metric='primary_score'
+            )
+            two_class_results = acc_pivot.loc[task].unstack()
+            plot_task_accuracy(ax, two_class_results, task, DDOS_COMPUTE_SIZES, show_legend=True)
+            if ax:
+                ax.legend(fontsize=6, loc='lower right')
+                ax.set_ylabel('Decision Acc (BPB on primary_score)')
+                ax.set_ylim(0.75, 1)
+
             ax = axes[2, 2]
             two_class, acc_pivot, metric_pivot = construct_2class_table(
                 df, [task], target_metric='primary_score'
@@ -241,19 +252,19 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             if ax:
                 ax.legend(fontsize=6, loc='lower right')
                 ax.set_ylabel('Decision Acc (best on primary_score)')
-                ax.set_ylim(0.8, 1)
+                ax.set_ylim(0.75, 1)
                 
             ax = axes[3, 2]
             two_class, acc_pivot, metric_pivot = construct_2class_table(
                 df, [task], 
-                small_metric='logits_per_char_corr', target_metric='logits_per_char_corr'
+                small_metric='logits_per_byte_corr', target_metric='logits_per_byte_corr'
             )
             two_class_results = acc_pivot.loc[task].unstack()
             plot_task_accuracy(ax, two_class_results, task, DDOS_COMPUTE_SIZES, show_legend=True)
             if ax:
                 ax.legend(fontsize=6, loc='lower right')
                 ax.set_ylabel('Decision Acc (BPB on BPB)')
-                ax.set_ylim(0.8, 1)
+                ax.set_ylim(0.75, 1)
         except Exception as e:
             print(task, 'failed on consistent ranking analysis', e)
             two_class_bpb_150M, two_class_acc_150M = 0, 0

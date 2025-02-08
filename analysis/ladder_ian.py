@@ -5,15 +5,15 @@ import pandas as pd
 from tqdm import tqdm
 from collections import defaultdict
 
-from olmo.scaling.scaling_laws.utils import FinalConfig
+from scaling.utils import FinalConfig
 
-from scaling.step1 import fit_step1, predict_step1, plot_step1, str_chinchilla_n_d_fit
-from scaling.step2 import fit_step2, predict_step2, plot_step2
-from scaling.predict import predict_chained, plot_chained, str_chained_fit
+from fitting.step1 import fit_step1, predict_step1, plot_step1, str_chinchilla_n_d_fit
+from fitting.step2 import fit_step2, predict_step2, plot_step2
+from fitting.predict import predict_chained, plot_chained, str_chained_fit
 
-from scaling.step1_flops import fit_step1 as fit_step1_flops, predict_step1 as predict_step1_flops, plot_step1 as plot_step1_flops, str_chinchilla_flops_fit
-from scaling.predict_flops import predict_chained_flops, plot_chained as plot_chained_flops, str_chained_fit as str_chained_fit_flops
-from scaling.single_step import fit_single_step, predict_single_step, plot_single_step, str_combined_fit
+from fitting.step1_flops import fit_step1 as fit_step1_flops, predict_step1 as predict_step1_flops, plot_step1 as plot_step1_flops, str_chinchilla_flops_fit
+from fitting.predict_flops import predict_chained_flops, plot_chained as plot_chained_flops, str_chained_fit as str_chained_fit_flops
+from fitting.single_step import fit_single_step, predict_single_step, plot_single_step, str_combined_fit
 
 from concurrent.futures import ProcessPoolExecutor
 
@@ -388,7 +388,10 @@ def run_ladder(
                 predicted_data_by_name, plotted_predicted_data_by_name, 
                 (stacked_y, stacked_y_pred, rel_error_stacked)
             ) = predict_chained_flops(
-                data_by_name, step1_coefficients, step2_coefficients, use_two_param=use_two_param
+                data_by_name, step1_coefficients, step2_coefficients, 
+                use_two_param=use_two_param, 
+                extrapolate_ratio=[0.8, 1.5],
+                # extrapolate_ratio=[0.2, 1e3]
             )
         else:
             (
@@ -446,7 +449,7 @@ def run_ladder(
 def compute_intersection(p1s1, p1s2, p2s1, p2s2, x_range):
     """ Compute the intersection between two scaling law curves """
     from scipy.optimize import root_scalar
-    from olmo.scaling.scaling_laws.fitting_functions import sigmoid, chinchilla_flops_fit
+    from scaling.fitting_functions import sigmoid, chinchilla_flops_fit
 
     def diff(x):
         y1 = sigmoid(chinchilla_flops_fit(x, p1s1), *p1s2)
@@ -504,7 +507,7 @@ def pairwise_intersections(coeffs, x_range):
 
 def get_perf(coeffs, C):
     """ Get the performance of a scaling law fit for some compute C """
-    from olmo.scaling.scaling_laws.fitting_functions import sigmoid, chinchilla_flops_fit
+    from scaling.fitting_functions import sigmoid, chinchilla_flops_fit
 
     n = len(coeffs)
     perf = np.zeros((n))
