@@ -243,14 +243,13 @@ def train_and_evaluate(
     testing_idx = [
         i for i in range(len(_dataset.training_example)) if not _dataset.training_example[i]
     ]
+    print('hi')
+    print(len(testing_idx))
     if len(testing_idx) > 0:
-        _dataset.observation_subjects = [
-            _dataset.observation_subjects[i] for i in testing_idx]
-        _dataset.observation_items = [
-            _dataset.observation_items[i] for i in testing_idx]
+        _dataset.observation_subjects = [_dataset.observation_subjects[i] for i in testing_idx]
+        _dataset.observation_items = [_dataset.observation_items[i] for i in testing_idx]
         _dataset.observations = [_dataset.observations[i] for i in testing_idx]
-        _dataset.training_example = [
-            _dataset.training_example[i] for i in testing_idx]
+        _dataset.training_example = [_dataset.training_example[i] for i in testing_idx]
 
     preds = trainer.irt_model.predict(
         _dataset.observation_subjects, 

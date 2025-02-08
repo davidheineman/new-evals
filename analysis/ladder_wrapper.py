@@ -16,7 +16,6 @@ from scaling.utils import get_final_configs, get_step1_data_by_name
 from fitting.step1 import fit_step1, predict_step1, plot_step1, str_chinchilla_n_d_fit
 from fitting.step2 import fit_step2, predict_step2, plot_step2
 from fitting.predict import predict_chained, plot_chained, str_chained_fit
-# from fitting.variance_analysis import plot_variance_analysis
 
 from fitting.step1_flops import fit_step1 as fit_step1_flops, predict_step1 as predict_step1_flops, plot_step1 as plot_step1_flops, str_chinchilla_flops_fit
 from fitting.predict_flops import predict_chained_flops, plot_chained as plot_chained_flops, str_chained_fit as str_chained_fit_flops
@@ -306,8 +305,6 @@ def run_ladder(
         y_metric='rc_bpb', intermediate_feature='bpb', use_flops=False, 
         run_step1=True, run_step2=True, run_stacked=True,
         axes=None, add_texts=False, return_preds=False, return_reals=False, return_fit_error=False):
-    # os.chdir('/Users/dhei/ai2/new-evals/olmo-repos/OLMo') # Unfortunately there are local references, so we have to be in the OLMo repo
-
     data_by_name_tokens = DATA_BY_NAME_LADDER
     ax_i = 0
 
@@ -608,6 +605,7 @@ def run_variance_analysis(df, tasks, eval_models, config_path, last_n_points=10,
             print(f'{task_name} failed: {e}')
             continue
 
+    from scripts.variance_analysis import plot_variance_analysis
     fig, df = plot_variance_analysis(config, variance_results, last_n_points)
 
     return df
