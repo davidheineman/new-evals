@@ -2,6 +2,7 @@ Analysis tools for pre-training evaluation
 
 ### Quick Start
 ```sh
+git lfs install # .ipynb files are tracked with git lfs! (brew install git-lfs)
 pip install -r requirements.txt
 mkdir olmo-repos # clone olmo repos here if applicable!
 

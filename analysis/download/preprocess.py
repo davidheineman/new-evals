@@ -15,7 +15,7 @@ parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
 
 from utils import DATA_DIR
-from utils_cheap_decisions import process_predictions_cheap_decisions, process_prediction_path, clean_data_and_compute_averages
+from .utils_cheap_decisions import process_predictions_cheap_decisions, process_prediction_path, clean_data_and_compute_averages
 
 # Metrics to use when converting to table:
 METRICS_TO_KEEP = [
