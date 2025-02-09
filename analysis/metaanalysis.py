@@ -4,6 +4,7 @@ from utils import DATA_DIR, ROOT_DIR
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 
@@ -125,7 +126,7 @@ def set_title_from_task(ax, task):
 def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_models, metric='primary_score', axes=None, ladder_config_path=DEFAULT_LADDER_CONFIG_PATH):
     try:
         # Step 1 ladder prediction (base models)
-        ax = [axes[0, 0]] if axes is not None else None
+        ax = axes[0, 0] if axes is not None else None
         rel_error_step_1, _, _ = run_ladder(
             df,
             task,
@@ -133,30 +134,31 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             eval_models=["peteish7", "peteish13-highlr"],
             config_path=ladder_config_path,
             run_step2=False, run_stacked=False,
-            axes=ax
+            axes=[ax]
         )
+        rel_error_step_1 = rel_error_step_1[0] # keep 7B-5T
         if ax:
-            ax[0].set_ylabel('logits_per_byte_corr')
-            ax[0].legend(fontsize=6)
+            ax.set_ylabel('logits_per_byte_corr')
+            ax.legend(fontsize=6)
 
         # Step 2 ladder prediction (base models)
-        ax = [axes[1, 0]] if axes is not None else None
-        _, mse_step_2 = run_ladder(
+        ax = axes[1, 0] if axes is not None else None
+        _, rel_error_step_2, _ = run_ladder(
             df,
             task,
             train_models=ladder_models,
             eval_models=["peteish7", "peteish13-highlr"],
             config_path=ladder_config_path,
             run_step1=False, run_stacked=False,
-            return_fit_error=True,
-            axes=ax
+            axes=[ax]
         )
+        rel_error_step_2 = rel_error_step_2[0] # keep 7B-5T
         if ax:
-            ax[0].set_ylabel('logits_per_byte_corr')
-            ax[0].legend(fontsize=6)
+            ax.set_ylabel('logits_per_byte_corr')
+            ax.legend(fontsize=6)
 
         # Step 2 ladder prediction (external models)
-        ax = [axes[2, 0]] if axes is not None else None
+        ax = axes[2, 0] if axes is not None else None
         _, mse_step_2 = run_ladder(
             df,
             task,
@@ -165,14 +167,14 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             config_path=ladder_config_path,
             run_step1=False, run_stacked=False,
             return_fit_error=True,
-            axes=ax
+            axes=[ax]
         )
         if ax:
-            # ax[0].get_legend().remove()
-            ax[0].legend(fontsize=3, ncols=2)
-            ax[0].set_xlabel('logits_per_byte_corr')
-            ax[0].set_ylabel(metric)
-            ax[0].text(
+            # ax.get_legend().remove()
+            ax.legend(fontsize=3, ncols=2)
+            ax.set_xlabel('logits_per_byte_corr')
+            ax.set_ylabel(metric)
+            ax.text(
                 x=0.02, y=0.02, s=f'Mean Unsigned Error={mse_step_2*100:.2f}%',
                 transform=ax[0].transAxes,
                 va='bottom', ha='left',
@@ -180,7 +182,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             )
 
         # Stacked ladder prediction
-        ax = [axes[3, 0]] if axes is not None else None
+        ax = axes[3, 0] if axes is not None else None
         _, _, rel_error_stacked = run_ladder(
             df,
             task,
@@ -188,28 +190,31 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             eval_models=["peteish7", "peteish13-highlr"],
             config_path=ladder_config_path,
             run_step1=False, run_step2=False,
-            axes=ax
+            axes=[ax]
         )
-        if ax:
-            ax[0].set_ylabel(metric)
-            ax[0].legend(fontsize=6)
         rel_error_stacked = rel_error_stacked[0] # keep 7B-5T
+        if ax:
+            ax.set_ylabel(metric)
+            ax.legend(fontsize=6)
     except Exception as e:
         print(task, 'failed on ladder fits', e)
-        rel_error_stacked, mse_step_2 = 0, 0
+        # raise RuntimeError(task, 'failed on ladder fits', e)
+        rel_error_step_1, rel_error_step_2, rel_error_stacked, mse_step_2 = float('-inf'), float('-inf'), float('-inf'), float('-inf')
 
     # intermediate checkpoints
-    for j, model in enumerate(['peteish-moreeval-1B-5xC', 'peteish13-highlr']):
-        ax = [axes[0+(j*2), 1]] if axes is not None else None
+    intermediate_models = ['peteish-moreeval-1B-5xC', 'peteish13-highlr']
+    intermediate_tv = []
+    for j, model in enumerate(intermediate_models):
+        ax = axes[0+(j*2), 1] if axes is not None else None
         tv, _ = compute_total_variation(
-            df, models=[model], metric='logits_per_char_corr', tasks=[task], axes=ax
+            df, models=[model], metric='logits_per_char_corr', tasks=[task], axes=[ax]
         )
         tv_bpb = tv[task]['total_variation'] if not isinstance(task, list) else tv.loc['total_variation']['aggregate']
         if ax:
-            ax[0].legend(fontsize=6)
+            ax.legend(fontsize=6)
             
             # Get the y-values from the current axis
-            lines = ax[0].get_lines()
+            lines = ax.get_lines()
             if len(lines) > 0:
                 y_data = lines[0].get_ydata()
                 # Set top limit 10% above max y value
@@ -218,56 +223,59 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
                 idx = int(len(y_data) * 0.1)
                 y_20_percent = y_data[idx]
                 if not (np.isnan(y_20_percent) or np.isnan(y_max) or np.isinf(y_20_percent) or np.isinf(y_max)):
-                    ax[0].set_ylim(bottom=y_20_percent, top=y_max * (0.95 if y_max < 0 else 1.05))
+                    ax.set_ylim(bottom=y_20_percent, top=y_max * (0.95 if y_max < 0 else 1.05))
 
         # 1B intermediate checkpoints
-        ax = [axes[1+(j*2), 1]] if axes is not None else None
+        ax = axes[1+(j*2), 1] if axes is not None else None
         tv, _ = compute_total_variation(
-            df, models=[model], metric=metric, tasks=[task], axes=ax
+            df, models=[model], metric=metric, tasks=[task], axes=[ax]
         )
         tv_primary = tv[task]['total_variation'] if not isinstance(task, list) else tv.loc['total_variation']['aggregate']
         if ax:
-            ax[0].legend(fontsize=6)
+            ax.legend(fontsize=6)
+
+        intermediate_tv += [(tv_bpb, tv_primary)]
 
     # Consistent rankings analysis
-    if axes is not None:
-        try:
+    try:
+        two_class, acc_pivot, metric_pivot = construct_2class_table(
+            df, [task], small_metric='logits_per_byte_corr', target_metric='primary_score'
+        )
+        two_class_results = acc_pivot.loc[task].unstack()
+        if axes is not None:
             ax = axes[1, 2]
-            two_class, acc_pivot, metric_pivot = construct_2class_table(
-                df, [task], small_metric='logits_per_byte_corr', target_metric='primary_score'
-            )
-            two_class_results = acc_pivot.loc[task].unstack()
             plot_task_accuracy(ax, two_class_results, task, DDOS_COMPUTE_SIZES, show_legend=True)
-            if ax:
-                ax.legend(fontsize=6, loc='lower right')
-                ax.set_ylabel('Decision Acc (BPB on primary_score)')
-                ax.set_ylim(0.75, 1)
+            ax.legend(fontsize=6, loc='lower right')
+            ax.set_ylabel('Decision Acc (BPB on primary_score)')
+            ax.set_ylim(0.75, 1)
 
+        two_class, acc_pivot, metric_pivot = construct_2class_table(
+            df, [task], target_metric='primary_score'
+        )
+        two_class_results = acc_pivot.loc[task].unstack()
+        if axes is not None:
             ax = axes[2, 2]
-            two_class, acc_pivot, metric_pivot = construct_2class_table(
-                df, [task], target_metric='primary_score'
-            )
-            two_class_results = acc_pivot.loc[task].unstack()
             plot_task_accuracy(ax, two_class_results, task, DDOS_COMPUTE_SIZES, show_legend=True)
-            if ax:
-                ax.legend(fontsize=6, loc='lower right')
-                ax.set_ylabel('Decision Acc (best on primary_score)')
-                ax.set_ylim(0.75, 1)
-                
+            ax.legend(fontsize=6, loc='lower right')
+            ax.set_ylabel('Decision Acc (best on primary_score)')
+            ax.set_ylim(0.75, 1)
+            
+        two_class, acc_pivot, metric_pivot = construct_2class_table(
+            df, [task], 
+            small_metric='logits_per_byte_corr', target_metric='logits_per_byte_corr'
+        )
+        two_class_results = acc_pivot.loc[task].unstack()
+        if axes is not None:
             ax = axes[3, 2]
-            two_class, acc_pivot, metric_pivot = construct_2class_table(
-                df, [task], 
-                small_metric='logits_per_byte_corr', target_metric='logits_per_byte_corr'
-            )
-            two_class_results = acc_pivot.loc[task].unstack()
             plot_task_accuracy(ax, two_class_results, task, DDOS_COMPUTE_SIZES, show_legend=True)
-            if ax:
-                ax.legend(fontsize=6, loc='lower right')
-                ax.set_ylabel('Decision Acc (BPB on BPB)')
-                ax.set_ylim(0.75, 1)
-        except Exception as e:
-            print(task, 'failed on consistent ranking analysis', e)
-            two_class_bpb_150M, two_class_acc_150M = 0, 0
+            ax.legend(fontsize=6, loc='lower right')
+            ax.set_ylabel('Decision Acc (BPB on BPB)')
+            ax.set_ylim(0.75, 1)
+
+        two_class_bpb_150M, two_class_acc_150M = float('-inf'), float('-inf') # TODO: compute this
+    except Exception as e:
+        print(task, 'failed on consistent ranking analysis', e)
+        two_class_bpb_150M, two_class_acc_150M = float('-inf'), float('-inf')
 
     if axes is not None:
         for ax in axes.flat:
@@ -289,6 +297,18 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             total_cost += eval_cost
     except Exception as e:
         print(e)
-        total_cost = 0
+        total_cost = float('-inf')
 
-    return mse_step_2, rel_error_stacked, tv_bpb, tv_primary, total_cost
+    return {
+        "mse_step_2": mse_step_2, 
+        "rel_error_step_1": rel_error_step_1, 
+        "rel_error_step_2": rel_error_step_2, 
+        "rel_error_stacked": rel_error_stacked, 
+        "tv_bpb_1b": intermediate_tv[0][0], 
+        "tv_primary_1b": intermediate_tv[0][1], 
+        "tv_bpb_7b": intermediate_tv[1][0], 
+        "tv_primary_7b": intermediate_tv[1][1], 
+        "two_class_bpb_150M": two_class_bpb_150M,
+        "two_class_acc_150M": two_class_acc_150M,
+        "total_cost": total_cost
+    }

@@ -30,10 +30,12 @@ def calc_monotonicity(arr):
 
 
 def calc_improvement(arr):
+    if len(arr) == 0: return 0
     return (arr[-1] - arr[0]) / len(arr)
 
 
 def calc_improvement_last_n(arr, n=5):
+    if len(arr) == 0: return 0
     return (sum(arr[-n:]) / n - sum(arr[:n]) / n) / len(arr)
 
 
@@ -251,7 +253,7 @@ def calculate_and_plot_total_variation(x, y, metric, model_name=None, num_scores
     # if num_scores is not None:
     #     ci = 1.96 * calculate_standard_error(y, num_scores=num_scores)
 
-    if ax is not None:
+    if ax is not None and len(x) > 0:
         _ = plot_training(
             ax=ax, 
             label=model_name,
