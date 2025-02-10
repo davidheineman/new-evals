@@ -45,7 +45,7 @@ MODEL_OUTPUT_TO_KEEP = [
 ]
 
 SIZE_PREFIXES = [
-    f'-{size}-' for size in ['3B', '1B', '760M', '750M', '530M', '370M', '300M', '190M', '150M']
+    f'-{size}-' for size in ['3B', '1B', '760M', '750M', '530M', '370M', '300M', '190M', '150M', '90M', '60M', '20M', '4M']
 ]
 SIZE_PREFIXES_FIX = {'3B': '3.2B', '1B': '1.3B'}
 
@@ -288,7 +288,8 @@ def load_df_parallel(data, file_type, usage_threshold=80):
     
     # Use numpy for efficient chunking
     chunk_size = len(data) // num_partitions
-    chunks = [data[i * chunk_size:(i + 1) * chunk_size] for i in range(num_partitions)]
+    remainder = len(data) % num_partitions
+    chunks = [data[i * chunk_size + min(i, remainder) : (i + 1) * chunk_size + min(i + 1, remainder)] for i in range(num_partitions)]
 
     print('Launching parallel processing...')
     
