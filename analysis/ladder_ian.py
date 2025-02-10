@@ -356,13 +356,13 @@ def run_ladder(
             _min, _max = 0, 1 # TODO: Use utils.constants_task to get correct values
 
         # Fit step 2
-        step2_coefficients, cov = fit_step2(data_by_name, task_key, y_metric=None, _min=_min, _max=_max, use_log_sigmoid=False, use_helper_points=use_helper_points)
+        step2_coefficients, cov = fit_step2(data_by_name, task_key, y_metric=y_metric_func, _min=_min, _max=_max, use_log_sigmoid=False, use_helper_points=use_helper_points)
 
         (
             predicted_data_by_name, plotted_predicted_data,
             (step_2_y, step_2_y_pred, rel_error_step_2, delta_error), all_rel_errors,
         ) = predict_step2(
-            configs, data_by_name, step2_coefficients, cov, y_metric=None, use_log_sigmoid=False
+            configs, data_by_name, step2_coefficients, cov, y_metric=y_metric_func, use_log_sigmoid=False
         )
         abs_error_step_2 = abs(step_2_y_pred - step_2_y)
 
@@ -389,7 +389,7 @@ def run_ladder(
                 (stacked_y, stacked_y_pred, rel_error_stacked)
             ) = predict_chained_flops(
                 data_by_name, step1_coefficients, step2_coefficients, 
-                use_two_param=use_two_param, 
+                use_two_param=use_two_param, y_metric=y_metric_func,
                 extrapolate_ratio=[0.8, 1.5],
                 # extrapolate_ratio=[0.2, 1e3]
             )
@@ -398,7 +398,7 @@ def run_ladder(
                 predicted_data_by_name, plotted_predicted_data_by_name, 
                 (stacked_y, stacked_y_pred, rel_error_stacked)
             ) = predict_chained(
-                data_by_name, step1_coefficients, step2_coefficients, use_log_sigmoid=False
+                data_by_name, step1_coefficients, step2_coefficients, y_metric=y_metric_func, use_log_sigmoid=False
             )
         abs_error_stacked = abs(stacked_y_pred - stacked_y)
 

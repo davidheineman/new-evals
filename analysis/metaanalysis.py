@@ -315,8 +315,9 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             eval_cost = num_instances
             assert (task_results['num_instances'] == num_instances).all(), f"num_instances should be constant across task={subtask} for task_as_list={task_as_list}"
             total_cost += eval_cost
+        total_cost = int(total_cost)
     except Exception as e:
-        print(e)
+        print('Failed to calculate compute cost:', e)
         total_cost = float('-inf')
 
     return {
