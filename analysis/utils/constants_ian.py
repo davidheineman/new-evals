@@ -64,6 +64,8 @@ SETUP_NAME_LATEX = {
     '3_param-1_step':                          'FLOPs $\\rightarrow$ Metric (1 step)',
     '5_param-ai2':                             '$(N, D)$ $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, $(N, D)$)',
     '5_param-1_step-ai2':                      '$(N, D)$ $\\rightarrow$ Metric (1 step, $(N, D)$)',
+    '3_param-intermediate-default':            '$(N, D)$ $\\rightarrow$ Metric $\\rightarrow$ Primary metric',
+    '3_param-intermediate-default-helper_points': '  + helper point',
     
     # No 750M point
     '3_param-no_750M':                         'FLOPs $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, FLOPs)',
@@ -74,6 +76,8 @@ SETUP_NAME_LATEX = {
     '3_param-1_step-no_750M':                  'FLOPs $\\rightarrow$ Metric (1 step)',
     '5_param-ai2-no_750M':                     '$(N, D)$ $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, $(N, D)$)',
     '5_param-1_step-ai2-no_750M':              '$(N, D)$ $\\rightarrow$ Metric (1 step, $(N, D)$)',
+    '3_param-intermediate-no_750M':            '$(N, D)$ $\\rightarrow$ Metric $\\rightarrow$ Primary metric',
+    '3_param-intermediate-no_750M-helper_points': '  + helper point',
     
     # No 750M and 530M point
     '3_param-no_750M_no_530M':                 'FLOPs $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, FLOPs)',
@@ -84,6 +88,8 @@ SETUP_NAME_LATEX = {
     '3_param-1_step-no_750M_no_530M':          'FLOPs $\\rightarrow$ Metric (1 step)',
     '5_param-ai2-no_750M_no_530M':             '$(N, D)$ $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, $(N, D)$)',
     '5_param-1_step-ai2-no_750M_no_530M':      '$(N, D)$ $\\rightarrow$ Metric (1 step, $(N, D)$)',
+    '3_param-intermediate-no_750M_no_530M':    '$(N, D)$ $\\rightarrow$ Metric $\\rightarrow$ Primary metric',
+    '3_param-intermediate-no_750M_no_530M-helper_points': '  + helper point',
 }
 
 TASK_NAME_LATEX = {
