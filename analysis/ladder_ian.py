@@ -234,10 +234,8 @@ def run_ladder(
         use_flops=False, use_single_step=False, use_two_param=False, use_helper_points=False, 
         last_perc_step_2=0.9,
         run_step1=True, run_step2=True, run_stacked=True,
-        axes=None, add_texts=False, color=None, return_preds=False, return_reals=False, return_coeff=False):
-    # Unfortunately there are local references, so we have to be in the OLMo repo
-    os.chdir('/Users/dhei/ai2/new-evals/olmo-repos/OLMo')
-
+        axes=None, add_texts=False, color=None, extrapolate_ratio=[0.8, 1.5], # plotting
+        return_preds=False, return_reals=False, return_coeff=False):
     abs_error_step_1, abs_error_step_2, abs_error_stacked = None, None, None
     step_1_y_pred, step_2_y_pred, stacked_y_pred = None, None, None
     step_1_y, step_2_y, stacked_y = None, None, None
@@ -356,13 +354,13 @@ def run_ladder(
             _min, _max = 0, 1 # TODO: Use utils.constants_task to get correct values
 
         # Fit step 2
-        step2_coefficients, cov = fit_step2(data_by_name, task_key, y_metric=None, _min=_min, _max=_max, use_log_sigmoid=False, use_helper_points=use_helper_points)
+        step2_coefficients, cov = fit_step2(data_by_name, task_key, y_metric=y_metric_func, _min=_min, _max=_max, use_log_sigmoid=False, use_helper_points=use_helper_points)
 
         (
             predicted_data_by_name, plotted_predicted_data,
             (step_2_y, step_2_y_pred, rel_error_step_2, delta_error), all_rel_errors,
         ) = predict_step2(
-            configs, data_by_name, step2_coefficients, cov, y_metric=None, use_log_sigmoid=False
+            configs, data_by_name, step2_coefficients, cov, y_metric=y_metric_func, use_log_sigmoid=False
         )
         abs_error_step_2 = abs(step_2_y_pred - step_2_y)
 
@@ -389,16 +387,15 @@ def run_ladder(
                 (stacked_y, stacked_y_pred, rel_error_stacked)
             ) = predict_chained_flops(
                 data_by_name, step1_coefficients, step2_coefficients, 
-                use_two_param=use_two_param, 
-                extrapolate_ratio=[0.8, 1.5],
-                # extrapolate_ratio=[0.2, 1e3]
+                use_two_param=use_two_param, y_metric=y_metric_func,
+                extrapolate_ratio=extrapolate_ratio
             )
         else:
             (
                 predicted_data_by_name, plotted_predicted_data_by_name, 
                 (stacked_y, stacked_y_pred, rel_error_stacked)
             ) = predict_chained(
-                data_by_name, step1_coefficients, step2_coefficients, use_log_sigmoid=False
+                data_by_name, step1_coefficients, step2_coefficients, y_metric=y_metric_func, use_log_sigmoid=False
             )
         abs_error_stacked = abs(stacked_y_pred - stacked_y)
 
@@ -560,6 +557,7 @@ def process_mix(mix, df_multi_index, all_models, all_tasks, setup, x_metric, y_m
         use_single_step   = '1_step' in setup
         use_flops         = '3_param' in setup or '2_param' in setup
         use_two_param     = '2_param' in setup
+        use_intermediate_feature = 'intermediate' in setup
 
         last_perc_step_2 = 0.9
         if 'step2=0.5' in setup:
@@ -570,6 +568,12 @@ def process_mix(mix, df_multi_index, all_models, all_tasks, setup, x_metric, y_m
             # Only run 1 step, and have the 1 step be the downstream metric
             run_step2, run_stacked = False, False
             x_metric = y_metric
+
+        if use_intermediate_feature:
+            # Predict FLOPs -> [metric] -> primary_metric
+            x_metric = y_metric
+            y_metric = 'primary_metric'
+            assert use_single_step == False, 'Must be 2-step prediction!'
 
         try:
             (abs_error_step_1, abs_error_step_2, abs_error_step_stacked), \

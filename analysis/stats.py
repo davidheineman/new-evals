@@ -345,7 +345,7 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
                 add_text=add_text
             )
         
-        if axes is not None:
+        if axes is not None and axes[i].get_legend_handles_labels()[1]:
             axes[i].legend(fontsize=8)
 
     return tv_results, axes
