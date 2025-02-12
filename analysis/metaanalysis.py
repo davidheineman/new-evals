@@ -21,6 +21,10 @@ DEFAULT_LADDER_CONFIG_PATH = f'{ROOT_DIR}/analysis/utils/ladder_config.json'
 
 ALL_METRICS = ['logits_per_char_corr', 'primary_score']
 REVERSED_METRICS = ['margin_per_byte', 'norm_correct_prob_per_byte', 'correct_prob_per_byte', 'correct_logit_per_byte', 'logits_per_char_corr', 'logits_per_byte_corr']
+
+# DDOS_SIZES = ['4M', '20M', '60M', '90M','150M', '300M', '530M', '750M', '1B']
+# DDOS_COMPUTE_SIZES = (get_compute('4M'), get_compute('20M'), get_compute('60M'), get_compute('90M'), get_compute('150M'), get_compute('300M'), get_compute('530M'), get_compute('750M'), get_compute('1B'))
+
 DDOS_SIZES = ['150M', '300M', '530M', '750M', '1B']
 DDOS_COMPUTE_SIZES = (get_compute('150M'), get_compute('300M'), get_compute('530M'), get_compute('750M'), get_compute('1B'))
 
@@ -68,6 +72,11 @@ def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_
 
             # predict at the target scale (1B) 
             target_scale = get_perf_size(df, '1B', task, target_metric)['mix']
+
+            # display(_slice)
+            # # display(target_scale)
+            # if size == '150M':
+            #     raise RuntimeError()
             
             if metric in REVERSED_METRICS and target_metric not in REVERSED_METRICS: small_scale = reversed(small_scale)
             try:
@@ -258,10 +267,10 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
 
     # Consistent rankings analysis
     try:
-        two_class, acc_pivot, metric_pivot = construct_2class_table(
+        two_class, acc_pivot_bpb_primary, metric_pivot = construct_2class_table(
             df, [task], small_metric='logits_per_byte_corr', target_metric='primary_score'
         )
-        two_class_results = acc_pivot.loc[str(task)].unstack()
+        two_class_results = acc_pivot_bpb_primary.loc[str(task)].unstack()
         if axes is not None:
             ax: plt.Axes = axes[1, 2]
             plot_task_accuracy(ax, two_class_results, str(task), DDOS_COMPUTE_SIZES, show_legend=True)
@@ -269,10 +278,10 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             ax.set_ylabel(f'Decision Acc (BPB on {primary_score_name})')
             ax.set_ylim(0.75, 1)
 
-        two_class, acc_pivot, metric_pivot = construct_2class_table(
+        two_class, acc_pivot_best_metric, metric_pivot = construct_2class_table(
             df, [task], target_metric='primary_score'
         )
-        two_class_results = acc_pivot.loc[str(task)].unstack()
+        two_class_results = acc_pivot_best_metric.loc[str(task)].unstack()
         if axes is not None:
             ax: plt.Axes = axes[2, 2]
             plot_task_accuracy(ax, two_class_results, str(task), DDOS_COMPUTE_SIZES, show_legend=True)
@@ -280,11 +289,11 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             ax.set_ylabel(f'Decision Acc (best on {primary_score_name})')
             ax.set_ylim(0.75, 1)
             
-        two_class, acc_pivot, metric_pivot = construct_2class_table(
+        two_class, acc_pivot_bpb, metric_pivot = construct_2class_table(
             df, [task], 
             small_metric='logits_per_byte_corr', target_metric='logits_per_byte_corr'
         )
-        two_class_results = acc_pivot.loc[str(task)].unstack()
+        two_class_results = acc_pivot_bpb.loc[str(task)].unstack()
         if axes is not None:
             ax: plt.Axes = axes[3, 2]
             plot_task_accuracy(ax, two_class_results, str(task), DDOS_COMPUTE_SIZES, show_legend=True)
@@ -292,9 +301,11 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             ax.set_ylabel('Decision Acc (BPB on BPB)')
             ax.set_ylim(0.75, 1)
 
-        two_class_bpb_150M, two_class_acc_150M = float('-inf'), float('-inf') # TODO: compute this
+        two_class_bpb_150M = acc_pivot_bpb['150M'].loc[task].item()
+        two_class_acc_150M = acc_pivot_best_metric['150M'].loc[task].item()
     except Exception as e:
         print(task, 'failed on consistent ranking analysis', e)
+        # raise RuntimeError(task, 'failed on consistent ranking analysis', e)
         two_class_bpb_150M, two_class_acc_150M = float('-inf'), float('-inf')
 
     if axes is not None:

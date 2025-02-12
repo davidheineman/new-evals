@@ -34,6 +34,10 @@ TASK_KEY_MAP = {
 }
 
 MODEL_COLORS = {
+    # '4M': 'brown',
+    # '20M': 'black',
+    # '60M': 'teal',
+    # '90M': 'pink',
     '150M': 'r',
     '300M': 'orange',
     '530M': 'green',
@@ -42,6 +46,10 @@ MODEL_COLORS = {
 }
 
 SIZE_COLORS = {
+    # '4M': 'brown',
+    # '20M': 'black',
+    # '60M': 'teal',
+    # '90M': 'pink',
     '150M': '#1f77b4',
     '300M': '#2ca02c',
     '530M': '#ff7f0e',
@@ -50,6 +58,10 @@ SIZE_COLORS = {
 }
 
 FULL_SCHEDULE = {
+    # '4M': 5725,
+    # '20M': 14584,
+    # '60M': 29042,
+    # '90M': 29901,
     '150M': 38157,
     '300M': 45787,
     '530M': 57786,
@@ -58,6 +70,10 @@ FULL_SCHEDULE = {
 }
 
 MODEL_TO_BATCH = {
+    '4M': 32, # batch_size=32, gpus=8
+    '20M': 64,
+    '60M': 96,
+    '90M': 160,
     '150M': 192,
     '300M': 320,
     '530M': 448,
@@ -66,6 +82,10 @@ MODEL_TO_BATCH = {
 }
 
 MODEL_TO_PARAMETERS = {
+    '4M': 3_744_832,
+    '20M': 19_101_888,
+    '60M': 57_078_144,
+    '90M': 97_946_640,
     '150M': 151898880,
     '300M': 319980544,
     '530M': 530074944,
@@ -851,8 +871,6 @@ def fix_table_rendering(table):
     return table_str
 
 def plot_task_accuracy(ax, two_class_results, task, sizes, show_legend=False, size_colors=SIZE_COLORS):
-    FLOPS_150M, FLOPS_300M, FLOPS_530M, FLOPS_750M, FLOPS_1B = sizes
-    
     # First plot all scatter points
     all_x = []
     all_y = []
@@ -902,13 +920,15 @@ def plot_task_accuracy(ax, two_class_results, task, sizes, show_legend=False, si
     if show_legend: ax.legend(loc='lower right', fontsize=10, ncols=2)
 
     # Add vertical lines at specific FLOPS values with matching colors and accuracies
-    for flops, size in zip([FLOPS_150M, FLOPS_300M, FLOPS_530M, FLOPS_750M, FLOPS_1B],
-                           ['150M', '300M', '530M', '750M', '1B']):
+    # for flops, size in zip(sizes, ['150M', '300M', '530M', '750M', '1B']):
+    for flops, size in zip(sizes, list(SIZE_COLORS.keys())):
         try:
             acc = two_class_results.loc[size].get(np.float64(flops), np.nan)
             if not np.isnan(acc) and not np.isneginf(acc):
                 ax.axvline(x=flops, color=size_colors[size], linestyle=':', alpha=0.7)
                 ax.text(flops, 0.98, f' {acc:.2f}', rotation=0, 
-                    color=size_colors[size], ha='left', va='bottom')
+                    color=size_colors[size], ha='left', va='bottom', fontsize=8)
+            else:
+                raise FileNotFoundError(f'Not all results found for task={task}, size={size}')
         except Exception as e:
-            print(f'Cant graph autobench lines: {e}')
+            print(f'Cant graph cheap decisions lines: {e}')
