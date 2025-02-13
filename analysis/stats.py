@@ -125,27 +125,27 @@ def get_sig_clusters(p_vals, alpha=0.01):
     """
     sig_clusters = np.zeros(p_vals.shape[0])
 
-    # curr, curr_cluster = 0, 0
-    # while curr < p_vals.shape[0]:
-    #     idx = curr
-    #     cluster_bound = get_sig_cluster_bound(p_vals, idx, alpha)
-    #     for _ in range(idx, cluster_bound):
-    #         sig_clusters[curr] = curr_cluster
-    #         curr += 1
-    #     curr_cluster += 1
+    curr, curr_cluster = 0, 0
+    while curr < p_vals.shape[0]:
+        idx = curr
+        cluster_bound = get_sig_cluster_bound(p_vals, idx, alpha)
+        for _ in range(idx, cluster_bound):
+            sig_clusters[curr] = curr_cluster
+            curr += 1
+        curr_cluster += 1
 
-    # Draw cluster boundaries conservatively
-    n = p_vals.shape[0]
-    count = -1
-    for i in range(n):  
-        if all(p_vals[j, i] < 0.05 for j in range(i)):  
-            count += 1
-        sig_clusters[i] = count
+    # # Draw cluster boundaries conservatively
+    # n = p_vals.shape[0]
+    # count = -1
+    # for i in range(n):  
+    #     if all(p_vals[j, i] < 0.05 for j in range(i)):  
+    #         count += 1
+    #     sig_clusters[i] = count
 
     return sig_clusters
 
 
-def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, alpha=0.05, num_permutations=1_000, do_plot=False, quiet=False):
+def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, alpha=0.05, num_permutations=1_000, do_plot=False, plot_sig_clusters=True, quiet=False):
     if tasks is None: 
         tasks = df.index.get_level_values('task').unique()
 
@@ -227,8 +227,9 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
 
             # mix_scores = None
 
-        sig_clusters = get_sig_clusters(p_values, alpha=alpha)
-        # sig_clusters = None
+        sig_clusters = None
+        if plot_sig_clusters:
+            sig_clusters = get_sig_clusters(p_values, alpha=alpha)
 
         perc_sig = perc_significant(p_values, alpha=alpha)
         sig_results.loc['perc_sig', task] = perc_sig
