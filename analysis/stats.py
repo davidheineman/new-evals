@@ -87,6 +87,14 @@ def calculate_standard_error(avg_score, num_scores):
     return np.sqrt((avg_score * (1 - avg_score)) / num_scores)
 
 
+def create_stratified_array(counts):
+    """ Convert counts to 1D array of weights: [1172, 2304] => [1172, 1172, ..., 2304, 2304, ...] """
+    return np.concatenate([
+        np.full(count, count, dtype=np.float64) 
+        for value, count in enumerate(counts)
+    ])
+
+
 def get_bound(arr, idx, alpha):
     """ Get the first index where arr[i] < alpha """
     condition = (arr < alpha) # | (arr > (1-alpha))
@@ -98,14 +106,6 @@ def get_bound(arr, idx, alpha):
         return len(arr) + idx
 
     return first_index[0] + idx
-
-
-def create_stratified_array(counts):
-    """ Convert counts to 1D array of weights: [1172, 2304] => [1172, 1172, ..., 2304, 2304, ...] """
-    return np.concatenate([
-        np.full(count, count, dtype=np.float64) 
-        for value, count in enumerate(counts)
-    ])
 
 
 def get_sig_cluster_bound(p_vals, idx, alpha):
@@ -134,10 +134,18 @@ def get_sig_clusters(p_vals, alpha=0.01):
             curr += 1
         curr_cluster += 1
 
+    # # Draw cluster boundaries conservatively
+    # n = p_vals.shape[0]
+    # count = -1
+    # for i in range(n):  
+    #     if all(p_vals[j, i] < 0.05 for j in range(i)):  
+    #         count += 1
+    #     sig_clusters[i] = count
+
     return sig_clusters
 
 
-def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, alpha=0.05, num_permutations=1_000, do_plot=False, quiet=False):
+def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, alpha=0.05, num_permutations=1_000, do_plot=False, pretty_mix_names=None, plot_sig_clusters=True, quiet=False):
     if tasks is None: 
         tasks = df.index.get_level_values('task').unique()
 
@@ -149,8 +157,11 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
         if isinstance(do_plot, plt.Axes):
             axes = [do_plot] # allow passing in an axes object for plotting
         elif isinstance(do_plot, bool):
-            fig, axes = plt.subplots(n_tasks, 1, figsize=(0.5*len(models), 0.4*len(models)*n_tasks))
-            if n_tasks == 1: axes = [axes]
+            if do_plot:
+                fig, axes = plt.subplots(n_tasks, 1, figsize=(0.5*len(models), 0.4*len(models)*n_tasks))
+                if n_tasks == 1: axes = [axes]
+            else:
+                do_plot = None
         else:
             axes = do_plot
 
@@ -204,8 +215,16 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
             # Compute paired permutation test with instance weights
             p_values, mix_scores, _ = compute_weighted_pairwise_p_values(scores, num_permutations=num_permutations, weights=weights, return_scores=True)
 
+            # Reorder both rows and columns of p_values
+            sorted_indices = np.argsort(mix_scores)[::-1]
+            p_values       = p_values[np.ix_(sorted_indices, sorted_indices)]
+            mixes          = np.array(mixes)[sorted_indices]
+            mix_scores     = mix_scores[sorted_indices]
+            p_values[np.tril_indices_from(p_values, k=-1)] = np.nan
+
             # Change task name
-            task = 'aggregate'
+            from metaanalysis import get_title_from_task
+            task = get_title_from_task(task)
         else:
             p_values, mix_scores, _ = compute_pairwise_p_values(scores, num_permutations=num_permutations, return_scores=True)
             # p_values, mix_scores, _ = compute_pairwise_p_values_paired_t_test(scores, return_scores=True)
@@ -216,15 +235,20 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
 
             # mix_scores = None
 
-        sig_clusters = get_sig_clusters(p_values, alpha=alpha)
-        # sig_clusters = None
+        sig_clusters = None
+        if plot_sig_clusters:
+            sig_clusters = get_sig_clusters(p_values, alpha=alpha)
 
         perc_sig = perc_significant(p_values, alpha=alpha)
         sig_results.loc['perc_sig', task] = perc_sig
         all_p_values[task] = (mixes, scores, p_values)
 
         if do_plot is not None: 
-            axes[i] = plot_heatmap(axes[i], p_values, mixes, mix_scores, sig_clusters, alpha=alpha)
+            if pretty_mix_names is not None:
+                mix_names = [pretty_mix_names[mix] for mix in mixes]
+            else:
+                mix_names = mixes
+            axes[i] = plot_heatmap(axes[i], p_values, mix_names, mix_scores, sig_clusters, alpha=alpha)
             title = r'$p$' + f'-values for {task} (n={scores.shape[1]}) across data mixes at {("last " + str(last_n) + " steps" if last_n > 1 else "final checkpoint")} ({metric}), perc sig={(perc_sig*100):.2f}%'
             if len(models) < 15:
                 title = r'$p$' + f'-values for {task}, perc sig={(perc_sig*100):.2f}%'

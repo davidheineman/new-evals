@@ -21,9 +21,10 @@ DEFAULT_LADDER_CONFIG_PATH = f'{ROOT_DIR}/analysis/utils/ladder_config.json'
 
 ALL_METRICS = ['logits_per_char_corr', 'primary_score']
 REVERSED_METRICS = ['margin_per_byte', 'norm_correct_prob_per_byte', 'correct_prob_per_byte', 'correct_logit_per_byte', 'logits_per_char_corr', 'logits_per_byte_corr']
-DDOS_SIZES = ['150M', '300M', '530M', '750M', '1B']
-DDOS_COMPUTE_SIZES = (get_compute('150M'), get_compute('300M'), get_compute('530M'), get_compute('750M'), get_compute('1B'))
 
+DDOS_SIZES = ['4M', '20M', '60M', '90M', '150M', '300M', '530M', '750M', '1B']
+# DDOS_SIZES = ['4M', '20M', '60M', '150M', '300M', '530M', '750M', '1B']
+DDOS_COMPUTE_SIZES = tuple(get_compute(size) for size in DDOS_SIZES)
 
 def get_perf_size(df, size, task, metric):
     """ Get performance of all models at a specific size """
@@ -46,7 +47,7 @@ def get_perf_size(df, size, task, metric):
     return _slice
 
 
-def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_metric='primary_metric'):
+def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_metric='primary_metric', model_sizes=DDOS_SIZES):
     """
     Compute 2-class accuracy. We are predicting primary_metric at 1B using the metric at a smaller scale
 
@@ -54,7 +55,7 @@ def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_
     """
     if not isinstance(small_metric, list): small_metric = [small_metric]
 
-    combinations = list(itertools.product(small_metric, DDOS_SIZES, selected_tasks))
+    combinations = list(itertools.product(small_metric, model_sizes, selected_tasks))
     two_class = pd.DataFrame(columns=['metric', 'size', 'task', 'accuracy'])
 
     for metric, size, task in tqdm(combinations, desc='Computing two class accuracy', disable=(len(combinations) < 50)):
@@ -68,6 +69,11 @@ def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_
 
             # predict at the target scale (1B) 
             target_scale = get_perf_size(df, '1B', task, target_metric)['mix']
+
+            # display(_slice)
+            # # display(target_scale)
+            # if size == '150M':
+            #     raise RuntimeError()
             
             if metric in REVERSED_METRICS and target_metric not in REVERSED_METRICS: small_scale = reversed(small_scale)
             try:
@@ -104,8 +110,8 @@ def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_
     best_metric_df = two_class.loc[two_class.groupby(['task', 'size', 'step'])['accuracy'].idxmax()][['task', 'size', 'step', 'metric', 'compute']].reset_index(drop=True)
 
     # Create pivot tables with size in specified order
-    acc_pivot = best_acc_df.pivot(index='task', columns=['size', 'compute'], values='accuracy')[DDOS_SIZES]
-    metric_pivot = best_metric_df.pivot(index='task', columns=['size', 'compute'], values='metric')[DDOS_SIZES]
+    acc_pivot = best_acc_df.pivot(index='task', columns=['size', 'compute'], values='accuracy')[model_sizes]
+    metric_pivot = best_metric_df.pivot(index='task', columns=['size', 'compute'], values='metric')[model_sizes]
 
     # Add average row
     acc_pivot.loc['average'] = acc_pivot.mean()
@@ -188,8 +194,8 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             axes=[ax]
         )
         if ax:
-            # ax.get_legend().remove()
-            ax.legend(fontsize=3, ncols=2)
+            ax.get_legend().remove()
+            # ax.legend(fontsize=3, ncols=2)
             ax.set_xlabel('Task loss (BPB)')
             ax.set_ylabel(primary_score_name)
             ax.text(
@@ -258,43 +264,43 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
 
     # Consistent rankings analysis
     try:
-        two_class, acc_pivot, metric_pivot = construct_2class_table(
+        two_class, acc_pivot_bpb_primary, metric_pivot = construct_2class_table(
             df, [task], small_metric='logits_per_byte_corr', target_metric='primary_score'
         )
-        two_class_results = acc_pivot.loc[str(task)].unstack()
+        two_class_results = acc_pivot_bpb_primary.loc[str(task)].unstack()
         if axes is not None:
             ax: plt.Axes = axes[1, 2]
-            plot_task_accuracy(ax, two_class_results, str(task), DDOS_COMPUTE_SIZES, show_legend=True)
-            ax.legend(fontsize=6, loc='lower right')
+            plot_task_accuracy(ax, two_class_results, str(task), DDOS_COMPUTE_SIZES)
             ax.set_ylabel(f'Decision Acc (BPB on {primary_score_name})')
             ax.set_ylim(0.75, 1)
 
-        two_class, acc_pivot, metric_pivot = construct_2class_table(
+        two_class, acc_pivot_best_metric, metric_pivot = construct_2class_table(
             df, [task], target_metric='primary_score'
         )
-        two_class_results = acc_pivot.loc[str(task)].unstack()
+        two_class_results = acc_pivot_best_metric.loc[str(task)].unstack()
         if axes is not None:
             ax: plt.Axes = axes[2, 2]
-            plot_task_accuracy(ax, two_class_results, str(task), DDOS_COMPUTE_SIZES, show_legend=True)
-            ax.legend(fontsize=6, loc='lower right')
+            plot_task_accuracy(ax, two_class_results, str(task), DDOS_COMPUTE_SIZES)
             ax.set_ylabel(f'Decision Acc (best on {primary_score_name})')
             ax.set_ylim(0.75, 1)
             
-        two_class, acc_pivot, metric_pivot = construct_2class_table(
+        two_class, acc_pivot_bpb, metric_pivot = construct_2class_table(
             df, [task], 
             small_metric='logits_per_byte_corr', target_metric='logits_per_byte_corr'
         )
-        two_class_results = acc_pivot.loc[str(task)].unstack()
+        two_class_results = acc_pivot_bpb.loc[str(task)].unstack()
         if axes is not None:
             ax: plt.Axes = axes[3, 2]
             plot_task_accuracy(ax, two_class_results, str(task), DDOS_COMPUTE_SIZES, show_legend=True)
-            ax.legend(fontsize=6, loc='lower right')
+            ax.legend(fontsize=6, ncols=2)
             ax.set_ylabel('Decision Acc (BPB on BPB)')
             ax.set_ylim(0.75, 1)
 
-        two_class_bpb_150M, two_class_acc_150M = float('-inf'), float('-inf') # TODO: compute this
+        two_class_bpb_150M = acc_pivot_bpb['150M'].loc[task].item()
+        two_class_acc_150M = acc_pivot_best_metric['150M'].loc[task].item()
     except Exception as e:
         print(task, 'failed on consistent ranking analysis', e)
+        # raise RuntimeError(task, 'failed on consistent ranking analysis', e)
         two_class_bpb_150M, two_class_acc_150M = float('-inf'), float('-inf')
 
     if axes is not None:

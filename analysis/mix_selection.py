@@ -28,16 +28,18 @@ def compute_flops(N, mult):
 
 def get_mix(model):
     """ dolma17-75p-DCLM-baseline-25p-1B-5xC => dolma17-75p-DCLM-baseline-25p """
+    if model.endswith("-2"):
+        model = model[:-2]
     return '-'.join(model.split('-')[:-2])
 
 
-def simulate_mix_selection(df, method, sizes, models, mixes, task, mult=None, top_n_clusters=None, last_n=1, alpha=None, quiet=True):
+def simulate_mix_selection(df, method, sizes, models, mixes, task, mult=None, top_n_clusters=None, last_n=1, step='max', alpha=None, quiet=True):
     """ Simulate training and rejecting mixes for TASK in the order of SIZES """
     curr_mixes = mixes
     cumulative_compute = 0
 
     for curr_size in sizes:
-        curr_models = [model for model in models if (curr_size in model) and get_mix(model) in curr_mixes]
+        curr_models = [model for model in models if (curr_size in model) and get_mix(model) in curr_mixes] 
         
         if mult is None: raise RuntimeError(f'Must specify chilchilla multiplier to compute FLOPS!')
 
@@ -50,8 +52,9 @@ def simulate_mix_selection(df, method, sizes, models, mixes, task, mult=None, to
         #     print('manual override for last_n=1!')
         #     last_n = 1
         if isinstance(task, list):
-            print('manual override for last_n=1!')
-            last_n = 1
+            if last_n is not None: 
+                print('manual override for last_n=1!')
+                last_n = 1
 
         # Step 1: Compute pairwise comparisons between models
         _, p_values, axes = compute_significance(
@@ -62,7 +65,8 @@ def simulate_mix_selection(df, method, sizes, models, mixes, task, mult=None, to
             alpha=alpha, 
             tasks=[task], 
             do_plot=(not quiet), 
-            quiet=quiet
+            quiet=quiet,
+            step=step
         )
 
         task_name = task
@@ -88,7 +92,7 @@ def simulate_mix_selection(df, method, sizes, models, mixes, task, mult=None, to
     return pred_mixes, cumulative_compute
 
 
-def run_simulations(df, sorted_sizes, task, models, mixes, top_n_clusters, top_n_clusters_eval, alpha, alpha_eval, last_n, model_pool='prefix', quiet=True):
+def run_simulations(df, sorted_sizes, task, models, mixes, top_n_clusters, top_n_clusters_eval, alpha, alpha_eval, last_n, step='max', model_pool='prefix', quiet=True):
     """ Run many different simulations on different compute setups and compute the F1 of predicting target mixes """
     results = []
 
@@ -103,6 +107,7 @@ def run_simulations(df, sorted_sizes, task, models, mixes, top_n_clusters, top_n
         mult=5, 
         top_n_clusters=top_n_clusters_eval, 
         alpha=alpha_eval,
+        step=step,
         last_n=last_n,
     )
     results += [('gold', gold_compute, (1, 1, 1))]
@@ -134,6 +139,7 @@ def run_simulations(df, sorted_sizes, task, models, mixes, top_n_clusters, top_n
             top_n_clusters=top_n_clusters, 
             alpha=alpha,
             last_n=last_n,
+            step=step,
             quiet=quiet
         )
 
