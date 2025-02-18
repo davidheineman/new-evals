@@ -50,7 +50,7 @@ def get_max_k_step(_slice, k=1):
     return _slice
 
 
-def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, sorted=False):
+def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, sorted=False, return_index=False):
     """ Get an nd array of (COL, instances), sorted by overall performance """
     col = [col] if not isinstance(col, list) else col
     
@@ -72,7 +72,7 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
 
     if is_multiindex:
         # For native_ids which count up from 0, there are the same IDs across tasks. Append the task name.
-        slices['native_id'] = slices['native_id'] + '_' + slices['task'].astype(str)
+        slices['native_id'] = slices['native_id'] + ':' + slices['task'].astype(str)
         
         duplicates_count = slices.duplicated(subset=['native_id'] + col).sum()
         if duplicates_count > 0:
@@ -86,6 +86,7 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
         pivoted = slices.pivot(index='native_id', columns=col, values=metric)
 
         columns = pivoted.columns
+        index = pivoted.index
         scores = pivoted.to_numpy()
     else:
         if len(col) == 1:
@@ -93,6 +94,7 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
             scores  = slices[metric].to_numpy()
         else:
             pivoted = slices.pivot(index=col[0], columns=col[1:], values=metric)
+            index = pivoted.index
             columns = pivoted.columns
             scores = pivoted.to_numpy()
 
@@ -129,15 +131,21 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
         if len(col) == 1 and not is_multiindex: 
             sorted_indices = np.argsort(scores)
             columns = columns[sorted_indices]
+            index = index[sorted_indices]
             scores  = scores[sorted_indices]
         else:
             # Sort by overall performance
             mix_sums = scores.sum(axis=1)
             sorted_indices = mix_sums.argsort()[::-1]
             columns = columns[sorted_indices].tolist()
+            index = index[sorted_indices].tolist()
             scores = scores[sorted_indices]
 
     if not isinstance(columns, list): 
         columns = columns.tolist()
+    if not isinstance(index, list): 
+        index = index.tolist()
 
+    if return_index:
+        return index, columns, scores
     return columns, scores
