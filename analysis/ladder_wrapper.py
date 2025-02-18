@@ -47,7 +47,11 @@ COLOR_MAP = {
     'deepseek': 'pink',
     'zephyr': 'green',
     'neo': 'orange',
-    'falcon': 'blue'
+    'falcon': 'blue',
+
+    # code models 
+    'starcoder': 'grey',
+    'stablelm': 'grey',
 }
 
 

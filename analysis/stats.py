@@ -145,7 +145,7 @@ def get_sig_clusters(p_vals, alpha=0.01):
     return sig_clusters
 
 
-def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, alpha=0.05, num_permutations=1_000, do_plot=False, plot_sig_clusters=True, quiet=False):
+def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, alpha=0.05, num_permutations=1_000, do_plot=False, pretty_mix_names=None, plot_sig_clusters=True, quiet=False):
     if tasks is None: 
         tasks = df.index.get_level_values('task').unique()
 
@@ -215,8 +215,16 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
             # Compute paired permutation test with instance weights
             p_values, mix_scores, _ = compute_weighted_pairwise_p_values(scores, num_permutations=num_permutations, weights=weights, return_scores=True)
 
+            # Reorder both rows and columns of p_values
+            sorted_indices = np.argsort(mix_scores)[::-1]
+            p_values       = p_values[np.ix_(sorted_indices, sorted_indices)]
+            mixes          = np.array(mixes)[sorted_indices]
+            mix_scores     = mix_scores[sorted_indices]
+            p_values[np.tril_indices_from(p_values, k=-1)] = np.nan
+
             # Change task name
-            task = 'aggregate'
+            from metaanalysis import get_title_from_task
+            task = get_title_from_task(task)
         else:
             p_values, mix_scores, _ = compute_pairwise_p_values(scores, num_permutations=num_permutations, return_scores=True)
             # p_values, mix_scores, _ = compute_pairwise_p_values_paired_t_test(scores, return_scores=True)
@@ -236,7 +244,11 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
         all_p_values[task] = (mixes, scores, p_values)
 
         if do_plot is not None: 
-            axes[i] = plot_heatmap(axes[i], p_values, mixes, mix_scores, sig_clusters, alpha=alpha)
+            if pretty_mix_names is not None:
+                mix_names = [pretty_mix_names[mix] for mix in mixes]
+            else:
+                mix_names = mixes
+            axes[i] = plot_heatmap(axes[i], p_values, mix_names, mix_scores, sig_clusters, alpha=alpha)
             title = r'$p$' + f'-values for {task} (n={scores.shape[1]}) across data mixes at {("last " + str(last_n) + " steps" if last_n > 1 else "final checkpoint")} ({metric}), perc sig={(perc_sig*100):.2f}%'
             if len(models) < 15:
                 title = r'$p$' + f'-values for {task}, perc sig={(perc_sig*100):.2f}%'

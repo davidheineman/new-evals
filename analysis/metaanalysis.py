@@ -22,8 +22,8 @@ DEFAULT_LADDER_CONFIG_PATH = f'{ROOT_DIR}/analysis/utils/ladder_config.json'
 ALL_METRICS = ['logits_per_char_corr', 'primary_score']
 REVERSED_METRICS = ['margin_per_byte', 'norm_correct_prob_per_byte', 'correct_prob_per_byte', 'correct_logit_per_byte', 'logits_per_char_corr', 'logits_per_byte_corr']
 
-# DDOS_SIZES = ['4M', '20M', '60M', '90M', '150M', '300M', '530M', '750M', '1B']
-DDOS_SIZES = ['4M', '20M', '60M', '150M', '300M', '530M', '750M', '1B']
+DDOS_SIZES = ['4M', '20M', '60M', '90M', '150M', '300M', '530M', '750M', '1B']
+# DDOS_SIZES = ['4M', '20M', '60M', '150M', '300M', '530M', '750M', '1B']
 DDOS_COMPUTE_SIZES = tuple(get_compute(size) for size in DDOS_SIZES)
 
 def get_perf_size(df, size, task, metric):
@@ -194,8 +194,8 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             axes=[ax]
         )
         if ax:
-            # ax.get_legend().remove()
-            ax.legend(fontsize=3, ncols=2)
+            ax.get_legend().remove()
+            # ax.legend(fontsize=3, ncols=2)
             ax.set_xlabel('Task loss (BPB)')
             ax.set_ylabel(primary_score_name)
             ax.text(
