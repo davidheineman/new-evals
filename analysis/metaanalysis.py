@@ -146,6 +146,8 @@ def set_title_from_task(ax: plt.Axes, task):
 
 
 def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_models, metric='primary_score', axes=None, ladder_config_path=DEFAULT_LADDER_CONFIG_PATH):
+    results = {}
+    
     primary_score_name = PRIMARY_METRICS_OLMES[task] if isinstance(task, str) and task in PRIMARY_METRICS_OLMES else 'primary_score'
     try:
         # Step 1 ladder prediction (base models)
@@ -159,7 +161,10 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             run_step2=False, run_stacked=False,
             axes=[ax]
         )
-        rel_error_step_1 = rel_error_step_1[0] # keep 7B-5T
+        results.update({
+            "rel_error_step_1_7b": rel_error_step_1[0], 
+            "rel_error_step_1_13B": rel_error_step_1[1], 
+        })
         if ax:
             ax.set_ylabel('Task loss (BPB)')
             ax.legend(fontsize=6)
@@ -175,7 +180,10 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             run_step1=False, run_stacked=False,
             axes=[ax]
         )
-        rel_error_step_2 = rel_error_step_2[0] # keep 7B-5T
+        results.update({
+            "rel_error_step_2_7b": rel_error_step_2[0], 
+            "rel_error_step_2_13B": rel_error_step_2[1], 
+        })
         if ax:
             ax.set_xlabel('Task loss (BPB)')
             ax.set_ylabel(primary_score_name)
@@ -193,6 +201,9 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             return_fit_error=True,
             axes=[ax]
         )
+        results.update({
+            "mean_error_step_2_external": mean_error_step_2, 
+        })
         if ax:
             ax.get_legend().remove()
             # ax.legend(fontsize=3, ncols=2)
@@ -216,14 +227,16 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             run_step1=False, run_step2=False,
             axes=[ax]
         )
-        rel_error_stacked = rel_error_stacked[0] # keep 7B-5T
+        results.update({
+            "rel_error_stacked_7b": rel_error_stacked[0], 
+            "rel_error_stacked_13b": rel_error_stacked[1], 
+        })
         if ax:
             ax.set_ylabel(primary_score_name)
             ax.legend(fontsize=6)
     except Exception as e:
         print(task, 'failed on ladder fits', e)
         # raise RuntimeError(task, 'failed on ladder fits', e)
-        rel_error_step_1, rel_error_step_2, rel_error_stacked, mean_error_step_2 = float('-inf'), float('-inf'), float('-inf'), float('-inf')
 
     # intermediate checkpoints
     intermediate_models = ['peteish-moreeval-1B-5xC', 'peteish13-highlr']
@@ -262,6 +275,13 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
 
         intermediate_tv += [(tv_bpb, tv_primary)]
 
+    results.update({
+        "tv_bpb_1b": intermediate_tv[0][0], 
+        "tv_primary_1b": intermediate_tv[0][1], 
+        "tv_bpb_7b": intermediate_tv[1][0], 
+        "tv_primary_7b": intermediate_tv[1][1]
+    })
+
     # Consistent rankings analysis
     try:
         two_class, acc_pivot_bpb_primary, metric_pivot = construct_2class_table(
@@ -296,12 +316,28 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             ax.set_ylabel('Decision Acc (BPB on BPB)')
             ax.set_ylim(0.75, 1)
 
-        two_class_bpb_150M = acc_pivot_bpb['150M'].loc[task].item()
-        two_class_acc_150M = acc_pivot_best_metric['150M'].loc[task].item()
+        results.update({
+            "two_class_bpb_4M": acc_pivot_bpb['4M'].loc[str(task)].item(),
+            "two_class_bpb_20M": acc_pivot_bpb['20M'].loc[str(task)].item(),
+            "two_class_bpb_60M": acc_pivot_bpb['60M'].loc[str(task)].item(),
+            "two_class_bpb_90M": acc_pivot_bpb['90M'].loc[str(task)].item(),
+            "two_class_bpb_150M": acc_pivot_bpb['150M'].loc[str(task)].item(),
+            "two_class_bpb_300M": acc_pivot_bpb['300M'].loc[str(task)].item(),
+            "two_class_bpb_530M": acc_pivot_bpb['530M'].loc[str(task)].item(),
+            "two_class_bpb_750M": acc_pivot_bpb['750M'].loc[str(task)].item(),
+
+            "two_class_acc_4M": acc_pivot_best_metric['4M'].loc[str(task)].item(),
+            "two_class_acc_20M": acc_pivot_best_metric['20M'].loc[str(task)].item(),
+            "two_class_acc_60M": acc_pivot_best_metric['60M'].loc[str(task)].item(),
+            "two_class_acc_90M": acc_pivot_best_metric['90M'].loc[str(task)].item(),
+            "two_class_acc_150M": acc_pivot_best_metric['150M'].loc[str(task)].item(),
+            "two_class_acc_300M": acc_pivot_best_metric['300M'].loc[str(task)].item(),
+            "two_class_acc_530M": acc_pivot_best_metric['530M'].loc[str(task)].item(),
+            "two_class_acc_750M": acc_pivot_best_metric['750M'].loc[str(task)].item(),
+        })
     except Exception as e:
         print(task, 'failed on consistent ranking analysis', e)
         # raise RuntimeError(task, 'failed on consistent ranking analysis', e)
-        two_class_bpb_150M, two_class_acc_150M = float('-inf'), float('-inf')
 
     if axes is not None:
         for ax in axes.flat:
@@ -322,20 +358,10 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             assert (task_results['num_instances'] == num_instances).all(), f"num_instances should be constant across task={subtask} for task_as_list={task_as_list}"
             total_cost += eval_cost
         total_cost = int(total_cost)
+        results.update({
+            "total_cost": total_cost
+        })
     except Exception as e:
         print('Failed to calculate compute cost:', e)
-        total_cost = float('-inf')
 
-    return {
-        "mean_error_step_2": mean_error_step_2, 
-        "rel_error_step_1": rel_error_step_1, 
-        "rel_error_step_2": rel_error_step_2, 
-        "rel_error_stacked": rel_error_stacked, 
-        "tv_bpb_1b": intermediate_tv[0][0], 
-        "tv_primary_1b": intermediate_tv[0][1], 
-        "tv_bpb_7b": intermediate_tv[1][0], 
-        "tv_primary_7b": intermediate_tv[1][1], 
-        "two_class_bpb_150M": two_class_bpb_150M,
-        "two_class_acc_150M": two_class_acc_150M,
-        "total_cost": total_cost
-    }
+    return results

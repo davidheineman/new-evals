@@ -92,6 +92,7 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
         if len(col) == 1:
             columns = slices[col[0]].to_numpy()
             scores  = slices[metric].to_numpy()
+            index   = slices.index
         else:
             pivoted = slices.pivot(index=col[0], columns=col[1:], values=metric)
             index = pivoted.index
