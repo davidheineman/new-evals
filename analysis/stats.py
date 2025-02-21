@@ -241,7 +241,7 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
 
         perc_sig = perc_significant(p_values, alpha=alpha)
         sig_results.loc['perc_sig', task] = perc_sig
-        all_p_values[task] = (mixes, scores, p_values)
+        all_p_values[task] = (mixes, scores, p_values, sig_clusters)
 
         if do_plot is not None: 
             if pretty_mix_names is not None:

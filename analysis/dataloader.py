@@ -42,6 +42,37 @@ def get_slice(df, mix=None, model=None, task=None, step=None):
     return df
 
 
+def get_instance(df, instance_id):
+    """ Index to return a df of some (instance_id) """
+    instance_ids   = [instance_id] if isinstance(instance_id, str) else instance_id
+
+    # Dynamically create a slicing tuple matching the index levels
+    level_slices = {
+        'instance_id': instance_ids if instance_ids else slice(None),
+    }
+    slicing_tuple = tuple(level_slices.get(level, slice(None)) for level in df.index.names)
+
+    is_multiindex = isinstance(df.index, pd.MultiIndex)
+
+    if is_multiindex:
+        try:
+            df = df.loc[slicing_tuple]
+        except KeyError:
+            return df.iloc[0:0]  # Return an empty DataFrame if no match
+    else:
+        # Slow index
+        df = df[
+            (df['instance_id'].isin(level_slices['instance_id']) if isinstance(level_slices['instance_id'], list) else True)
+        ]
+    
+    # Sort and return
+    if 'step' in df.index.names:
+        df = df.sort_index(level='step')
+    df = df.reset_index()
+
+    return df
+
+
 def get_max_k_step(_slice, k=1):
     """Filter for only rows with the top 5 steps."""
     top_steps = _slice['step'].nlargest(k).unique()
