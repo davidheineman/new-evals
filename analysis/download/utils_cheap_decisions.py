@@ -15,6 +15,10 @@ import pandas as pd
 
 
 PRIMARY_METRICS_OLMES = {
+    # Custom entries
+    'autobencher': 'acc_per_char',
+    'autobencher:mc': 'acc_per_char',
+
     'aime': 'exact_match_flex', 
     'alpaca_eval': 'win_rate', 
     'arc_challenge': 'acc_uncond', 
@@ -749,8 +753,8 @@ def safe_eval(x):
         print(f"Error processing value: {x} | Error: {e}")
         return x  # Keep the original value if it fails
 
-def clean_data_and_compute_averages(df, quiet=True):
-    """ Wrapper around Ian's data cleaning to compute macro averages """
+
+def expand_df(df, quiet=True):
     if "Unnamed: 0" in df.columns:
         df = df.drop(columns=["Unnamed: 0"], errors='ignore')
 
@@ -772,30 +776,59 @@ def clean_data_and_compute_averages(df, quiet=True):
     df['size'] = df['model']
     df['model'] = df['group'] + '-' + df['model'] + '-' + df['chinchilla']
 
+    return df
+
+
+def clean_data_and_compute_averages(df, quiet=True):
+    """ Wrapper around Ian's data cleaning to compute macro averages """
     if not quiet: print('Launching data cleaning!')
 
     df = ian_clean_data(df, dirty_out=False, quiet=quiet)
 
     if not quiet: print('Computing macro averages...')
 
-    # Compute MMLU macro-average
+    print(f'Before computing macro averages: {len(df)}')
+
+    # # Compute MMLU macro-average
+    # group_cols = ['group', 'model', 'chinchilla', 'step', 'seed']
+    # agg_cols = [col for col in df.columns if col not in group_cols and col != 'task']
+    # mmlu_rows = df[df['task'].str.contains("MMLU", case=False)]
+    # numeric_cols = mmlu_rows[agg_cols].select_dtypes(include=['number']).columns.tolist()
+    # aggregated = mmlu_rows.groupby(group_cols, as_index=False)[numeric_cols].mean()
+    # aggregated['task'] = 'mmlu'
+    # df = df[~df['task'].str.contains("MMLU", case=False)]
+    # df = pd.concat([df, aggregated], ignore_index=True)
+
+    # # Compute olmes macro-average
+    # group_cols = ['group', 'model', 'chinchilla', 'step', 'seed']
+    # agg_cols = [col for col in df.columns if col not in group_cols and col != 'task']
+    # olmes_rows = df # olmes_rows = df[df['task'].str.contains("olmes", case=False)]
+    # numeric_cols = olmes_rows[agg_cols].select_dtypes(include=['number']).columns.tolist()
+    # aggregated = olmes_rows.groupby(group_cols, as_index=False)[numeric_cols].mean()
+    # aggregated['task'] = 'olmes_10_macro_avg'
+    # df = pd.concat([df, aggregated], ignore_index=True)
+
     group_cols = ['group', 'model', 'chinchilla', 'step', 'seed']
-    agg_cols = [col for col in df.columns if col not in group_cols and col != 'task']
+    agg_cols = [col for col in df.columns if col not in group_cols and col not in ['task', 'num_instances']]
+
+    # Compute MMLU macro-average
     mmlu_rows = df[df['task'].str.contains("MMLU", case=False)]
     numeric_cols = mmlu_rows[agg_cols].select_dtypes(include=['number']).columns.tolist()
-    aggregated = mmlu_rows.groupby(group_cols, as_index=False)[numeric_cols].mean()
+    aggregated = mmlu_rows.groupby(group_cols, as_index=False).agg({col: 'mean' for col in numeric_cols})
+    aggregated['num_instances'] = mmlu_rows.groupby(group_cols)['num_instances'].sum().values
     aggregated['task'] = 'mmlu'
     df = df[~df['task'].str.contains("MMLU", case=False)]
     df = pd.concat([df, aggregated], ignore_index=True)
 
-    # Compute olmes macro-average
-    group_cols = ['group', 'model', 'chinchilla', 'step', 'seed']
-    agg_cols = [col for col in df.columns if col not in group_cols and col != 'task']
-    olmes_rows = df # olmes_rows = df[df['task'].str.contains("olmes", case=False)]
+    # Compute Olmes macro-average
+    olmes_rows = df  # If needed, filter with df[df['task'].str.contains("olmes", case=False)]
     numeric_cols = olmes_rows[agg_cols].select_dtypes(include=['number']).columns.tolist()
-    aggregated = olmes_rows.groupby(group_cols, as_index=False)[numeric_cols].mean()
+    aggregated = olmes_rows.groupby(group_cols, as_index=False).agg({col: 'mean' for col in numeric_cols})
+    aggregated['num_instances'] = olmes_rows.groupby(group_cols)['num_instances'].sum().values
     aggregated['task'] = 'olmes_10_macro_avg'
     df = pd.concat([df, aggregated], ignore_index=True)
+
+    print(f'After computing macro averages: {len(df)}')
 
     df['size'] = df['model'].str.split('-').str[-2]
 
@@ -863,6 +896,12 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
     ])
 
     df = df[~df['group'].isin(bad_mixes)]
+    df.loc[df['group'] == 'DCLM-baseline-4M-5xC', 'group'] = 'DCLM-baseline'
+    df = df[df['model_full'] != 'DCLM-baseline-4M-5xC-4M-5xC']
+
+    print(df['group'].unique())
+    print(df['group'].value_counts())
+    print(df['size'].value_counts())
 
     # print(len(df['group'].unique()))
     assert set(sorted(df['group'].unique())) == cannonical_groups
@@ -924,6 +963,10 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
     
     # 5) Throw out all steps beyond the end of LR schedule
     full_schedule_last_step_per_model = {
+        '4M': 5725,  # min step value from {5745, 5725, 5735}
+        '20M': 14584,  # min step value from {14584, 14594}
+        '60M': 29042,  # min step value from {29042, 29052, 29062}
+        '90M': 29901,
         '150M': 38157,
         '300M': 45787,
         '530M': 57786,
@@ -993,6 +1036,24 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
                 print(f"seed {seed} latest step: {latest_step}")
 
     print(f'Step 6 (excluded): {len(df)}')
+
+    # df = df[df["sum_logits_corr"] != 0]
+    df = df.fillna(0)
+    # df = df[~df["sum_logits_corr"].between(-1e-2, 1e-2)]
+
+    # Grouping criteria
+    group_cols = ['model', 'group', 'task', 'step', 'seed']
+
+    # Count occurrences of each group
+    df['count'] = df.groupby(group_cols)['sum_logits_corr'].transform('count')
+
+    # Identify groups with exactly two occurrences where one has sum_logits_corr == 0
+    to_drop = df[(df['count'] == 2) & (df['sum_logits_corr'] == 0)][group_cols]
+
+    # Drop all rows belonging to these groups
+    df = df.merge(to_drop, on=group_cols, how='left', indicator=True).query('_merge == "left_only"').drop(columns=['count', '_merge'])
+
+    print(df)
     
     # 7) Throw out duplicate rows based on ['model', 'group', 'task', 'step', 'seed']
     def check_duplicates(df):
@@ -1005,7 +1066,7 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
                 raise
 
     # prove to myself that these are just duplicates before dropping them (uncomment to run)
-    check_duplicates(df.fillna(0).round(6).drop_duplicates())
+    check_duplicates(df.round(6).drop_duplicates())
 
     # drop duplicates
     df = df.groupby(['model', 'group', 'task', 'step', 'seed']).first().reset_index()
@@ -1030,6 +1091,10 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
     df = df.drop(columns=columns_to_drop, errors='ignore')
 
     model_to_batch = {
+        '4M': 32,
+        '20M': 64,
+        '60M': 96,
+        '90M': 160,
         '150M': 192,
         '300M': 320,
         '530M': 448,
@@ -1037,7 +1102,17 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
         '1B': 704
     }
     
-    model_to_params = {'150M': 151898880, '300M': 319980544, '530M': 530074944, '750M': 681297408, '1B': 1176832000}
+    model_to_params = {
+        '4M': 3744832,
+        '20M': 19101888,
+        '60M': 57078144,
+        '90M': 97946640,
+        '150M': 151898880, 
+        '300M': 319980544, 
+        '530M': 530074944, 
+        '750M': 681297408, 
+        '1B': 1176832000, # Non embedding params
+    }
     model_to_params = {k: float(v) for k, v in model_to_params.items()}
 
     sequence_length = 2048

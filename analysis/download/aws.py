@@ -78,6 +78,21 @@ def download_file(s3_client, bucket_name, key, local_dir, excluded_file_names):
         dir_path, file_name = os.path.split(local_path)
         local_path = os.path.join(dir_path, "step0-hf", file_name)
 
+    # Manual override for Kyle's eval setup
+    if 'reddit' in local_path:
+        # 1) Seperate checkpoint: [MODEL_NAME]_step2693-hf => [MODEL_NAME]/step2693-hf
+        local_path = re.sub(r'([a-zA-Z0-9_-]+)_step(\d+)-hf', r'\1/step\2-hf', local_path)
+
+        # 2) Remove any subfolders after checkpoint: [MODEL_NAME]/step2693-hf/gsm8k__olmes/result.json => step2693-hf/result.json
+        local_path = re.sub(r'(step\d+-hf)(/.*)?/([^/]+)$', r'\1/\3', local_path)
+
+    if 'peteish32' in local_path:
+        # Separate checkpoint: [MODEL_NAME]_stepXXXX??? => [MODEL_NAME]/stepXXXX???
+        local_path = re.sub(r'([a-zA-Z0-9_-]+)_step(\d+)(-[^/]*)?', r'\1/step\2\3', local_path)
+
+        # Remove any subfolders after checkpoint: [MODEL_NAME]/stepXXXX???/.../... => stepXXXX???/file
+        local_path = re.sub(r'(step\d+[^/]*)/.*?/([^/]+)$', r'\1/\2', local_path)
+
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
     s3_client.download_file(bucket_name, key, local_path)
 
@@ -105,13 +120,17 @@ def mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100, exclu
     if s3_prefix_list is not None:
         with open(s3_prefix_list, 'r') as file:
             s3_prefixes = [line.strip() for line in file.readlines() if line.strip()]
-    else:
+    elif not isinstance(s3_prefix, list):
         s3_prefixes = [s3_prefix]
+    else:
+        s3_prefixes = s3_prefix
+
+    print(f'Searching through S3 prefixes: {s3_prefixes}')
 
     # with ProcessPoolExecutor() as executor:
     with ThreadPoolExecutor(max_workers=100) as executor:
         # TODO: Combine both if branches into one set of results
-        if s3_prefix_list is not None:
+        if s3_prefix_list is not None or len(s3_prefix) > 1:
             future_to_prefix = {}
             with tqdm(total=len(s3_prefixes), desc="Submitting S3 prefix tasks", unit="prefix") as submit_pbar:
                 for prefix in s3_prefixes:
@@ -164,6 +183,14 @@ def main():
     # mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100, excluded_file_names=[])
     # # #############################################################
 
+    # # #### GET REQUESTS FROM METAEVAL PROJECT FOR QUESTION TEXT ####
+    # bucket_name = 'ai2-llm'
+    # s3_prefix = 'eval-results/downstream/metaeval/OLMo-ladder/peteish-moreeval-rerun-1B-1xC/step16279-unsharded-hf/'
+    # folder_name = 'aws'
+    # local_dir = f'{DATA_DIR}/{folder_name}'
+    # mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100, excluded_file_names=[])
+    # # #############################################################
+
     # bucket_name = 'ai2-llm'
     # s3_prefix = 'evaluation/microanneal-peteish-7b-postmortem/'
     # folder_name = 'olmo2_microanneals'
@@ -173,12 +200,24 @@ def main():
     # folder_name = 'olmo2_anneals'
 
     # bucket_name = "ai2-llm"
+    # s3_prefix = ["evaluation/anneal-peteish-7b", "evaluation/peteish7-pdfs"]
+    # folder_name = 'olmo2_anneals_with_pdf'
+
+    # bucket_name = "ai2-llm"
     # s3_prefix = "evaluation/peteish7-soup"
     # folder_name = 'olmo2_soups'
 
+    # bucket_name = 'ai2-llm'
+    # s3_prefix = 'eval-results/downstream/metaeval/'
+    # folder_name = 'aws'
+
+    # bucket_name = 'ai2-llm'
+    # s3_prefix = 'evaluation/olmo-reddit/'
+    # folder_name = 'reddit'
+
     bucket_name = 'ai2-llm'
-    s3_prefix = 'eval-results/downstream/metaeval/'
-    folder_name = 'aws'
+    s3_prefix = 'evaluation/peteish32/'
+    folder_name = 'peteish32'
 
     # bucket_name = 'ai2-llm'
     # s3_prefix = 'eval-results/downstream/eval-for-consistent-ranking-preemption-fixed/'
@@ -188,8 +227,8 @@ def main():
     # s3_prefix_list = 'analysis/data/cheap_decisions_paths.txt'
     # folder_name = 'consistent_ranking'
 
-    # bucket_name = 'ai2-llm' # pull from the folder instead
-    # s3_prefix = 'eval-results/downstream/eval-for-consistent-ranking/'
+    # bucket_name = 'ai2-llm' # pull from this consistent ranking folder instead
+    # s3_prefix = ['eval-results/downstream/eval-for-consistent-ranking/', 'eval-results/downstream/eval-for-consistent-ranking-small/']
     # folder_name = 'consistent_ranking'
 
     local_dir = f'{DATA_DIR}/{folder_name}'
@@ -201,6 +240,8 @@ def main():
     from preprocess import main
     main(folder_name, file_type='metrics')
     main(folder_name, file_type='predictions')
+    # main(folder_name, file_type='lite_predictions')
+    # main(folder_name, file_type='medium_predictions')
 
     # Push to HF!
     from hf import main

@@ -1,7 +1,7 @@
 CLUSTER="\
 ai2/jupiter-cirrascale-2,\
 ai2/neptune-cirrascale,\
-ai2/saturn-cirrascale,
+ai2/saturn-cirrascale
 "
 
 # Test configuration
@@ -51,9 +51,9 @@ ai2/saturn-cirrascale,
 # weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-2xC \
 # "
 
-# TASK_LIST="\
-# autobencher::none \
-# "
+TASK_LIST="\
+autobencher::none \
+"
 
 # TASK_LIST="\
 # arxiv_math::llm_compression \
@@ -61,11 +61,11 @@ ai2/saturn-cirrascale,
 # python::llm_compression \
 # "
 
-TASK_LIST="\
-sky_t1::custom_loss \
-numia_math::custom_loss \
-tulu_if::custom_loss \
-"
+# TASK_LIST="\
+# sky_t1::custom_loss \
+# numia_math::custom_loss \
+# tulu_if::custom_loss \
+# "
 
 # TASK_LIST="\
 # arxiv_math::llm_compression \
@@ -79,23 +79,23 @@ tulu_if::custom_loss \
 # weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-10xC/step162000-unsharded-hf \
 # "
 
-MODEL_LIST="\
-weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-5xC \
-"
+# MODEL_LIST="\
+# weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-5xC \
+# "
 
 # MODEL_LIST="\
 # llama3-70b \
 # "
 
-# MODEL_LIST="\
-# qwen2-1.5b \
-# "
+MODEL_LIST="\
+Yi-1.5-9B \
+"
 
 # GPUS=4
 # MODEL_TYPE=vllm
 
 GPUS=1
-MODEL_TYPE=hf
+MODEL_TYPE=vllm
 
 oe-eval \
     --task $TASK_LIST \

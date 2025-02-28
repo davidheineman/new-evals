@@ -1,4 +1,4 @@
-import json, os, re, sys
+import json, os, re, sys, yaml
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Pool
@@ -9,13 +9,15 @@ import pandas as pd
 import numpy as np
 import psutil
 from tqdm import tqdm
+import boto3
 
 # Add parent directory to the path
 parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
 
 from utils import DATA_DIR
-from .utils_cheap_decisions import process_predictions_cheap_decisions, process_prediction_path, clean_data_and_compute_averages
+from utils.constants_tasks import RC_TASKS_OLMES, MC_TASKS_OLMES, GEN_TASKS_OLMES, MINERVA_COT
+from utils_cheap_decisions import process_predictions_cheap_decisions, process_prediction_path, clean_data_and_compute_averages, expand_df
 
 # Metrics to use when converting to table:
 METRICS_TO_KEEP = [
@@ -26,6 +28,7 @@ METRICS_TO_KEEP = [
     "correct_choice",
     "logits_per_char_corr",
     "logits_per_byte_corr",
+    "bits_per_byte_corr"
 
     # Generative metrics
     "exact_match",
@@ -42,6 +45,7 @@ MODEL_OUTPUT_TO_KEEP = [
     "sum_logits",
     "logits_per_char",
     "logits_per_byte",
+    "bits_per_byte"
 ]
 
 SIZE_PREFIXES = [
@@ -52,6 +56,68 @@ SIZE_PREFIXES_FIX = {'3B': '3.2B', '1B': '1.3B'}
 CHINHILLA_MULT = [
     '0.5xC', '1xC', '2xC', '5xC', '10xC', '15xC', '20xC'
 ]
+
+
+def is_excluded_from_lite(m):
+    BROKEN_MODELS = [
+        "gemma-2b", 
+        "gemma-7b", 
+        "gemma-2-2b", 
+        "gemma-2-9b"
+    ]
+
+    OLL2_INSTRUCT_MODELS = [
+        # These are models on the OLL2 leaderboard that are actually instruct models
+        'instruct',
+        'superthoughts',
+        'helpingai',
+        'fox',
+        'llmchat',
+        'intern',
+        'magistrate', # legal annealing
+        'fietje', # phi fine-tune
+        'llama-3-6.3b', # pruned llama 3
+        'loxa', # very suspicious
+        'llumix', # hungarian instruction tune
+        'yarm', # instruction tune for context
+        'lucie', # looks suspicious, i really think they snuck in instruct data here
+        'nepali',
+        'windy',
+        'yarn', # long context fine-tuned models
+        'llama-160m', # these models are just really bad
+        'llama-43m',
+        'llama-68m',
+
+        # missing evals
+        'salamandra',
+        'aya',
+        'gpt'
+    ]
+
+    # These models have broken or incomplete results
+    if 'Minitron' in m or \
+        'Mistral' in m or \
+        'bloom' in m or \
+        'granite' in m or \
+        'pruned' in m or \
+        'INTELLECT-1' in m or \
+        'TinyYi-7B-Test' in m or \
+        'Qwarkstar-4B' in m or \
+        'Priya-10B' in m or \
+        'SmolLM2-360M' in m or \
+        'InstructLM-500M' in m or \
+        'RedPajama-INCITE-Base-3B-v1' in m or \
+        'pythia-410m' in m or \
+        'Qwen1.5-MoE' in m or \
+        'Qwen1.5-0.5B' in m:
+        return True
+    
+    if any(name.lower() in m.lower() for name in OLL2_INSTRUCT_MODELS) or \
+        any(name.lower() in m.lower() for name in BROKEN_MODELS):
+        return True
+    
+    return False
+
 
 def str_find(str_list, input_string):
     """ Get if a list of strings exists in a string. Return first match """
@@ -99,10 +165,10 @@ def process_jsonl(file_path):
 
 
 def get_native_id(pred):
-    if pred['native_id'] is not None:
-        return str(pred['native_id'])
-    elif pred['doc_id'] is not None:
-        return str(pred['doc_id'])
+    native_id = str(pred['native_id']) if pred['native_id'] is not None else ''
+    doc_id = str(pred['doc_id']) if pred['doc_id'] is not None else ''
+    return f'{native_id}:{doc_id}'
+
 
 def compute_mean_safe(predictions, key):
     values = [
@@ -151,8 +217,18 @@ def process_predictions(file_path):
             entry['correct_choice'] = 0
 
         # Sometimes exact_match is bool when it should be float
-        if isinstance(entry['exact_match'], bool):
+        if 'exact_match' in entry and isinstance(entry['exact_match'], bool):
             entry['exact_match'] = float(entry['exact_match'])
+
+        # If primary_score does not exist, add it
+        from utils_cheap_decisions import PRIMARY_METRICS_OLMES
+        task_name = file_path.split('/')[-1].replace('-predictions.jsonl', '')
+        primary_metric_key = PRIMARY_METRICS_OLMES.get(task_name, None)
+        if primary_metric_key is None: 
+            primary_metric_key = 'acc_per_char'
+        if ('primary_score' not in entry and primary_metric_key in metrics) or ('primary_score' in entry and primary_metric_key['primary_score'] is None):
+            entry['primary_score'] = metrics[primary_metric_key]
+        # assert entry.get('primary_score', None) is not None, (task_name, primary_metric_key, entry, metrics)
 
         # Compute BPB using request files
         if request_ids_to_bytes is not None:
@@ -181,6 +257,13 @@ def process_predictions(file_path):
             cheap_decisions_metrics = process_predictions_cheap_decisions(pred)
             # entry.update(cheap_decisions_metrics)
             entry = cheap_decisions_metrics
+
+        # Use both names
+        if 'bits_per_byte_corr' in entry and entry['bits_per_byte_corr'] is not None:
+            entry['logits_per_byte_corr'] = entry['bits_per_byte_corr']
+
+        if 'logits_per_byte_corr' in entry and entry['logits_per_byte_corr'] is not None:
+            entry['bits_per_byte_corr'] = entry['logits_per_byte_corr']
  
         processed += [entry]
     return processed
@@ -265,20 +348,21 @@ def process_chunk(chunk):
     return pd.DataFrame(chunk)
 
 
-def get_available_cpus(threshold=80):
+def get_available_cpus(threshold=50):
     cpu_usages = psutil.cpu_percent(percpu=True)
     available_cpus = [i for i, usage in enumerate(cpu_usages) if usage < threshold]
     return available_cpus
 
 
-def load_df_parallel(data, file_type, usage_threshold=80):
+def load_df_parallel(data, file_type, usage_threshold=50):
     """ Load data as df w/ a CPU pool. Only use CPUs with usage below usage_threshold """
     available_cpus = get_available_cpus(threshold=usage_threshold)
 
-    if file_type == 'metrics':
+    if file_type == 'metrics' or file_type == 'questions':
         num_partitions = max(1, len(data) // 1_000)
-    elif file_type == 'predictions':
-        num_partitions = max(1, len(data) // 100_000) # default is 10_000, 50K chunks led to a broken pipe
+    elif 'predictions' in file_type:
+        # Currently trying both 10_000 w/ 50% threshold and 300_000 with 50% threshold
+        num_partitions = max(1, len(data) // 300_000) # default is 10_000, on errors I set to 100_00, 50K chunks led to a broken pipe
     # num_partitions = len(available_cpus) * 100
 
     print(f'Distributing {num_partitions} chunks across {len(available_cpus)} CPUs')
@@ -287,11 +371,16 @@ def load_df_parallel(data, file_type, usage_threshold=80):
         raise RuntimeError("No CPUs are available below the usage threshold.")
     
     # Use numpy for efficient chunking
+    num_partitions = max(1, min(len(data), num_partitions))  # Prevent more partitions than data
     chunk_size = len(data) // num_partitions
     remainder = len(data) % num_partitions
-    chunks = [data[i * chunk_size + min(i, remainder) : (i + 1) * chunk_size + min(i + 1, remainder)] for i in range(num_partitions)]
+    chunks = [
+        data[i * chunk_size + min(i, remainder) : (i + 1) * chunk_size + min(i + 1, remainder)]
+        for i in range(num_partitions)
+    ]
+    chunk_len = set(len(chunk) for chunk in chunks)
 
-    print('Launching parallel processing...')
+    print(f'Launching parallel processing for chunk lengths {chunk_len}...')
     
     with Pool(processes=len(available_cpus)) as pool:
         dataframes = list(tqdm(pool.imap(process_chunk, chunks), desc='Converting to Pandas dataframe', total=len(chunks)))
@@ -341,13 +430,30 @@ def get_metadata_from_file_name(root, file):
     return model_name, mix_name, step, step_str, size, token_ratio, task
 
 
-def load_file(file_data, _type):
+def load_file(file_data, _type, load_lite_tasks=None):
     root, file = file_data
     file_path = os.path.join(root, file)
 
     model_name, mix_name, step, step_str, size, token_ratio, task = get_metadata_from_file_name(root, file)
 
-    if _type == 'predictions' or 'consistent_ranking' in str(root):
+    # fix for the names of one of Ian's data mixes
+    if mix_name == 'baseline': mix_name = 'dolma17'
+
+    if load_lite_tasks is not None:
+        if is_excluded_from_lite(model_name):
+            # Exclude some broken or instruct external models from instanceslite/instancesmedium
+            return []
+
+        if load_lite_tasks == 'lite_predictions':
+            LITE_TASKS = RC_TASKS_OLMES
+        elif load_lite_tasks == 'medium_predictions':
+            LITE_TASKS = RC_TASKS_OLMES + MC_TASKS_OLMES + GEN_TASKS_OLMES + MINERVA_COT + ['mbpp', 'mbppplus', 'codex_humaneval', 'codex_humanevalplus', 'autobencher', 'autobencher:mc']
+        lite_task_ids = [task_id.split('::')[0].replace(':rc', '') for task_id in LITE_TASKS]
+        if task not in lite_task_ids:
+            # For the small instance dataset, only include a small set of tasks
+            return []
+
+    if 'predictions' in _type or 'consistent_ranking' in str(root):
         # Load predictions
         if 'predictions.jsonl' not in file_path: 
             return []
@@ -366,6 +472,77 @@ def load_file(file_data, _type):
             metrics['metrics'] = None
         
         results = [metrics]
+    elif _type == 'questions':
+        if 'predictions.jsonl' not in file_path or 'peteish-moreeval-rerun-1B-1xC' not in file_path:
+            return []
+        # Load the requests file to compute BPB
+        requests_folder = '/oe-eval-default/davidh/metaeval/analysis/data/aws/eval-results/downstream/metaeval/OLMo-ladder/peteish-moreeval-rerun-1B-1xC/step16279-unsharded-hf'
+        file_name = Path(file_path).name.replace('predictions.jsonl', 'requests.jsonl') # /{Path(file_path).parent.name}
+        requests_path = f"{requests_folder}/{file_name}"
+
+        file_name = Path(file_path).name.replace('predictions.jsonl', 'metrics.json')
+        metrics_path = f"{requests_folder}/{file_name}"
+
+        if not os.path.exists(requests_path):
+            print(f'Could not find {task}: {requests_path}')
+            return []
+
+        requests = process_jsonl(requests_path)
+        with open(metrics_path, 'r') as f:
+            metrics = json.load(f)
+        task_alias = metrics['task_config']['metadata']['alias']
+
+        for i, request in enumerate(requests):
+            native_id = get_native_id(request) 
+            instance_id = str(native_id) + ':::' + str(task)
+            context = request['request'].get('context', '')
+            continuation = request['request'].get('continuation', '')
+            request = {'instance_id': instance_id, 'task_alias': task_alias, 'context': context, 'continuation': continuation, **request}
+            request = {k: str(v) for k, v in request.items()}
+            requests[i] = request
+        
+        results = requests
+    else:
+        raise ValueError(_type)
+
+    if 'data/reddit/evaluation' in str(root):
+        # Load the original metrics.json (useful for adding to instance-level predictions)
+        metrics_path = file_path.replace('predictions.jsonl', 'metrics.json')
+        with open(metrics_path, 'r') as f:
+            orig_metrics = json.load(f)
+
+        # Get the path of the model config
+        model_path = orig_metrics['model_config']['model_path']
+        model_path = Path(model_path.replace("weka:/", "")) / "config.yaml"
+
+        # NOTE: FOR S3 data, we don't have it in Weka, so need to download
+        if 's3:' in str(model_path):
+            model_path = str(model_path).replace('s3:/ai2-llm/', '')
+            model_path = model_path.replace('-hf', '') # usually the base model dir has the config.yaml
+            local_path = f'/root/ai2/metaeval/analysis/data/.configs/{model_path}'
+            if not os.path.exists(local_path) and 'metrics.json' in file_path:
+                # use AWS to download to .reddit/[path]/config.yaml, if it doesn't exist
+                # E.g., s3:/ai2-llm/checkpoints/reddit-2g-ablations/redDC-5050-llama1-mix-Cx5-20241008/step61989-hf/config.yaml
+                s3_client = boto3.client('s3')
+                print(model_path + ' -> ' + local_path)
+                os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                s3_client.download_file('ai2-llm', model_path, local_path)
+            model_path = Path(local_path)
+
+        if not model_path.exists():
+            # continue
+            raise RuntimeError(model_path)
+
+        with open(model_path, 'r', encoding='utf-8') as file:
+            yaml_content = yaml.safe_load(file)
+        
+        data_paths = yaml_content.get('data', {}).get('paths', [])
+
+        # Load data paths from config.yaml and add to results
+        for result in results:
+            result.update({
+                'data_paths': data_paths
+            })
 
     # Add metadata to parquet file
     for result in results:
@@ -399,10 +576,10 @@ def load_file(file_data, _type):
     return results
 
 
-def process_files_chunk(files_chunk, _type):
+def process_files_chunk(files_chunk, _type, load_lite_tasks=None):
     results = []
     for file in files_chunk:
-        results.extend(load_file(file, _type))
+        results.extend(load_file(file, _type, load_lite_tasks))
     return results
 
 
@@ -491,7 +668,7 @@ def scan_dir(data_input):
     return all_files
 
 
-def recursive_pull(data_dir, file_type):
+def recursive_pull(data_dir, file_type, load_lite_tasks=None):
     # # for testing
     # data_dir = Path('/root/ai2/metaeval/analysis/data/consistent_ranking/eval-results/downstream/eval-for-consistent-ranking/baseline-1B-5xC-2')
     
@@ -513,14 +690,15 @@ def recursive_pull(data_dir, file_type):
 
     all_preprocessed = []
     file_chunks = [all_files[i:i + chunk_size] for i in range(0, len(all_files), chunk_size)]
+    chunk_len = set(len(chunk) for chunk in file_chunks)
     total_files = len(all_files)
 
-    with tqdm(total=len(file_chunks), desc="Submitting file chunks") as submit_pbar:
+    with tqdm(total=len(file_chunks), desc=f"Submitting file chunks of lengths {chunk_len}") as submit_pbar:
         with tqdm(total=total_files, desc=f"Recursively loading files in {data_dir.name}") as pbar:
             with ProcessPoolExecutor(max_workers=len(get_available_cpus())) as executor:
                 futures = {}
                 for chunk in file_chunks:
-                    future = executor.submit(process_files_chunk, chunk, file_type)
+                    future = executor.submit(process_files_chunk, chunk, file_type, load_lite_tasks)
                     futures[future] = len(chunk)
                     submit_pbar.update(1)  # Update submission progress
                 for future in as_completed(futures):
@@ -605,9 +783,14 @@ def sanity_check(folder_name):
         if 'bbh_' in task:
             continue
 
-        # only math/code
-        if not ('gsm8k' in task or 'mbpp' in task or 'codex' in task or 'minerva' in task):
+        if 'coqa' in task:
             continue
+        if 'copycolors:mc' in task:
+            continue
+
+        # # only math/code
+        # if not ('gsm8k' in task or 'mbpp' in task or 'codex' in task or 'minerva' in task):
+        #     continue
 
         # perplexity evals
         if '-verbose' in task:
@@ -615,8 +798,8 @@ def sanity_check(folder_name):
         if task in ["paloma_twitterAAE_HELM_fixed", "paloma_c4_100_domains", "paloma_dolma_100_subreddits"]:
             # these tasks are half-evaluated and shouldn't be in there anyways
             continue
-        # if 'paloma' in task or 'llm_compression' in task or 'custom_loss' in task:
-        #     continue
+        if 'paloma' in task or 'llm_compression' in task or 'custom_loss' in task:
+            continue
         model_tasks[f'{model_name}-{step}'].add(task)
         # model_tasks[f'{model_name}'].add(task)
 
@@ -631,11 +814,25 @@ def main(folder_name, file_type='predictions'):
     data_dir = Path(DATA_DIR).resolve()
     data_dir.mkdir(exist_ok=True)
 
-    aws_dir         = data_dir / folder_name
-    prediction_path = data_dir / f"{folder_name}_predictions.parquet"
-    metrics_path    = data_dir / f"{folder_name}_metrics.parquet"
+    aws_dir                = data_dir / folder_name
+    prediction_path        = data_dir / f"{folder_name}_predictions.parquet"
+    lite_prediction_path   = data_dir / f"{folder_name}_lite_predictions.parquet"
+    medium_prediction_path = data_dir / f"{folder_name}_medium_predictions.parquet"
+    questions_path         = data_dir / f"{folder_name}_questions.parquet"
+    metrics_path           = data_dir / f"{folder_name}_metrics.parquet"
 
-    predictions_df = recursive_pull(aws_dir, file_type)
+    # Change settings for prediction subset files
+    parquet_path = prediction_path
+    if file_type == 'lite_predictions':
+        parquet_path = lite_prediction_path
+        load_lite_tasks = file_type
+    elif file_type == 'medium_predictions':
+        parquet_path = medium_prediction_path
+        load_lite_tasks = file_type
+    else:
+        load_lite_tasks = None
+    
+    predictions_df = recursive_pull(aws_dir, file_type, load_lite_tasks=load_lite_tasks)
 
     # Save predictions to parquet
     import time
@@ -648,7 +845,9 @@ def main(folder_name, file_type='predictions'):
 
     if file_type == 'metrics' or folder_name == 'consistent_ranking':
         if folder_name == 'consistent_ranking':
-            # df.to_csv(str(metrics_path).replace('.parquet', '_dirty.csv')) # save csv before cleaning
+            df.to_parquet(str(metrics_path).replace('.parquet', '_dirty.parquet')) # save in case
+            df = expand_df(df, quiet=False)
+            df.to_parquet(str(metrics_path).replace('.parquet', '_dirty.parquet')) # save before cleaning
             # Use Ian's script to clean up the df
             df = clean_data_and_compute_averages(df, quiet=False)
         df = cleanup_metrics_df(df)
@@ -658,13 +857,17 @@ def main(folder_name, file_type='predictions'):
         df.to_parquet(metrics_path)
         print('Done!')
         return
+    elif file_type == 'questions':
+        df.to_parquet(questions_path)
+        print('Done!')
+        return
 
     # Reset the df index (for faster indexing)
     df.set_index(['task', 'model', 'step', 'mix'], inplace=True)
 
     # Save to parquet
-    df.to_parquet(prediction_path, index=True)
-    print(f"Predictions saved to {prediction_path} ({fsize(prediction_path):.2f} GB)")
+    df.to_parquet(parquet_path, index=True)
+    print(f"Predictions saved to {parquet_path} ({fsize(parquet_path):.2f} GB)")
 
     print('Done!')
 
@@ -673,7 +876,21 @@ if __name__ == '__main__':
     folder_name = "aws" # 1hr
     # folder_name = "consistent_ranking" # 8hr
 
-    sanity_check(folder_name)
+    # sanity_check(folder_name)
 
     # main(folder_name, file_type='metrics')
     # main(folder_name, file_type='predictions')
+    main(folder_name, file_type='medium_predictions')
+    main(folder_name, file_type='lite_predictions')
+    main(folder_name, file_type='questions')
+
+    # ### Debug Ian's cleaning script
+    # data_dir = Path(DATA_DIR).resolve()
+    # metrics_path = data_dir / f"{folder_name}_metrics.parquet"
+    # df = pd.read_parquet(data_dir / f"{folder_name}_metrics_dirty.parquet")
+    # print(df)
+    # df = clean_data_and_compute_averages(df, quiet=False)
+    # print(df)
+    # df = cleanup_metrics_df(df)
+    # print(df)
+    # df.to_parquet(metrics_path)

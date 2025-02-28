@@ -1,5 +1,7 @@
 DATA_DIR=/root/ai2/metaeval/data # data to copy into Dockerfile
 
+docker pull ghcr.io/allenai/pytorch:2.4.0-cuda12.1-python3.11
+
 cd ~/ai2/metaeval/olmo-repos/oe-eval-internal && \
 rm -rf data && \
 cp -r $DATA_DIR data && \

@@ -229,12 +229,116 @@ MODEL_LIST_LADDER=(
 )
 
 MODEL_LIST_CUSTOM=(
-    "/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848"
-    "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-10xC/step162694-unsharded"
+    # "/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848"
+    # "/oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-1B-10xC/step162694-unsharded"
+
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/c4-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/c4-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/c4-60M-5xC/step29052-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/c4-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/DCLM-baseline-4M-5xC/step5745-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/DCLM-baseline-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/DCLM-baseline-60M-5xC/step29052-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/DCLM-baseline-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_ft7percentile_fw2-4M-5xC/step5725-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_ft7percentile_fw2-20M-5xC/step14584-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_ft7percentile_fw2-60M-5xC/step29042-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_ft7percentile_fw2-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_ft7percentile_fw3-4M-5xC/step5725-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_ft7percentile_fw3-20M-5xC/step14584-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_ft7percentile_fw3-60M-5xC/step29042-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_ft7percentile_fw3-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_fw_top10-4M-5xC/step5725-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_fw_top10-20M-5xC/step14584-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_fw_top10-60M-5xC/step29042-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_fw_top10-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_fw_top3-4M-5xC/step5725-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_fw_top3-20M-5xC/step14584-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_fw_top3-60M-5xC/step29042-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_fw_top3-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-25p-DCLM-baseline-75p-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-25p-DCLM-baseline-75p-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-25p-DCLM-baseline-75p-60M-5xC/step29052-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-25p-DCLM-baseline-75p-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-50p-DCLM-baseline-50p-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-50p-DCLM-baseline-50p-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-50p-DCLM-baseline-50p-60M-5xC/step29052-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-50p-DCLM-baseline-50p-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-60M-5xC/step29052-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-75p-DCLM-baseline-25p-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-75p-DCLM-baseline-25p-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-75p-DCLM-baseline-25p-60M-5xC/step29052-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-75p-DCLM-baseline-25p-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma-v1-6-and-sources-baseline-4M-5xC/step5725-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma-v1-6-and-sources-baseline-20M-5xC/step14584-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma-v1-6-and-sources-baseline-60M-5xC/step29042-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma-v1-6-and-sources-baseline-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon-60M-5xC/step29052-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc-60M-5xC/step29052-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_eli5_oh_top10p-4M-5xC/step5725-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_eli5_oh_top10p-20M-5xC/step14584-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_eli5_oh_top10p-60M-5xC/step29042-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_eli5_oh_top10p-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_eli5_oh_top20p-4M-5xC/step5725-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_eli5_oh_top20p-20M-5xC/step14584-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_eli5_oh_top20p-60M-5xC/step29042-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_eli5_oh_top20p-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_og_eli5_oh_top10p-4M-5xC/step5725-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_og_eli5_oh_top10p-20M-5xC/step14584-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_og_eli5_oh_top10p-60M-5xC/step29042-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_og_eli5_oh_top10p-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_tulu_qc_top10-4M-5xC/step5725-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_tulu_qc_top10-20M-5xC/step14584-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_tulu_qc_top10-60M-5xC/step29042-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/falcon_and_cc_tulu_qc_top10-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/fineweb_edu_dedup-4M-5xC/step5725-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/fineweb_edu_dedup-20M-5xC/step14584-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/fineweb_edu_dedup-60M-5xC/step29042-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/fineweb_edu_dedup-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_code-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_code-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_code-60M-5xC/step29062-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_code-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_flan-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_flan-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_flan-60M-5xC/step29052-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_flan-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_math_no_code-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_math_no_code-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_math_no_code-60M-5xC/step29052-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_math_no_code-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_reddit-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_reddit-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_reddit-60M-5xC/step29052-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_reddit-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top10p-4M-5xC/step5725-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top10p-20M-5xC/step14584-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top10p-60M-5xC/step29042-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top10p-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top20p-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top20p-20M-5xC/step14594-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top20p-60M-5xC/step29062-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top20p-90M-5xC/step29901-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-4M-5xC/step5735-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-20M-5xC/step14584-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-60M-5xC/step29042-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-90M-5xC/step29901-unsharded"
 )
 
 # Dolma 2 Tokenizer
-TOKENIZER_PATH=/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/latest/tokenizer.json
+# TOKENIZER_PATH=/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/latest/tokenizer.json
+
+# Consistent ranking tokenizer
+TOKENIZER_PATH=/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/gpt-neox-olmo-dolma-v1_5.json
 
 # We instead need to change oe-training-default -> oe-eval-default
 # /oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr
@@ -274,52 +378,14 @@ TOKENIZER_PATH=/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-hi
 ##################################################
 
 
-process_model_checkpoint() {
-    INPUT_DIR=$1
-    OUTPUT_DIR=$2
-
-    # Remove -sharded from output dir (for converting AWS checkpoints)
-    OUTPUT_DIR="${OUTPUT_DIR/-sharded/}"
-
-    # Skip if OUTPUT_DIR already exists
-    if [[ -d "$OUTPUT_DIR" ]]; then
-        echo "Output directory exists: $OUTPUT_DIR. Skipping..."
-        return
-    fi
-
-    echo $INPUT_DIR
-    echo $OUTPUT_DIR
-
-    python olmo-repos/OLMo/scripts/unshard.py "$INPUT_DIR" "$OUTPUT_DIR-unsharded"
-
-    python olmo-repos/OLMo/scripts/convert_olmo2_to_hf.py \
-        --input_dir "$OUTPUT_DIR-unsharded" \
-        --output_dir "$OUTPUT_DIR" \
-        --tokenizer_json_path "$TOKENIZER_PATH"
-}
-
-for MODEL in "${MODEL_LIST_13B[@]}"; do
-    # for MODEL in "${MODEL_LIST_CUSTOM[@]}"; do
-    if [[ $MODEL == *"step"* ]]; then
-        # Replace oe-training-default with oe-eval-default in the model path
-        OUTPUT_DIR=$(echo "$MODEL" | sed 's/oe-training-default/oe-eval-default/')
-        # Directly process the provided model path
-        process_model_checkpoint "$MODEL" "$OUTPUT_DIR"
-    else
-        # Replace oe-training-default with oe-eval-default in the model path
-        MODEL=$(echo "$MODEL" | sed 's/oe-training-default/oe-eval-default/')
-        # Process only the last model checkpoint
-        FINAL_CKPT=$(ls $MODEL | grep 'step[0-9]*-unsharded$' | sort -V | tail -n 1)
-        process_model_checkpoint "$MODEL/$FINAL_CKPT" "$OUTPUT_DIR/$FINAL_CKPT"
-    fi
-done
-
-
-### OLD
+### 13B processer
 
 # process_model_checkpoint() {
 #     INPUT_DIR=$1
-#     OUTPUT_DIR=$1-hf
+#     OUTPUT_DIR=$2
+
+#     # Remove -sharded from output dir (for converting AWS checkpoints)
+#     OUTPUT_DIR="${OUTPUT_DIR/-sharded/}"
 
 #     # Skip if OUTPUT_DIR already exists
 #     if [[ -d "$OUTPUT_DIR" ]]; then
@@ -330,22 +396,67 @@ done
 #     echo $INPUT_DIR
 #     echo $OUTPUT_DIR
 
+#     python olmo-repos/OLMo/scripts/unshard.py "$INPUT_DIR" "$OUTPUT_DIR-unsharded"
+
 #     python olmo-repos/OLMo/scripts/convert_olmo2_to_hf.py \
-#         --input_dir "$INPUT_DIR" \
+#         --input_dir "$OUTPUT_DIR-unsharded" \
 #         --output_dir "$OUTPUT_DIR" \
 #         --tokenizer_json_path "$TOKENIZER_PATH"
 # }
 
-# for MODEL in "${MODEL_LIST_LADDER[@]}"; do
-#     # for MODEL in "${MODEL_LIST_CUSTOM[@]}"; do
+# for MODEL in "${MODEL_LIST_13B[@]}"; do
+# # for MODEL in "${MODEL_LIST_CUSTOM[@]}"; do
 #     if [[ $MODEL == *"step"* ]]; then
+#         # Replace oe-training-default with oe-eval-default in the model path
+#         OUTPUT_DIR=$(echo "$MODEL" | sed 's/oe-training-default/oe-eval-default/')
 #         # Directly process the provided model path
-#         process_model_checkpoint "$MODEL"
+#         process_model_checkpoint "$MODEL" "$OUTPUT_DIR"
 #     else
-#         # Process the last 6 model checkpoints
-#         FINAL_CKPTS=$(ls $MODEL | grep 'step[0-9]*-unsharded$' | sort -V | tail -n 6)
-#         for CKPT in $FINAL_CKPTS; do
-#             process_model_checkpoint "$MODEL/$CKPT"
-#         done
+#         # Replace oe-training-default with oe-eval-default in the model path
+#         MODEL=$(echo "$MODEL" | sed 's/oe-training-default/oe-eval-default/')
+#         # Process only the last model checkpoint
+#         FINAL_CKPT=$(ls $MODEL | grep 'step[0-9]*-unsharded$' | sort -V | tail -n 1)
+#         process_model_checkpoint "$MODEL/$FINAL_CKPT" "$OUTPUT_DIR/$FINAL_CKPT"
 #     fi
 # done
+
+
+### Original processor
+
+process_model_checkpoint() {
+    INPUT_DIR=$1
+    OUTPUT_DIR=$1-hf
+
+    # Skip if OUTPUT_DIR already exists
+    if [[ -d "$OUTPUT_DIR" ]]; then
+        echo "Output directory exists: $OUTPUT_DIR. Skipping..."
+        return
+    fi
+
+    echo $INPUT_DIR
+    echo $OUTPUT_DIR
+
+    python olmo-repos/OLMo/scripts/convert_olmo_to_hf_new.py \
+        --input_dir "$INPUT_DIR" \
+        --output_dir "$OUTPUT_DIR" \
+        --tokenizer_json_path "$TOKENIZER_PATH"
+
+    # python olmo-repos/OLMo/scripts/convert_olmo2_to_hf.py \
+    #     --input_dir "$INPUT_DIR" \
+    #     --output_dir "$OUTPUT_DIR" \
+    #     --tokenizer_json_path "$TOKENIZER_PATH"
+}
+
+# for MODEL in "${MODEL_LIST_LADDER[@]}"; do
+for MODEL in "${MODEL_LIST_CUSTOM[@]}"; do
+    if [[ $MODEL == *"step"* ]]; then
+        # Directly process the provided model path
+        process_model_checkpoint "$MODEL"
+    else
+        # Process the last 6 model checkpoints
+        FINAL_CKPTS=$(ls $MODEL | grep 'step[0-9]*-unsharded$' | sort -V | tail -n 6)
+        for CKPT in $FINAL_CKPTS; do
+            process_model_checkpoint "$MODEL/$CKPT"
+        done
+    fi
+done
