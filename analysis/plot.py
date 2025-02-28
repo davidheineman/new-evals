@@ -7,7 +7,7 @@ import numpy as np
 LABEL_COLOR_MAP = {}
 COLOR_IDX = {'col': 0}
 
-def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=None, _type='p_values', alpha=0.01):
+def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=None, _type='p_values', alpha=0.01, plot_clean=False):
     """ Plot a pairwise heatmap of statistical significance """
     # Reorder values matrix according to sorted mixes
     mask = np.isnan(values)
@@ -47,23 +47,29 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=
 
     ax.set_xticks(range(len(mix_names)))
     ax.set_yticks(range(len(mix_names)))
-    ax.set_xticklabels(mix_names, rotation=45, ha='right', fontsize=8)
-    ax.set_yticklabels(mix_names, fontsize=8)
+
+    if not plot_clean:
+        ax.set_xticklabels(mix_names, rotation=45, ha='right', fontsize=8)
+        ax.set_yticklabels(mix_names, fontsize=8)
+    else:
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
 
     # Add colorbar only for the viridis range
     norm = plt.Normalize(0, 1)
     sm = plt.cm.ScalarMappable(cmap=plt.cm.viridis, norm=norm)
     cbar = plt.colorbar(sm, ax=ax, fraction=0.05, pad=0.04)
     label = r'$p$' + f'-values (highlighted if not significant,' + r'$\alpha$=' + f'{alpha})'
-    if len(values) < 15:
+    if len(values) < 15 or plot_clean:
         label = r'$p$' + f'-values'
     cbar.set_label(label)
 
     # Add value annotations with smaller font
-    for i in range(values.shape[0]):
-        for j in range(values.shape[1]):
-            if not mask[i,j]:
-                ax.text(j, i, f'{values[i,j]:.2f}', ha='center', va='center', fontsize=7)
+    if not plot_clean:
+        for i in range(values.shape[0]):
+            for j in range(values.shape[1]):
+                if not mask[i,j]:
+                    ax.text(j, i, f'{values[i,j]:.2f}', ha='center', va='center', fontsize=7)
 
     return ax
 

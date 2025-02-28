@@ -1,3 +1,4 @@
+import itertools
 import pandas as pd
 import math
 import numpy as np
@@ -77,6 +78,44 @@ def compute_f1_binary(gold_arr, pred_arr):
     return precision, recall, f1
 
 
+def reorder_items_and_ranks(itemsA, itemsB, ranksA, ranksB):
+    index_map = {value: i for i, value in enumerate(itemsA)}
+    indices =  [index_map[value] for value in itemsB]
+    sorted_itemsB = [itemsB[i] for i in indices]
+    ranksB_sorted = [ranksB[i] for i in indices]
+    return itemsA, sorted_itemsB, ranksA, ranksB_sorted
+
+
+def kendall_tau_a(itemsA, itemsB, ranksA, ranksB):
+    """
+    # Example usage
+    itemsA = ["apple", "banana", "cherry", "date", "elderberry"]
+    itemsB = ["apple", "banana", "cherry", "elderberry", "date"]
+    ranksA = [1, 2, 3, 4, 5]
+    ranksB = [1, 2, 3, 5, 4]
+    print(kendall_tau_a(itemsA, itemsB, ranksA, ranksB))
+    """
+    itemsA, itemsB, ranksA, ranksB = reorder_items_and_ranks(itemsA, itemsB, ranksA, ranksB)
+
+    if len(itemsA) != len(ranksA) or len(itemsB) != len(ranksB) or len(itemsA) != len(itemsB):
+        raise ValueError("All input lists must have the same length.")
+    
+    n = len(itemsA)
+    concordant, discordant = 0, 0
+    
+    for (i, j) in itertools.combinations(range(n), 2):
+        pair_x = np.sign(ranksA[i] - ranksA[j])
+        pair_y = np.sign(ranksB[i] - ranksB[j])
+        
+        if pair_x * pair_y > 0:
+            concordant += 1
+        elif pair_x * pair_y < 0:
+            discordant += 1
+    
+    tau_a = (concordant - discordant) / (0.5 * n * (n - 1))
+    return tau_a
+
+
 def perc_significant(p_values, alpha=0.05):
     """ Calculate the % of statistically significant comparisons """
     return ((p_values > (1-alpha)).sum() + (p_values < alpha).sum()) / (~np.isnan(p_values)).sum()
@@ -145,7 +184,7 @@ def get_sig_clusters(p_vals, alpha=0.01):
     return sig_clusters
 
 
-def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, alpha=0.05, num_permutations=1_000, do_plot=False, pretty_mix_names=None, plot_sig_clusters=True, quiet=False):
+def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, alpha=0.05, num_permutations=1_000, do_plot=False, pretty_mix_names=None, plot_sig_clusters=True, plot_clean=False, quiet=False):
     if tasks is None: 
         tasks = df.index.get_level_values('task').unique()
 
@@ -241,14 +280,14 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
 
         perc_sig = perc_significant(p_values, alpha=alpha)
         sig_results.loc['perc_sig', task] = perc_sig
-        all_p_values[task] = (mixes, scores, p_values)
+        all_p_values[task] = (mixes, scores, p_values, sig_clusters)
 
         if do_plot is not None: 
             if pretty_mix_names is not None:
                 mix_names = [pretty_mix_names[mix] for mix in mixes]
             else:
                 mix_names = mixes
-            axes[i] = plot_heatmap(axes[i], p_values, mix_names, mix_scores, sig_clusters, alpha=alpha)
+            axes[i] = plot_heatmap(axes[i], p_values, mix_names, mix_scores, sig_clusters, alpha=alpha, plot_clean=plot_clean)
             title = r'$p$' + f'-values for {task} (n={scores.shape[1]}) across data mixes at {("last " + str(last_n) + " steps" if last_n > 1 else "final checkpoint")} ({metric}), perc sig={(perc_sig*100):.2f}%'
             if len(models) < 15:
                 title = r'$p$' + f'-values for {task}, perc sig={(perc_sig*100):.2f}%'
