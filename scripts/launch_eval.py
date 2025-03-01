@@ -4,7 +4,7 @@ from pathlib import Path
 parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
 
-from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_MIXES_FINAL, MODEL_LIST_INTERMEDIATE, MODEL_LIST_INTERMEDIATE_13B, MODEL_LIST_MIXES, OE_EVAL_BASE_MODELS, OE_EVAL_INSTRUCT_MODELS, OE_EVAL_ALL_MODELS
+from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_MIXES_FINAL, MODEL_LIST_MIXES_FINAL_EXTENDED, MODEL_LIST_INTERMEDIATE, MODEL_LIST_INTERMEDIATE_13B, MODEL_LIST_MIXES, OE_EVAL_BASE_MODELS, OE_EVAL_INSTRUCT_MODELS, OE_EVAL_ALL_MODELS, OE_EVAL_BASE_MODELS_EXTENDED
 from analysis.utils.constants_final_6_ckpts import MODEL_LIST_FINAL_SIX_CKPTS
 from analysis.utils.constants_models import WEKA_CLUSTERS
 from analysis.utils.constants_tasks import MC_TASKS_COPY_COLORS, MISSING_EVALS
@@ -29,7 +29,9 @@ MODEL_LIST_ALL = []
 # MODEL_LIST_ALL += MODEL_LADDER_LIST + MODEL_LIST_INTERMEDIATE
 # MODEL_LIST_ALL += OE_EVAL_BASE_MODELS
 # MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_13B # 13B intermediate ckpts
-MODEL_LIST_ALL += MODEL_LIST_MIXES_FINAL # ian's new mixes
+# MODEL_LIST_ALL += MODEL_LIST_MIXES_FINAL # ian's new mixes
+MODEL_LIST_ALL += MODEL_LIST_MIXES_FINAL_EXTENDED # extended set of data mixes
+MODEL_LIST_ALL += OE_EVAL_BASE_MODELS_EXTENDED # OLL 2 leaderboard models
 
 # MODEL_LIST_ALL += MODEL_LIST_MIXES # not used for now
 # MODEL_LIST_ALL += OE_EVAL_INSTRUCT_MODELS # not used for now
@@ -41,14 +43,14 @@ TASK_LIST_ALL = []
 # TASK_LIST_ALL += PARA_TASKS_OLMES 
 # TASK_LIST_ALL += ENLARGE_TASKS_OLMES
 # TASK_LIST_ALL += DISTRACTORS_TASKS_OLMES
-# TASK_LIST_ALL += MC_TASKS_OLMES 
+# TASK_LIST_ALL += MC_TASKS_OLMES
 
 # # TASK_LIST_ALL += MC_TASKS_COPY_COLORS # broken!!!
 # TASK_LIST_ALL += GEN_TASKS_OLMES
-TASK_LIST_ALL += AGI_EVAL_MC + BBH_MC + MMLU_PRO_MC # + MINERVA_MC
+# TASK_LIST_ALL += AGI_EVAL_MC + BBH_MC + MMLU_PRO_MC # + MINERVA_MC
 # TASK_LIST_ALL += AGI_EVAL_COT # + MMLU_PRO_COT
 
-TASK_LIST_ALL += MMLU_PRO_RC + AGI_EVAL_RC
+# TASK_LIST_ALL += MMLU_PRO_RC + AGI_EVAL_RC
 # TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
 # TASK_LIST_ALL += PERTURB_COT_TASKS
 
@@ -122,6 +124,17 @@ TASK_LIST_ALL += MMLU_PRO_RC + AGI_EVAL_RC
 # TASK_LIST_ALL = ['sky_t1::custom_loss', 'numia_math::custom_loss', 'tulu_if::custom_loss']
 # TASK_LIST_ALL = PALOMA
 # TASK_LIST_ALL = ['arc_challenge:rc::olmes:full']
+# MODEL_LIST_ALL = [
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_reddit-4M-5xC/step5735-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/no_flan-4M-5xC/step5735-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-75p-DCLM-baseline-25p-4M-5xC/step5735-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-50p-DCLM-baseline-50p-4M-5xC/step5735-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-25p-DCLM-baseline-75p-90M-5xC/step29901-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-25p-DCLM-baseline-75p-60M-5xC/step29052-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dolma17-25p-DCLM-baseline-75p-4M-5xC/step5735-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_ft7percentile_fw2-60M-5xC/step29042-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/DCLM-baseline-20M-5xC/step14594-unsharded-hf",
+# ]
 
 
 def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_size=None, save_requests=True):
@@ -180,14 +193,14 @@ def main():
             # From my testing, looks like anything less than 4 GPUs on 13B+ models (or Gemma 7B+) breaks
             # Also 70B model do not work on neptune (L40s)
             model_type = 'vllm'
-            if model in ['gemma-7b', 'gemma2-9b', "gemma2-2b-instruct", "gemma2-9b-instruct", "gemma2-9b-instruct-SimPO", "llama2-13b", "llama3-70b", "llama3.1-70b", "qwen2.5-14b", "qwen2.5-32b", "qwen2.5-72b", "llama3.1-70b-instruct", "qwen2.5-14b-instruct"]:
+            if model in ['gemma-7b', 'gemma2-9b', "gemma2-2b-instruct", "gemma2-9b-instruct", "gemma2-9b-instruct-SimPO", "llama2-13b", "llama3-70b", "llama3.1-70b", "qwen2.5-14b", "qwen2.5-32b", "qwen2.5-72b", "llama3.1-70b-instruct", "qwen2.5-14b-instruct"] or '32B' in model or '72B' in model or '22B' in model or '15b' in model or '40b' in model or '110B' in model or '70B' in model:
                 gpus = 4
             else:
                 gpus = 1 # don't need many GPUs for small models
         elif 'peteish13' in model or 'peteish7' in model:
             model_type = 'vllm'
             gpus = 4
-        elif model in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL or ('-3B-' in model):
+        elif model in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED or ('-3B-' in model):
             # Our 3B models have a head size of 208. This is not supported by PagedAttention and will throw errors.
             model_type = 'hf'
             gpus = 1

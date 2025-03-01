@@ -97,11 +97,42 @@ def main():
     # push_parquet_to_hf(
     #     parquet_file_path='analysis/data/olmo2_anneals_predictions.parquet',
     #     hf_dataset_name='allenai/olmo2-anneals-evals',
+    #     split_name='main',
+    #     overwrite=True
+    # )
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/olmo2_anneals_with_pdf_predictions.parquet',
+    #     hf_dataset_name='allenai/olmo2-anneals-evals',
+    #     split_name='with_pdfs',
     #     overwrite=True
     # )
     # push_parquet_to_hf(
     #     parquet_file_path='analysis/data/olmo2_microanneals_predictions.parquet',
     #     hf_dataset_name='allenai/olmo2-microanneals-evals',
+    #     overwrite=True
+    # )
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/reddit_metrics.parquet',
+    #     hf_dataset_name='allenai/reddit-anneal-evals',
+    #     split_name='benchmarks',
+    #     overwrite=True
+    # )
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/reddit_predictions.parquet',
+    #     hf_dataset_name='allenai/reddit-anneal-evals',
+    #     split_name='instances',
+    #     overwrite=True
+    # )
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/peteish32_metrics.parquet',
+    #     hf_dataset_name='allenai/peteish32-evals',
+    #     split_name='benchmarks',
+    #     overwrite=True
+    # )
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/peteish32_predictions.parquet',
+    #     hf_dataset_name='allenai/peteish32-evals',
+    #     split_name='instances',
     #     overwrite=True
     # )
 
@@ -112,9 +143,27 @@ def main():
         overwrite=True
     )
     push_parquet_to_hf(
-        parquet_file_path='analysis/data/aws_predictions.parquet',
+        parquet_file_path='analysis/data/aws_lite_predictions.parquet',
         hf_dataset_name='allenai/ladder-evals',
-        split_name='instances',
+        split_name='instanceslite',
+        overwrite=True
+    )
+    push_parquet_to_hf(
+        parquet_file_path='analysis/data/aws_medium_predictions.parquet',
+        hf_dataset_name='allenai/ladder-evals',
+        split_name='instancesmedium',
+        overwrite=True
+    )
+    # push_parquet_to_hf(
+    #     parquet_file_path='analysis/data/aws_predictions.parquet',
+    #     hf_dataset_name='allenai/ladder-evals',
+    #     split_name='instances',
+    #     overwrite=True
+    # )
+    push_parquet_to_hf(
+        parquet_file_path='analysis/data/aws_questions.parquet',
+        hf_dataset_name='allenai/ladder-evals',
+        split_name='questions',
         overwrite=True
     )
 
