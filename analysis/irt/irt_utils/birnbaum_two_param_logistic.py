@@ -41,7 +41,7 @@ from py_irt.models import abstract_model
 import numpy as np
 
 
-@abstract_model.IrtModel.register("2pl")
+@abstract_model.IrtModel.register("2pl_birnbaum")
 class Birnbaum(abstract_model.IrtModel):
     """2PL IRT model"""
 
