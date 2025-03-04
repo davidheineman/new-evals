@@ -10,3 +10,4 @@ data-bak/
 .openai
 .comet-api-key
 *.pdf
+olmes_requests/

@@ -484,20 +484,43 @@ def load_file(file_data, _type, load_lite_tasks=None):
         metrics_path = f"{requests_folder}/{file_name}"
 
         if not os.path.exists(requests_path):
-            print(f'Could not find {task}: {requests_path}')
+            print(f'Could not find questions path for {task}: {requests_path}')
             return []
 
+        # Get the task alias
         requests = process_jsonl(requests_path)
         with open(metrics_path, 'r') as f:
             metrics = json.load(f)
         task_alias = metrics['task_config']['metadata']['alias']
 
+        # If OLMES, get the small requests file
+        olmes_requests_ids = None
+        if '::olmes' in task_alias:
+            olmes_requests_folder = '/oe-eval-default/davidh/metaeval/analysis/download/olmes_requests/EleutherAI/pythia-160m'
+            file_name = Path(file_path).name
+            olmes_small_requests_path = f"{olmes_requests_folder}/{file_name}"
+            if os.path.exists(olmes_small_requests_path):
+                olmes_requests = process_jsonl(olmes_small_requests_path)
+                olmes_requests_ids = []
+                for request in olmes_requests:
+                    native_id_small = str(request['native_id'])
+                    olmes_requests_ids += [native_id_small]
+                print(f'Found request IDs for {task}:')
+                print(olmes_requests_ids)
+
         for i, request in enumerate(requests):
-            native_id = get_native_id(request) 
+            native_id = get_native_id(request)
+            native_id_small = str(request['native_id'])
             instance_id = str(native_id) + ':::' + str(task)
             context = request['request'].get('context', '')
             continuation = request['request'].get('continuation', '')
-            request = {'instance_id': instance_id, 'task_alias': task_alias, 'context': context, 'continuation': continuation, **request}
+
+            # TODO: Get all instances in the corresponding small OLMES metrics file and check equivalence
+            in_olmes_small = False
+            if olmes_requests_ids is not None and native_id_small in olmes_requests_ids:
+                in_olmes_small = True
+
+            request = {'instance_id': instance_id, 'task_alias': task_alias, 'in_olmes_small': in_olmes_small, 'context': context, 'continuation': continuation, **request}
             request = {k: str(v) for k, v in request.items()}
             requests[i] = request
         
@@ -763,7 +786,7 @@ def sanity_check(folder_name):
     all_files = scan_dir(aws_dir)
 
     model_tasks = defaultdict(set)
-    for (root, file) in all_files:
+    for (root, file) in tqdm(all_files, desc='Running sanity check (extracting model aliases)'):
         model_name, mix_name, step, step_str, size, token_ratio, task = get_metadata_from_file_name(root, file)
         # synthetic evals (excluded from Ian's model for now)
         if ':cot' in task:
@@ -787,6 +810,9 @@ def sanity_check(folder_name):
             continue
         if 'copycolors:mc' in task:
             continue
+        if 'aime' in task:
+            # Getting OOM errors for AIME
+            continue
 
         # # only math/code
         # if not ('gsm8k' in task or 'mbpp' in task or 'codex' in task or 'minerva' in task):
@@ -800,14 +826,31 @@ def sanity_check(folder_name):
             continue
         if 'paloma' in task or 'llm_compression' in task or 'custom_loss' in task:
             continue
-        model_tasks[f'{model_name}-{step}'].add(task)
-        # model_tasks[f'{model_name}'].add(task)
 
+        # Get model path
+        file_name = str(Path(root)) + '/' + Path(file).name.replace('predictions.jsonl', 'metrics.json')
+        with open(file_name, 'r') as f:
+            metrics = json.load(f)
+        if 'metadata' in metrics['model_config']:
+            model_path = metrics.get('model_config', {}).get("metadata", {}).get("alias", {})
+        else:
+            model_path = metrics['model_config']['model_path']
+        model_path = model_path.replace('/weka-mount/', 'weka://')
+
+        model_tasks[model_path].add(task)
+
+    # all_tasks = set(task for tasks in model_tasks.values() for task in tasks)
+    # incomplete_models = {model for model, tasks in model_tasks.items() if tasks != all_tasks}
+    # for model in sorted(list(incomplete_models)):
+    #     print(f"('{model}', {list(all_tasks - model_tasks[model])}),")
+
+    # Output a seperate line for each task
     all_tasks = set(task for tasks in model_tasks.values() for task in tasks)
     incomplete_models = {model for model, tasks in model_tasks.items() if tasks != all_tasks}
-    for model in incomplete_models:
-        # print(f"Model {model} is missing tasks. Missing tasks: {all_tasks - model_tasks[model]}")
-        print(f"({model}, {list(all_tasks - model_tasks[model])})")
+    for model in sorted(incomplete_models):
+        missing_tasks = all_tasks - model_tasks[model]
+        for task in sorted(missing_tasks):
+            print(f"('{model}', '{task}'),")
 
 
 def main(folder_name, file_type='predictions'):
@@ -876,13 +919,13 @@ if __name__ == '__main__':
     folder_name = "aws" # 1hr
     # folder_name = "consistent_ranking" # 8hr
 
-    # sanity_check(folder_name)
+    sanity_check(folder_name)
 
     # main(folder_name, file_type='metrics')
     # main(folder_name, file_type='predictions')
-    main(folder_name, file_type='medium_predictions')
-    main(folder_name, file_type='lite_predictions')
-    main(folder_name, file_type='questions')
+    # main(folder_name, file_type='medium_predictions')
+    # main(folder_name, file_type='lite_predictions')
+    # main(folder_name, file_type='questions')
 
     # ### Debug Ian's cleaning script
     # data_dir = Path(DATA_DIR).resolve()

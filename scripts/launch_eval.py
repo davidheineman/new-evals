@@ -26,10 +26,10 @@ from analysis.utils.constants_tasks import PERTURB_COT_TASKS
 from analysis.utils.constants_tasks import PALOMA, LLM_COMPRESSION, CUSTOM_LOSS
 
 MODEL_LIST_ALL = []
-# MODEL_LIST_ALL += MODEL_LADDER_LIST + MODEL_LIST_INTERMEDIATE
-# MODEL_LIST_ALL += OE_EVAL_BASE_MODELS
-# MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_13B # 13B intermediate ckpts
-# MODEL_LIST_ALL += MODEL_LIST_MIXES_FINAL # ian's new mixes
+MODEL_LIST_ALL += MODEL_LADDER_LIST + MODEL_LIST_INTERMEDIATE
+MODEL_LIST_ALL += OE_EVAL_BASE_MODELS
+MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_13B # 13B intermediate ckpts
+MODEL_LIST_ALL += MODEL_LIST_MIXES_FINAL # ian's new mixes
 MODEL_LIST_ALL += MODEL_LIST_MIXES_FINAL_EXTENDED # extended set of data mixes
 MODEL_LIST_ALL += OE_EVAL_BASE_MODELS_EXTENDED # OLL 2 leaderboard models
 
@@ -39,60 +39,62 @@ MODEL_LIST_ALL += OE_EVAL_BASE_MODELS_EXTENDED # OLL 2 leaderboard models
 
 TASK_LIST_ALL = []
 
-# TASK_LIST_ALL += RC_TASKS_OLMES
-# TASK_LIST_ALL += PARA_TASKS_OLMES 
-# TASK_LIST_ALL += ENLARGE_TASKS_OLMES
-# TASK_LIST_ALL += DISTRACTORS_TASKS_OLMES
-# TASK_LIST_ALL += MC_TASKS_OLMES
+TASK_LIST_ALL += RC_TASKS_OLMES
+TASK_LIST_ALL += PARA_TASKS_OLMES 
+TASK_LIST_ALL += ENLARGE_TASKS_OLMES
+TASK_LIST_ALL += DISTRACTORS_TASKS_OLMES
+TASK_LIST_ALL += MC_TASKS_OLMES
 
-# # TASK_LIST_ALL += MC_TASKS_COPY_COLORS # broken!!!
-# TASK_LIST_ALL += GEN_TASKS_OLMES
-# TASK_LIST_ALL += AGI_EVAL_MC + BBH_MC + MMLU_PRO_MC # + MINERVA_MC
-# TASK_LIST_ALL += AGI_EVAL_COT # + MMLU_PRO_COT
+# TASK_LIST_ALL += MC_TASKS_COPY_COLORS # broken!!!
+TASK_LIST_ALL += GEN_TASKS_OLMES
+TASK_LIST_ALL += AGI_EVAL_MC + BBH_MC + MMLU_PRO_MC # + MINERVA_MC
+TASK_LIST_ALL += AGI_EVAL_COT # + MMLU_PRO_COT
 
-# TASK_LIST_ALL += MMLU_PRO_RC + AGI_EVAL_RC
-# TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
-# TASK_LIST_ALL += PERTURB_COT_TASKS
+TASK_LIST_ALL += MMLU_PRO_RC + AGI_EVAL_RC
+TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
+TASK_LIST_ALL += PERTURB_COT_TASKS
 
-# TASK_LIST_ALL += ['autobencher::none', 'autobencher:mc::none']
+TASK_LIST_ALL += ['autobencher::none', 'autobencher:mc::none']
 
-# TASK_LIST_ALL += [
-#     # GSM CoT
-#     "gsm8k::olmes",
-#     # Minerva CoT (olmes version)
-#     "minerva_math_algebra::olmes:full",
-#     "minerva_math_counting_and_probability::olmes:full",
-#     "minerva_math_geometry::olmes:full",
-#     "minerva_math_intermediate_algebra::olmes:full",
-#     "minerva_math_number_theory::olmes:full",
-#     "minerva_math_prealgebra::olmes:full",
-#     "minerva_math_precalculus::olmes:full",
-#     # Coding
-#     "mbpp::ladder",
-#     "mbppplus::ladder",
-#     "codex_humaneval:temp0.8",
-#     "codex_humanevalplus::ladder", 
-# ]
+TASK_LIST_ALL += [
+    # GSM CoT
+    "gsm8k::olmes",
+    # Minerva CoT (olmes version)
+    "minerva_math_algebra::olmes:full",
+    "minerva_math_counting_and_probability::olmes:full",
+    "minerva_math_geometry::olmes:full",
+    "minerva_math_intermediate_algebra::olmes:full",
+    "minerva_math_number_theory::olmes:full",
+    "minerva_math_prealgebra::olmes:full",
+    "minerva_math_precalculus::olmes:full",
+    # Coding
+    "mbpp::ladder",
+    "mbppplus::ladder",
+    "codex_humaneval:temp0.8",
+    "codex_humanevalplus::ladder", 
+]
 
-# TASK_LIST_ALL += [
-#     'deepmind_math_large::none',
-#     'medmcqa:rc::none',
-#     'medmcqa:mc::none',
-#     'gsm_plus::none',
-#     'gsm_symbolic::none',
-#     'gsm_symbolic_p1::none',
-#     'gsm_symbolic_p2::none',
-#     'gpqa::none',
-#     'minerva_math_500::none', 
-# ]
+TASK_LIST_ALL += [
+    'deepmind_math_large::none',
+    'medmcqa:rc::none',
+    'medmcqa:mc::none',
+    'gsm_plus::none',
+    'gsm_symbolic::none',
+    'gsm_symbolic_p1::none',
+    'gsm_symbolic_p2::none',
+    'gpqa::none',
+    'minerva_math_500::none', 
+]
 
-# TASK_LIST_ALL += [
-#     'aime::none',
-# ]
+TASK_LIST_ALL += [
+    'aime::none',
+]
 
-# TASK_LIST_ALL += PALOMA
-# TASK_LIST_ALL += LLM_COMPRESSION
-# TASK_LIST_ALL += CUSTOM_LOSS
+TASK_LIST_ALL += PALOMA
+TASK_LIST_ALL += LLM_COMPRESSION
+TASK_LIST_ALL += CUSTOM_LOSS
+
+TASK_LIST_ALL += BBH_COT
 
 
 # # FOR TESTING
@@ -154,7 +156,8 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_s
         --gantry-secret-aws-secret-access AWS_SECRET_ACCESS_KEY \
         --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
         --recompute-metrics \
-        --beaker-priority low
+        --run-local \
+        --beaker-priority normal
     """
     command = command.replace('\n', '').replace('  ', '') # remove extra spacing!
     if limit is not None: 
@@ -177,14 +180,13 @@ def main():
     print(f'Launching {len(MODEL_LIST_ALL)} models on {len(TASK_LIST_ALL)} tasks (5 second sleep to confirm...)')
     time.sleep(5)
 
-    # for (model, task_list) in MISSING_EVALS:
-    #     matches = [model_full for model_full in MODEL_LIST_ALL if model in model_full]
-    #     # matches = [model_full for model_full in MODEL_LIST_ALL if model == model_full]
-    #     assert len(matches) == 1, (model, matches)
-    #     model = matches[0]
+    # task_list = TASK_LIST_ALL
+    # for model in MODEL_LIST_ALL:
 
-    task_list = TASK_LIST_ALL
-    for model in MODEL_LIST_ALL:
+    for (model, missing_tasks) in MISSING_EVALS:
+        task_list = []
+        for missing_task in missing_tasks:
+            task_list += [task_name for task_name in TASK_LIST_ALL if missing_task in task_name]
 
         batch_size = None
         save_requests = True

@@ -207,17 +207,17 @@ def main():
     # s3_prefix = "evaluation/peteish7-soup"
     # folder_name = 'olmo2_soups'
 
-    # bucket_name = 'ai2-llm'
-    # s3_prefix = 'eval-results/downstream/metaeval/'
-    # folder_name = 'aws'
+    bucket_name = 'ai2-llm'
+    s3_prefix = 'eval-results/downstream/metaeval/'
+    folder_name = 'aws'
 
     # bucket_name = 'ai2-llm'
     # s3_prefix = 'evaluation/olmo-reddit/'
     # folder_name = 'reddit'
 
-    bucket_name = 'ai2-llm'
-    s3_prefix = 'evaluation/peteish32/'
-    folder_name = 'peteish32'
+    # bucket_name = 'ai2-llm'
+    # s3_prefix = 'evaluation/peteish32/'
+    # folder_name = 'peteish32'
 
     # bucket_name = 'ai2-llm'
     # s3_prefix = 'eval-results/downstream/eval-for-consistent-ranking-preemption-fixed/'
@@ -240,8 +240,8 @@ def main():
     from preprocess import main
     main(folder_name, file_type='metrics')
     main(folder_name, file_type='predictions')
-    # main(folder_name, file_type='lite_predictions')
-    # main(folder_name, file_type='medium_predictions')
+    main(folder_name, file_type='lite_predictions')
+    main(folder_name, file_type='medium_predictions')
 
     # Push to HF!
     from hf import main
