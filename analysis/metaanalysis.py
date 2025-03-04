@@ -145,13 +145,15 @@ def set_title_from_task(ax: plt.Axes, task):
     ax.set_title(get_title_from_task(task))
 
 
-def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_models, metric='primary_score', axes=None, ladder_config_path=DEFAULT_LADDER_CONFIG_PATH):
+def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_models, metric='primary_score', axes=None, small_fig=False, ladder_config_path=DEFAULT_LADDER_CONFIG_PATH):
     results = {}
     
     primary_score_name = PRIMARY_METRICS_OLMES[task] if isinstance(task, str) and task in PRIMARY_METRICS_OLMES else 'primary_score'
     try:
         # Step 1 ladder prediction (base models)
-        ax: plt.Axes = axes[0, 0] if axes is not None else None
+        ax = None
+        if not small_fig:
+            ax: plt.Axes = axes[0, 0] if axes is not None else None
         rel_error_step_1, _, _ = run_ladder(
             df,
             task,
@@ -170,7 +172,9 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             ax.legend(fontsize=6)
 
         # Step 2 ladder prediction (base models)
-        ax: plt.Axes = axes[1, 0] if axes is not None else None
+        ax = None
+        if not small_fig:
+            ax: plt.Axes = axes[1, 0] if axes is not None else None
         _, rel_error_step_2, _ = run_ladder(
             df,
             task,
@@ -215,6 +219,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
                 va='bottom', ha='left',
                 fontsize=8
             )
+            ax.set_title('Perplexity -> Task Metric')
 
         # Stacked ladder prediction
         ax: plt.Axes = axes[3, 0] if axes is not None else None
@@ -234,6 +239,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
         if ax:
             ax.set_ylabel(primary_score_name)
             ax.legend(fontsize=6)
+            ax.set_title('Scaling Law Prediction')
     except Exception as e:
         print(task, 'failed on ladder fits', e)
         # raise RuntimeError(task, 'failed on ladder fits', e)
@@ -242,7 +248,11 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
     intermediate_models = ['peteish-moreeval-1B-5xC', 'peteish13-highlr']
     intermediate_tv = []
     for j, model in enumerate(intermediate_models):
-        ax: plt.Axes = axes[0+(j*2), 1] if axes is not None else None
+        # logits_per_char_corr intermediate checkpoinrts
+        if small_fig:
+            ax: plt.Axes = axes[2+j, 1] if axes is not None else None
+        else:
+            ax: plt.Axes = axes[0+(j*2), 1] if axes is not None else None
         tv, _ = compute_total_variation(
             df, models=[model], metric='logits_per_char_corr', tasks=[task], axes=[ax]
         )
@@ -250,6 +260,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
         if ax and ax.get_legend_handles_labels()[1]:
             ax.legend(fontsize=6)
             ax.set_ylabel('Task loss (BPB)')
+            ax.set_title('Smoothness')
             
             # Get the y-values from the current axis
             lines = ax.get_lines()
@@ -263,8 +274,10 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
                 if not (np.isnan(y_20_percent) or np.isnan(y_max) or np.isinf(y_20_percent) or np.isinf(y_max)):
                     ax.set_ylim(bottom=y_20_percent, top=y_max * (0.95 if y_max < 0 else 1.05))
 
-        # 1B intermediate checkpoints
-        ax: plt.Axes = axes[1+(j*2), 1] if axes is not None else None
+        # primary_metric intermediate checkpoinrts
+        ax = None
+        if not small_fig:
+            ax: plt.Axes = axes[1+(j*2), 1] if axes is not None else None
         tv, _ = compute_total_variation(
             df, models=[model], metric=metric, tasks=[task], axes=[ax]
         )
@@ -288,7 +301,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             df, [task], small_metric='logits_per_byte_corr', target_metric='primary_score'
         )
         two_class_results = acc_pivot_bpb_primary.loc[str(task)].unstack()
-        if axes is not None:
+        if axes is not None and not small_fig:
             ax: plt.Axes = axes[1, 2]
             plot_task_accuracy(ax, two_class_results, str(task), DDOS_COMPUTE_SIZES)
             ax.set_ylabel(f'Decision Acc (BPB on {primary_score_name})')
@@ -298,7 +311,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             df, [task], target_metric='primary_score'
         )
         two_class_results = acc_pivot_best_metric.loc[str(task)].unstack()
-        if axes is not None:
+        if axes is not None and not small_fig:
             ax: plt.Axes = axes[2, 2]
             plot_task_accuracy(ax, two_class_results, str(task), DDOS_COMPUTE_SIZES)
             ax.set_ylabel(f'Decision Acc (best on {primary_score_name})')
@@ -315,6 +328,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             ax.legend(fontsize=6, ncols=2)
             ax.set_ylabel('Decision Acc (BPB on BPB)')
             ax.set_ylim(0.75, 1)
+            ax.set_title('Decision Accuracy')
 
         results.update({
             "two_class_bpb_4M": acc_pivot_bpb['4M'].loc[str(task)].item(),
@@ -342,7 +356,8 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
     if axes is not None:
         for ax in axes.flat:
             ax.set_ylabel(ax.get_ylabel(), fontsize=10)
-            ax.set_title(get_title_from_task(task))
+            if not small_fig:
+                ax.set_title(get_title_from_task(task))
 
             if not ax.has_data():
                 ax.remove()

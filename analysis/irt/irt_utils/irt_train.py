@@ -72,6 +72,15 @@ def train(
     log_every: int = 100,
     quiet: bool = False,
 ):
+    # Make reproducible
+    random.seed(123)
+    np.random.seed(123)
+    torch.manual_seed(123)
+    pyro.set_rng_seed(123)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+    torch.use_deterministic_algorithms(True)
+
     if quiet:
         console.quiet = True
 
@@ -105,7 +114,8 @@ def train(
     trainer = IrtModelTrainer(config=config, dataset=_dataset, data_path=None)
     console.log("Training Model...")
     trainer.train(device=device)
-    params = trainer.last_params
+    # params = trainer.last_params
+    params = trainer.best_params
     
     end_time = time.time()
     elapsed_time = end_time - start_time

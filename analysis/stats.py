@@ -357,6 +357,8 @@ def calculate_and_plot_total_variation(x, y, metric, model_name=None, num_scores
 
 
 def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None, color=None, add_text=True):
+    if isinstance(axes, list) and axes[0] is None: axes = None
+    
     tv_results = pd.DataFrame(index=['total_variation'], columns=tasks)
 
     assert isinstance(models, list) 

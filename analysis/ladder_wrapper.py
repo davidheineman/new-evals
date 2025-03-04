@@ -309,6 +309,8 @@ def run_ladder(
         y_metric='rc_bpb', intermediate_feature='bpb', use_flops=False, 
         run_step1=True, run_step2=True, run_stacked=True,
         axes=None, add_texts=False, return_preds=False, return_reals=False, return_fit_error=False):
+    if isinstance(axes, list) and axes[0] is None: axes = None
+    
     data_by_name_tokens = DATA_BY_NAME_LADDER
     ax_i = 0
 
