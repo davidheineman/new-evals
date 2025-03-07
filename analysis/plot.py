@@ -21,7 +21,7 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=
             elif value < alpha: # or value > (1-alpha):
                 return (1, 1, 1, 0.05)
             else:
-                return plt.cm.viridis(value)
+                return plt.cm.viridis(value*4)
     elif _type == 'power':
         def custom_colormap(value):
             if np.isnan(value) or value < 0:
@@ -29,7 +29,7 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=
             elif value > 0.8:
                 return (1, 1, 1, 0.05)
             else:
-                return plt.cm.viridis(value)
+                return plt.cm.viridis(value*4)
 
     # Apply custom colors
     colors = [[custom_colormap(val) for val in row] for row in values]
@@ -56,7 +56,7 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=
         ax.set_yticklabels([])
 
     # Add colorbar only for the viridis range
-    norm = plt.Normalize(0, 1)
+    norm = plt.Normalize(0, 0.25)
     sm = plt.cm.ScalarMappable(cmap=plt.cm.viridis, norm=norm)
     cbar = plt.colorbar(sm, ax=ax, fraction=0.05, pad=0.04)
     label = r'$p$' + f'-values (highlighted if not significant,' + r'$\alpha$=' + f'{alpha})'
