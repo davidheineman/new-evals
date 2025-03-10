@@ -7,6 +7,166 @@ import numpy as np
 LABEL_COLOR_MAP = {}
 COLOR_IDX = {'col': 0}
 
+# Category coloring for plotting
+TASK_CATEGORIES = {
+    'hellaswag': 'language',
+    'winogrande': 'language',
+    
+    'arc_challenge': 'knowledge',
+    'arc_easy': 'knowledge', 
+    'boolq': 'knowledge',
+    'csqa': 'knowledge',
+    'openbookqa': 'knowledge',
+    'piqa': 'knowledge',
+    'socialiqa': 'knowledge',
+    'drop': 'knowledge',
+    'jeopardy': 'knowledge',
+    'squad': 'knowledge', 
+    'triviaqa': 'knowledge',
+    'olmes_core9': 'knowledge',
+    'mmlu': 'knowledge',
+    'olmes_core9_mc': 'knowledge',
+    'mmlu_mc': 'knowledge',
+    'olmes_gen': 'knowledge',
+    'autobencher': 'knowledge',
+    'autobencher:mc': 'knowledge',
+
+    'gsm8k': 'math',
+    'minerva': 'math',
+    'minerva_math_algebra': 'math',
+    'minerva_math_counting_and_probability': 'math',
+    'minerva_math_geometry': 'math',
+    'minerva_math_intermediate_algebra': 'math',
+    'minerva_math_number_theory': 'math',
+    'minerva_math_prealgebra': 'math',
+    'minerva_math_precalculus': 'math',
+
+    'mbpp': 'code',
+    'mbppplus': 'code',
+    'codex_humaneval': 'code',
+    'codex_humanevalplus': 'code',
+}
+
+CATEGORY_COLORS = {
+    'language': '#2ecc71',
+    'knowledge': '#3498db',
+    'math': '#e74c3c',
+    'code': '#9b59b6'
+}
+
+
+def get_valid_points(df_results, x_col, y_col):
+    """ Helper function to get valid points from rows in a df """
+    points = []
+    for task in df_results.index:
+        x = df_results[x_col][task]
+        y = df_results[y_col][task]
+        if x != 0 and y != 0 and x != float('nan') and y != float('nan'):
+            points.append((x, y, task))
+    return points
+
+
+def adjustText(ax, texts):
+    """ Adjust text annotations in matplot figure to not overlap with each other """
+    if len(texts) > 0:
+        import matplotlib
+
+        existing_annotations = [
+            child for child in ax.get_children() if isinstance(child, matplotlib.text.Annotation)
+        ]
+
+        # Remove existing annotation
+        for child in existing_annotations:
+            child.remove()
+
+        from adjustText import adjust_text
+
+        adjust_text(
+            texts,
+            arrowprops=dict(
+                arrowstyle="-", 
+                color="gray", 
+                lw=0.5, 
+                alpha=0.5,
+                clip_on=True  # Enable clipping for arrows
+            ),
+            avoid_points=True,
+            avoid_self=True,
+            avoid_lines=True,
+            existing_annotations=existing_annotations,
+            autoalign="xy",
+            force_points=0.5,
+            force_text=0.2,
+            expand_points=(1.5, 1.5),
+            ax=ax,
+        )
+
+        # # Set clip_on for all annotation objects after adjustment
+        # for text in texts:
+        #     text.set_clip_on(True)
+        #     if hasattr(text, 'arrow_patch') and text.arrow_patch:
+        #         text.arrow_patch.set_clip_on(True)
+
+
+def draw_pareto_frontier(ax, xs, ys, invert_x=False, invert_y=False, color='grey'):
+    """Draw Pareto frontier lines on the given axes"""
+    points = list(zip(xs, ys))
+    frontier_points_y = set()
+    frontier_points_x = set()
+    
+    # Find points that are optimal in x dimension (scan downward on x dim)
+    sorted_by_x = sorted(points, reverse=not invert_x, key=lambda p: p[0])
+    max_y = float('-inf') if not invert_y else float('inf')
+    
+    for x, y in sorted_by_x:
+        if (y > max_y and not invert_y) or (y < max_y and invert_y):
+            frontier_points_y.add((x, y))
+            max_y = y
+        elif y == max_y:
+            frontier_points_y.add((x, y))
+    
+    # # Find points that are optimal in x dimension (scan leftward on x dim)
+    # sorted_by_x = sorted(points, reverse=invert_x, key=lambda p: p[0])
+    # max_y = float('-inf') if not invert_y else float('inf')
+    
+    # for x, y in sorted_by_x:
+    #     if (y > max_y and not invert_y) or (y < max_y and invert_y):
+    #         frontier_points_y.add((x, y))
+    #         max_y = y
+    #     elif y == max_y:
+    #         frontier_points_y.add((x, y))
+            
+    # # Find points that are optimal in y dimension (scan upward on y dim)
+    # sorted_by_y = sorted(points, reverse=invert_y, key=lambda p: p[1]) 
+    # max_x = float('-inf') if not invert_x else float('inf')
+    
+    # for x, y in sorted_by_y:
+    #     if (x > max_x and not invert_x) or (x < max_x and invert_x):
+    #         frontier_points_x.add((x, y))
+    #         max_x = x
+    #     elif x == max_x:
+    #         frontier_points_x.add((x, y))
+            
+    # Convert to list and sort for drawing
+    frontier_points_y = sorted(list(frontier_points_y), key=lambda p: p[0], reverse=invert_x)
+    frontier_points_x = sorted(list(frontier_points_x), key=lambda p: p[1], reverse=invert_y)
+    
+    # Draw dotted grey line connecting frontier points
+    if frontier_points_y:
+        frontier_xs, frontier_ys = zip(*frontier_points_y)
+        ax.plot(frontier_xs, frontier_ys, color=color, linestyle='--', linewidth=1)
+    if frontier_points_x:
+        frontier_xs, frontier_ys = zip(*frontier_points_x)
+        ax.plot(frontier_xs, frontier_ys, color=color, linestyle='--', linewidth=1)
+    if len(frontier_points_x) > 0 and len(frontier_points_y) > 0:
+        # Connect the ends of both frontiers
+        frontier_points_y_end = frontier_points_y[-1]
+        frontier_points_x_end = frontier_points_x[-1]
+        ax.plot([frontier_points_y_end[0], frontier_points_x_end[0]], 
+                [frontier_points_y_end[1], frontier_points_x_end[1]], 
+                color=color, linestyle='--', linewidth=1)
+
+
 def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=None, _type='p_values', alpha=0.01, plot_clean=False):
     """ Plot a pairwise heatmap of statistical significance """
     # Reorder values matrix according to sorted mixes

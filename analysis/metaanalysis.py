@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from dataloader import get_slice
 from ladder_wrapper import run_ladder
-from stats import compute_significance, compute_total_variation
+from stats import compute_significance, compute_total_variation, kendall_tau_a
 from table import display_task_variants
 
 from ladder_ian import compute_2_class, get_compute, plot_task_accuracy
@@ -45,6 +45,41 @@ def get_perf_size(df, size, task, metric):
     _slice['compute'] = _slice['size'].apply(lambda x: get_compute(x) if '-' in x else x)
     _slice = _slice.sort_values(metric, ignore_index=True)
     return _slice
+
+
+def get_df_benchmarks_subset(df_instances: pd.DataFrame, n_instances: int):
+    """ Compute benchmark averages for a random subset of instances """
+    # Sample n instances from each group
+    df_instances_subset = df_instances.groupby(['task', 'model', 'step', 'mix'], dropna=False, group_keys=False).apply(
+        lambda x: x.sample(n=min(len(x), n_instances), random_state=42)
+    )
+
+    # Compute aggregate metrics
+    df_benchmarks_subset = df_instances_subset.groupby(level=['task', 'model', 'step', 'mix'], dropna=False).agg({
+        'primary_score': 'mean',
+        'logits_per_byte_corr': 'mean',
+        'logits_per_char_corr': 'mean',
+        'size': 'first', 
+        'token_ratio': 'first'
+    }).reset_index()
+    
+    # Get actual number of instances for each group
+    instance_counts = df_instances_subset.groupby(['task', 'model', 'step', 'mix'], dropna=False).size().reset_index(name='num_instances')
+    df_benchmarks_subset = df_benchmarks_subset.merge(instance_counts, on=['task', 'model', 'step', 'mix'])
+
+    return df_instances_subset, df_benchmarks_subset
+
+
+def assert_same_models(df_instances: pd.MultiIndex, df_benchmarks: pd.DataFrame):
+    ''' Assert the model sets are the same for different df types '''
+    MODELS_BENCHMARKS = list(df_benchmarks['model'].unique())
+    MODELS_INSTANCES = df_instances.index.get_level_values('model').unique().to_list()
+
+    benchmarks_set = set(MODELS_BENCHMARKS)
+    instances_set = set(MODELS_INSTANCES)
+
+    assert len(benchmarks_set - instances_set) == 0, f"Found models in BENCHMARKS but not in INSTANCES: {benchmarks_set - instances_set}"
+    assert len(instances_set - benchmarks_set) == 0, f"Found models in INSTANCES but not in BENCHMARKS: {instances_set - benchmarks_set}"
 
 
 def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_metric='primary_metric', model_sizes=DDOS_SIZES):
@@ -379,4 +414,51 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
     except Exception as e:
         print('Failed to calculate compute cost:', e)
 
+    return results
+
+
+def run_instance_analysis(df_instances, task, alpha=0.05):
+    task_name = get_title_from_task(task)
+
+    # ALPHA = 0.01
+    ALPHA = 1e-4
+    
+    results = {}
+    
+    for metric in ['logits_per_byte_corr', 'primary_score']:
+        models = [model for model in DDOS_MODEL_NAMES if '150M' in model]
+        _, out, _ = compute_significance(
+            df_instances, models=models, metric=metric,
+            step=None, last_n=1, alpha=ALPHA, tasks=[task], quiet=True
+        )
+        mixes_A, scores_A, p_values_A, sig_clusters_A = out[task_name]
+
+        models = [model for model in DDOS_MODEL_NAMES if '1B' in model]
+        _, out, _ = compute_significance(
+            df_instances, models=models, metric=metric,
+            step=None, last_n=1, alpha=ALPHA, tasks=[task], quiet=True
+        )
+        mixes_B, scores_B, p_values_B, sig_clusters_B = out[task_name]
+
+        # Compute metric scores
+        valid_p_values = p_values_A[~np.isnan(p_values_A)]
+        perc_sig_150M = np.sum(valid_p_values <= ALPHA) / len(valid_p_values)
+
+        valid_p_values = p_values_B[~np.isnan(p_values_B)]
+        perc_sig_1B = np.sum(valid_p_values <= ALPHA) / len(valid_p_values)
+
+        kt_c = kendall_tau_a(mixes_A, mixes_B, sig_clusters_A, sig_clusters_B)
+        
+        plt.close()
+        
+        metric_suffix = 'bpb' if metric == 'logits_per_byte_corr' else 'primary_score'
+        results.update({
+            "task": task_name,
+            f"kt_c_{metric_suffix}": kt_c,
+            f"num_sig_clusters_150M_{metric_suffix}": max(sig_clusters_A),
+            f"num_sig_clusters_1B_{metric_suffix}": max(sig_clusters_B),
+            f"perc_sig_150M_{metric_suffix}": perc_sig_150M,
+            f"perc_sig_1B_{metric_suffix}": perc_sig_1B
+        })
+    
     return results
