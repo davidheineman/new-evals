@@ -1,9 +1,16 @@
 import numpy as np
 import pandas as pd
 import warnings
+import duckdb
+
+# from db import get_slice_db, get_nd_array_db, get_instance_db
+from db_duck import get_slice_db, get_nd_array_db, get_instance_db
 
 def get_slice(df, mix=None, model=None, task=None, step=None):
     """ Index to return a df of some (data mix, model, task, step) """
+    if isinstance(df, duckdb.DuckDBPyConnection):
+        return get_slice_db(df, mix, model, task, step)
+    
     mixes   = [mix] if isinstance(mix, str) else mix
     models  = [model] if isinstance(model, str) else model
     tasks   = [task] if isinstance(task, str) else task
@@ -44,6 +51,9 @@ def get_slice(df, mix=None, model=None, task=None, step=None):
 
 def get_instance(df, instance_id):
     """ Index to return a df of some (instance_id) """
+    if isinstance(df, duckdb.DuckDBPyConnection):
+        return get_instance_db(df, instance_id)
+
     instance_ids   = [instance_id] if isinstance(instance_id, str) else instance_id
 
     # Dynamically create a slicing tuple matching the index levels
@@ -83,6 +93,9 @@ def get_max_k_step(_slice, k=1):
 
 def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, sorted=False, return_index=False):
     """ Get an nd array of (COL, instances), sorted by overall performance """
+    if isinstance(df, duckdb.DuckDBPyConnection):
+        return get_nd_array_db(df, col, metric, mix, model, task, step, sorted, return_index)
+
     col = [col] if not isinstance(col, list) else col
     
     use_max_step = False
