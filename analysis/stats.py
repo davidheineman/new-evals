@@ -1,14 +1,16 @@
 import itertools
+from pathlib import Path
 import pandas as pd
 import math
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from utils.pce import compute_pairwise_p_values, compute_pairwise_p_values_paired_t_test
+from utils import DATA_DIR, get_title_from_task
+from utils.pce import compute_pairwise_p_values, compute_weighted_pairwise_p_values, compute_pairwise_p_values_paired_t_test
 from utils.power import compute_pairwise_mcnemar
 from plot import plot_heatmap, plot_training
-from dataloader import get_nd_array
+from dataloader import get_nd_array, get_slice
 
 
 def calc_total_variation(arr, norm=False, improvement=False):
@@ -184,7 +186,11 @@ def get_sig_clusters(p_vals, alpha=0.01):
     return sig_clusters
 
 
-def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, alpha=0.05, num_permutations=1_000, do_plot=False, pretty_mix_names=None, plot_sig_clusters=True, plot_clean=False, quiet=False):
+def compute_significance(
+    df, models, metric, tasks=None, 
+    aggregator='macro', # macro, micro, irt (for single tasks, macro avg == micro avg)
+    step='max', last_n=1, alpha=0.05, num_permutations=1_000, 
+    do_plot=False, pretty_mix_names=None, plot_sig_clusters=True, plot_clean=False, quiet=False):
     if tasks is None: 
         tasks = df.index.get_level_values('task').unique()
 
@@ -208,7 +214,7 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
         if last_n > 1:
             assert step == 'max'
             
-            mixes, scores = get_nd_array(df, ['mix', 'step'], 'acc_per_char', model=models, task=task)
+            instance_names, mixes, scores = get_nd_array(df, ['mix', 'step'], 'acc_per_char', model=models, task=task, return_index=True)
 
             scores = scores[:, -last_n:, :] # get last n steps
 
@@ -227,7 +233,7 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
             if metric == 'logits_per_byte':
                 # TMP: Handle 3D array
                 from ladder_wrapper import map_corr_labels
-                mixes, bpb = get_nd_array(df, ['model', 'step', 'mix'], metric, model=models, task=task, step=step)
+                instance_names, mixes, bpb = get_nd_array(df, ['model', 'step', 'mix'], metric, model=models, task=task, step=step, return_index=True)
                 mixes = np.array([mix for mix, _, _ in mixes])
                 bpb = bpb[:, 0, :]
                 _, corr = get_nd_array(df, ['model', 'step', 'mix'], 'correct_choice', model=models, task=task, step=step)
@@ -240,12 +246,76 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
                 mixes = mixes[sorted_indices].tolist()
                 scores = scores[sorted_indices]
             else:
-                mixes, scores = get_nd_array(df, 'mix', metric, model=models, task=task, step=step, sorted=True)
+                instance_names, mixes, scores = get_nd_array(df, 'mix', metric, model=models, task=task, step=step, sorted=True, return_index=True)
+                # instance_names, mixes, scores = get_nd_array(df, 'mix', metric, model=models, task=task, step=step, sorted=False, return_index=True)
 
-        if isinstance(task, list):
-            from dataloader import get_slice
-            from utils.pce import compute_weighted_pairwise_p_values
+        if aggregator == 'irt':
+            import os, sys
+            path_to_add = os.path.dirname(os.path.abspath(__file__)) + '/irt'
+            sys.path.append(path_to_add)
+            from irt_utils.irt_inference import load_irt_params, calculate_theta
+            from run_irt import normalize_scores
 
+            from utils import get_title_from_task
+
+            task_name = get_title_from_task(task)
+
+            train_instance_names, discriminations, difficulties = load_irt_params(
+                load_path=Path(DATA_DIR) / "irt" / f"{task_name}.json",
+            )
+
+            def compute_irt(test_instance_names, test_scores):
+                _type = 'acc'
+                _func = 'bernoulli'
+                if 'logits' in metric:
+                    _type = 'bpb'
+                    _func = 'gaussian'
+
+                test_scores = normalize_scores(test_scores, _type=_type)
+
+                # Sort train instances by the test IRT param ordering
+                id_to_idx_map = {instance_id: idx for idx, instance_id in enumerate(test_instance_names)}
+                reorder_idx = [id_to_idx_map[train_id] for train_id in train_instance_names]
+
+                # # Different sort implementation
+                # name_to_index = {name: i for i, name in enumerate(train_instance_names)}
+                # sorted_indices = np.array([name_to_index[name] for name in test_instance_names])
+                
+                diff_reordered = [difficulties[i] for i in reorder_idx]
+                disc_reordered = [discriminations[i] for i in reorder_idx]
+                train_instances_reordered = [train_instance_names[i] for i in reorder_idx]
+
+                # print(len(train_instance_names))
+                # print(len(test_instance_names))
+                # print(len(train_instances_reordered))
+
+                # print(train_instance_names[:10])
+                # print(train_instances_reordered[:10])
+                # print(test_instance_names[:10])
+
+                # print(set(test_instance_names) - set(train_instances_reordered))
+                # print(set(train_instances_reordered) - set(test_instance_names))
+
+                # print(sorted(train_instances_reordered) == sorted(test_instance_names))
+
+                # assert train_instances_reordered == test_instance_names, (train_instances_reordered, test_instance_names)
+
+                # Compute IRT ability parameter
+                thetas_acc = calculate_theta(diff_reordered, disc_reordered, test_scores, func=_func, quiet=True)
+
+                return np.array(thetas_acc)
+
+            num_permutations = 10
+
+            print('Computing IRT permutation test...')
+            p_values, mix_scores, _ = compute_weighted_pairwise_p_values(
+                scores, instance_names=instance_names, aggregator=compute_irt, 
+                num_permutations=num_permutations, return_scores=True
+            )
+            print('Done!')
+
+            p_values[np.tril_indices_from(p_values, k=-1)] = np.nan # set tril to nan
+        elif isinstance(task, list) and aggregator == 'macro':
             # Get value counts for each task
             slices = get_slice(df, model=models, task=task)
             unique_counts = slices.groupby('task')['native_id'].nunique()
@@ -264,15 +334,17 @@ def compute_significance(df, models, metric, step='max', last_n=1, tasks=None, a
             # Change task name
             from metaanalysis import get_title_from_task
             task = get_title_from_task(task)
-        else:
+        elif isinstance(task, str) or aggregator == 'micro':
+            # Micro average (default setup for single tasks)
             p_values, mix_scores, _ = compute_pairwise_p_values(scores, num_permutations=num_permutations, return_scores=True)
+            
             # p_values, mix_scores, _ = compute_pairwise_p_values_paired_t_test(scores, return_scores=True)
             # p_values, mix_scores, _ = compute_pairwise_mcnemar(scores, return_scores=True)
-            
+
             # p_values = np.nan_to_num(compute_pairwise_p_values(scores), nan=0) + np.nan_to_num(compute_pairwise_p_values(scores[::-1]).T, nan=0)
             # np.fill_diagonal(p_values, np.nan)
-
-            # mix_scores = None
+        else:
+            raise ValueError(aggregator)
 
         sig_clusters = None
         if plot_sig_clusters:
@@ -307,7 +379,7 @@ def calculate_and_plot_total_variation(x, y, metric, model_name=None, num_scores
     x = x[sorted_indices]
     y = y[sorted_indices]
     
-    tv = calc_total_variation(y, improvement=True) * 100
+    tv = calc_total_variation(y, improvement=True, norm=True) * 100
     monotonicity = calc_monotonicity(y) * 100
     late_improvement = calc_improvement(y[int(len(y)*0.1):]) * 100 * 100
 

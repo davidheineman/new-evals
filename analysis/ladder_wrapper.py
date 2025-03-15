@@ -169,7 +169,7 @@ def get_ladder_size(model_name):
     return size
 
 
-def get_ladder_data(df, task_name, train_models, eval_models, step='max'):
+def get_ladder_data(df, task_name, train_models, eval_models, step='max', intermediate_feature="logits_per_byte_corr", downstream_feature="primary_score"):
     """ Get slices of df and convert to ladder prediction format """
     data_by_name = defaultdict(dict)
 
@@ -191,7 +191,11 @@ def get_ladder_data(df, task_name, train_models, eval_models, step='max'):
             metric_names = ["correct_choice", "logits_per_byte", "acc_per_char"]
 
         if not is_multiindex:
-            metric_names = ["logits_per_byte_corr", "primary_score"]
+            # metric_names = ["logits_per_byte_corr", "primary_score"]
+            metric_names = [intermediate_feature, downstream_feature]
+
+        if intermediate_feature is not None and downstream_feature is not None:
+            metric_names = [intermediate_feature, downstream_feature]
         
         if step == 'max':
             # Efficient querying for only final model step
@@ -228,6 +232,12 @@ def get_ladder_data(df, task_name, train_models, eval_models, step='max'):
         if 'bbh' in task_name:
             bpb = acc
             corr = np.array([])
+
+        if intermediate_feature is not None:
+            bpb = scores_dict.get(intermediate_feature, np.array([]))
+
+        if downstream_feature is not None:
+            acc = scores_dict.get(downstream_feature, np.array([]))
 
         # Ensure `correct_choice` is non-NaN
         corr = np.nan_to_num(corr, nan=0)
@@ -306,9 +316,11 @@ def create_ladder_config(config_path, task_name, train_models, eval_models):
 
 def run_ladder(
         df, task_name, train_models, eval_models, config_path, 
-        y_metric='rc_bpb', intermediate_feature='bpb', use_flops=False, 
+        downstream_feature='primary_score', intermediate_feature='bpb', intermediate_task_name=None, y_metric='rc_bpb',  # "y_metric" is the metric type
+        use_flops=False,
         run_step1=True, run_step2=True, run_stacked=True,
-        axes=None, add_texts=False, return_preds=False, return_reals=False, return_fit_error=False):
+        axes=None, add_texts=False, plot_compute=False,
+        return_preds=False, return_reals=False, return_fit_error=False):
     if isinstance(axes, list) and axes[0] is None: axes = None
     
     data_by_name_tokens = DATA_BY_NAME_LADDER
@@ -319,9 +331,9 @@ def run_ladder(
 
     if run_step1 or run_stacked:
         # Load data
-        data_by_name = get_ladder_data(df, task_name, train_models, eval_models)
+        data_by_name = get_ladder_data(df, task_name, train_models, eval_models, downstream_feature=downstream_feature)
         if intermediate_feature != 'bpb':
-            data_by_name_intermedaite = get_ladder_data(df, intermediate_feature, train_models, eval_models)
+            data_by_name_intermedaite = get_ladder_data(df, intermediate_task_name, train_models, eval_models, intermediate_feature=intermediate_feature, downstream_feature=downstream_feature)
             data_by_name = merge_dicts(data_by_name, data_by_name_intermedaite, overwrite_xs=True, overwrite_ds_ns_ls=False)
         
         # Add token data -- this removes models without token data (like Llama for step 2 fitting)
@@ -375,9 +387,9 @@ def run_ladder(
 
     if run_step2 or run_stacked:
         # Reload data: this breaks stuff (lets us fit external models for step 2)
-        data_by_name_step_2 = get_ladder_data(df, task_name, train_models, eval_models)
+        data_by_name_step_2 = get_ladder_data(df, task_name, train_models, eval_models, downstream_feature=downstream_feature)
         if intermediate_feature != 'bpb':
-            data_by_name_intermedaite = get_ladder_data(df, intermediate_feature, train_models, eval_models)
+            data_by_name_intermedaite = get_ladder_data(df, intermediate_task_name, train_models, eval_models, intermediate_feature=intermediate_feature, downstream_feature=downstream_feature)
             data_by_name_step_2 = merge_dicts(data_by_name_step_2, data_by_name_intermedaite, overwrite_xs=True, overwrite_ds_ns_ls=False)
 
         task_key, configs = create_ladder_config(config_path, task_name, train_models, eval_models)
@@ -402,7 +414,8 @@ def run_ladder(
                 ax = axes[ax_i]
                 ax_i += 1
                 plot_step2(
-                    configs, data_by_name_step_2, predicted_data_by_name_step_2, plotted_predicted_data_step_2, task_key, None, y_metric, 'rc_acc',
+                    configs, data_by_name_step_2, predicted_data_by_name_step_2, plotted_predicted_data_step_2, 
+                    task_key, None, y_metric, 'rc_acc',
                     step2_coefficients, cov, use_log_sigmoid=False, add_texts=add_texts, ax=ax
                 )
 
@@ -457,6 +470,7 @@ def run_ladder(
                     task_name,
                     str_chained_fit_flops(step1_coefficients, step2_coefficients),
                     ax,
+                    plot_compute=plot_compute
                 )
             else:
                 plot_chained(
@@ -467,6 +481,7 @@ def run_ladder(
                     task_name,
                     str_chained_fit(step1_coefficients, step2_coefficients, use_log_sigmoid=False),
                     ax,
+                    plot_compute=plot_compute
                 )
             ax.legend(loc='upper left')
 

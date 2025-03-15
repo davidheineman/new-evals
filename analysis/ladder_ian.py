@@ -863,6 +863,8 @@ def plot_task_accuracy(ax, two_class_results, task, sizes, show_legend=False, si
     all_x = []
     all_y = []
     for size in list(size_colors.keys()):
+        if size not in two_class_results.index.tolist():
+            continue
         data = two_class_results.loc[size]
         x = np.array(two_class_results.columns, dtype=np.float64)
         y = np.array(data.values, dtype=np.float64)
@@ -910,6 +912,8 @@ def plot_task_accuracy(ax, two_class_results, task, sizes, show_legend=False, si
     # Add vertical lines at specific FLOPS values with matching colors and accuracies
     # for flops, size in zip(sizes, ['150M', '300M', '530M', '750M', '1B']):
     for flops, size in zip(sizes, list(size_colors.keys())):
+        if size not in two_class_results.index.tolist():
+            continue
         try:
             acc = two_class_results.loc[size].get(np.float64(flops), np.nan)
             if not np.isnan(acc) and not np.isneginf(acc):

@@ -14,6 +14,7 @@ from stats import compute_significance, compute_total_variation, kendall_tau_a
 from table import display_task_variants
 
 from ladder_ian import compute_2_class, get_compute, plot_task_accuracy
+from utils import get_title_from_task
 from utils.constants_models import DDOS_MODEL_NAMES
 from download.utils_cheap_decisions import PRIMARY_METRICS_OLMES
 
@@ -154,28 +155,6 @@ def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_
     return two_class, acc_pivot, metric_pivot
 
 
-def get_title_from_task(task):
-    if isinstance(task, list):
-        title_mapping = {
-            'mmlu_pro_': 'mmlu_pro',
-            'mmlu_abstract_algebra:mc': 'mmlu_mc',
-            'mmlu': 'mmlu',
-            'minerva': 'minerva',
-            'agi_eval': 'agi_eval',
-            'bbh': 'bbh',
-            'arc_challenge:para': 'olmes_core9_para',
-            'arc_challenge:distractors': 'olmes_core9_distractors',
-            'arc_challenge:enlarge': 'olmes_core9_enlarge',
-            'arc_challenge:mc': 'olmes_core9_mc',
-            'arc_challenge': 'olmes_core9',
-            'drop': 'olmes_gen',
-        }
-        for key, title in title_mapping.items():
-            if key in task[0]:
-                return title
-        return 'aggregate'
-    return task
-
 def set_title_from_task(ax: plt.Axes, task):
     ax.set_title(get_title_from_task(task))
 
@@ -199,8 +178,8 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             axes=[ax]
         )
         results.update({
-            "rel_error_step_1_7b": rel_error_step_1[0], 
-            "rel_error_step_1_13B": rel_error_step_1[1], 
+            "rel_error:step_1:7b:bpb_to_primary": rel_error_step_1[0], 
+            "rel_error:step_1:13b:bpb_to_primary": rel_error_step_1[1], 
         })
         if ax:
             ax.set_ylabel('Task loss (BPB)')
@@ -215,17 +194,19 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             task,
             train_models=ladder_models,
             eval_models=["peteish7", "peteish13-highlr"],
+            downstream_feature=metric,
             config_path=ladder_config_path,
             run_step1=False, run_stacked=False,
             axes=[ax]
         )
         results.update({
-            "rel_error_step_2_7b": rel_error_step_2[0], 
-            "rel_error_step_2_13B": rel_error_step_2[1], 
+            "rel_error:step_2:7b:bpb_to_primary": rel_error_step_2[0], 
+            "rel_error:step_2:13b:bpb_to_primary": rel_error_step_2[1], 
         })
         if ax:
             ax.set_xlabel('Task loss (BPB)')
-            ax.set_ylabel(primary_score_name)
+            # ax.set_ylabel(primary_score_name)
+            ax.set_ylabel(metric)
             ax.legend(fontsize=6)
 
         # Step 2 ladder prediction (external models)
@@ -241,7 +222,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             axes=[ax]
         )
         results.update({
-            "mean_error_step_2_external": mean_error_step_2, 
+            "mean_error:step_2:external:bpb_to_primary": mean_error_step_2, 
         })
         if ax:
             ax.get_legend().remove()
@@ -263,26 +244,70 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             task,
             train_models=ladder_models,
             eval_models=["peteish7", "peteish13-highlr"],
+            downstream_feature=metric,
             config_path=ladder_config_path,
             run_step1=False, run_step2=False,
             axes=[ax]
         )
         results.update({
-            "rel_error_stacked_7b": rel_error_stacked[0], 
-            "rel_error_stacked_13b": rel_error_stacked[1], 
+            "rel_error:stacked:7b:bpb_to_primary": rel_error_stacked[0], 
+            "rel_error:stacked:13b:bpb_to_primary": rel_error_stacked[1], 
         })
         if ax:
-            ax.set_ylabel(primary_score_name)
+            # ax.set_ylabel(primary_score_name)
+            ax.set_ylabel(metric)
             ax.legend(fontsize=6)
             ax.set_title('Scaling Law Prediction')
+
+        # Stacked prediction -- C4 as intermediate feature
+        rel_error_step_1, _, rel_error_stacked = run_ladder(
+            df,
+            task,
+            train_models=ladder_models,
+            eval_models=["peteish7", "peteish13-highlr"],
+            # Use C4 loss for intermediate feature!
+            intermediate_task_name="paloma_c4_en",
+            intermediate_feature='logits_per_byte_corr', 
+            downstream_feature=metric, # 'primary_score', 
+            config_path=ladder_config_path,
+        )
+        results.update({
+            "rel_error:step_1:7b:c4_to_primary": rel_error_step_1[0], 
+            "rel_error:step_1:13b:c4_to_primary": rel_error_step_1[1], 
+            "rel_error:stacked:7b:c4_to_primary": rel_error_stacked[0], 
+            "rel_error:stacked:13b:c4_to_primary": rel_error_stacked[1], 
+        })
+
+        try:
+            # Stacked prediction -- BPB -> IRT ability
+            rel_error_step_1, _, rel_error_stacked = run_ladder(
+                df,
+                task, 
+                train_models=ladder_models,
+                eval_models=["peteish7", "peteish13-highlr"],
+                intermediate_task_name=task,
+                # intermediate_feature="logits_per_byte_corr",
+                downstream_feature="theta_primary_score", # theta_bpb, theta_primary_score
+                config_path=ladder_config_path,
+            )
+            results.update({
+                "rel_error:step_1:7b:bpb_to_irt": rel_error_step_1[0], 
+                "rel_error:step_1:13b:bpb_to_irt": rel_error_step_1[1], 
+                "rel_error:stacked:7b:bpb_to_irt": rel_error_stacked[0], 
+                "rel_error:stacked:13b:bpb_to_irt": rel_error_stacked[1], 
+            })
+        except Exception as e:
+            print(task, 'failed to fit IRT model', e)
     except Exception as e:
         print(task, 'failed on ladder fits', e)
         # raise RuntimeError(task, 'failed on ladder fits', e)
 
     # intermediate checkpoints
     intermediate_models = ['peteish-moreeval-1B-5xC', 'peteish13-highlr']
-    intermediate_tv = []
+    intermediate_model_names = ['1b', '13b']
     for j, model in enumerate(intermediate_models):
+        model_name = intermediate_model_names[j]
+
         # logits_per_char_corr intermediate checkpoinrts
         if small_fig:
             ax: plt.Axes = axes[2+j, 1] if axes is not None else None
@@ -309,6 +334,10 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
                 if not (np.isnan(y_20_percent) or np.isnan(y_max) or np.isinf(y_20_percent) or np.isinf(y_max)):
                     ax.set_ylim(bottom=y_20_percent, top=y_max * (0.95 if y_max < 0 else 1.05))
 
+        results.update({
+            f'tv:logits_per_char_corr:{model_name}': tv_bpb
+        })
+
         # primary_metric intermediate checkpoinrts
         ax = None
         if not small_fig:
@@ -318,17 +347,28 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
         )
         tv_primary = tv[task]['total_variation'] if not isinstance(task, list) else tv.loc['total_variation']['aggregate']
         if ax and ax.get_legend_handles_labels()[1]:
-            ax.set_ylabel(primary_score_name)
+            # ax.set_ylabel(primary_score_name)
+            ax.set_ylabel(metric)
             ax.legend(fontsize=6)
 
-        intermediate_tv += [(tv_bpb, tv_primary)]
+        results.update({
+            f'tv:{metric}:{model_name}': tv_primary
+        })
 
-    results.update({
-        "tv_bpb_1b": intermediate_tv[0][0], 
-        "tv_primary_1b": intermediate_tv[0][1], 
-        "tv_bpb_7b": intermediate_tv[1][0], 
-        "tv_primary_7b": intermediate_tv[1][1]
-    })
+        # Additional metric calculations
+        additional_metrics = ['primary_score', 'logits_per_char_corr']
+        additional_metrics += ['theta_bpb', 'theta_primary_score']
+        for additional_metric in additional_metrics:
+            try:
+                tv, _ = compute_total_variation(
+                    df, models=[model], metric=additional_metric, tasks=[task]
+                )
+                tv_result = tv[task]['total_variation'] if not isinstance(task, list) else tv.loc
+                results.update({
+                    f'tv:{additional_metric}:{model_name}': tv_result
+                })
+            except Exception as e:
+                print(task, f'failed to compute decision accuracy for {additional_metric}', e)
 
     # Consistent rankings analysis
     try:
@@ -343,7 +383,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             ax.set_ylim(0.75, 1)
 
         two_class, acc_pivot_best_metric, metric_pivot = construct_2class_table(
-            df, [task], target_metric='primary_score'
+            df, [task], small_metric=metric, target_metric=metric
         )
         two_class_results = acc_pivot_best_metric.loc[str(task)].unstack()
         if axes is not None and not small_fig:
@@ -351,7 +391,19 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             plot_task_accuracy(ax, two_class_results, str(task), DDOS_COMPUTE_SIZES)
             ax.set_ylabel(f'Decision Acc (best on {primary_score_name})')
             ax.set_ylim(0.75, 1)
+
+        results.update({
+            f"dec_acc:{metric}:4M": acc_pivot_best_metric['4M'].loc[str(task)].item(),
+            f"dec_acc:{metric}:20M": acc_pivot_best_metric['20M'].loc[str(task)].item(),
+            f"dec_acc:{metric}:60M": acc_pivot_best_metric['60M'].loc[str(task)].item(),
+            f"dec_acc:{metric}:90M": acc_pivot_best_metric['90M'].loc[str(task)].item(),
+            f"dec_acc:{metric}:150M": acc_pivot_best_metric['150M'].loc[str(task)].item(),
+            f"dec_acc:{metric}:300M": acc_pivot_best_metric['300M'].loc[str(task)].item(),
+            f"dec_acc:{metric}:530M": acc_pivot_best_metric['530M'].loc[str(task)].item(),
+            f"dec_acc:{metric}:750M": acc_pivot_best_metric['750M'].loc[str(task)].item(),
+        })
             
+
         two_class, acc_pivot_bpb, metric_pivot = construct_2class_table(
             df, [task], 
             small_metric='logits_per_byte_corr', target_metric='logits_per_byte_corr'
@@ -366,24 +418,34 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             ax.set_title('Decision Accuracy')
 
         results.update({
-            "two_class_bpb_4M": acc_pivot_bpb['4M'].loc[str(task)].item(),
-            "two_class_bpb_20M": acc_pivot_bpb['20M'].loc[str(task)].item(),
-            "two_class_bpb_60M": acc_pivot_bpb['60M'].loc[str(task)].item(),
-            "two_class_bpb_90M": acc_pivot_bpb['90M'].loc[str(task)].item(),
-            "two_class_bpb_150M": acc_pivot_bpb['150M'].loc[str(task)].item(),
-            "two_class_bpb_300M": acc_pivot_bpb['300M'].loc[str(task)].item(),
-            "two_class_bpb_530M": acc_pivot_bpb['530M'].loc[str(task)].item(),
-            "two_class_bpb_750M": acc_pivot_bpb['750M'].loc[str(task)].item(),
-
-            "two_class_acc_4M": acc_pivot_best_metric['4M'].loc[str(task)].item(),
-            "two_class_acc_20M": acc_pivot_best_metric['20M'].loc[str(task)].item(),
-            "two_class_acc_60M": acc_pivot_best_metric['60M'].loc[str(task)].item(),
-            "two_class_acc_90M": acc_pivot_best_metric['90M'].loc[str(task)].item(),
-            "two_class_acc_150M": acc_pivot_best_metric['150M'].loc[str(task)].item(),
-            "two_class_acc_300M": acc_pivot_best_metric['300M'].loc[str(task)].item(),
-            "two_class_acc_530M": acc_pivot_best_metric['530M'].loc[str(task)].item(),
-            "two_class_acc_750M": acc_pivot_best_metric['750M'].loc[str(task)].item(),
+            "dec_acc:logits_per_byte_corr:4M": acc_pivot_bpb['4M'].loc[str(task)].item(),
+            "dec_acc:logits_per_byte_corr:20M": acc_pivot_bpb['20M'].loc[str(task)].item(),
+            "dec_acc:logits_per_byte_corr:60M": acc_pivot_bpb['60M'].loc[str(task)].item(),
+            "dec_acc:logits_per_byte_corr:90M": acc_pivot_bpb['90M'].loc[str(task)].item(),
+            "dec_acc:logits_per_byte_corr:150M": acc_pivot_bpb['150M'].loc[str(task)].item(),
+            "dec_acc:logits_per_byte_corr:300M": acc_pivot_bpb['300M'].loc[str(task)].item(),
+            "dec_acc:logits_per_byte_corr:530M": acc_pivot_bpb['530M'].loc[str(task)].item(),
+            "dec_acc:logits_per_byte_corr:750M": acc_pivot_bpb['750M'].loc[str(task)].item(),
         })
+
+        additional_metrics = ['primary_score', 'logits_per_char_corr']
+        additional_metrics += ['theta_bpb', 'theta_primary_score']
+        for additional_metric in additional_metrics:
+            two_class, acc_pivot_bpb, metric_pivot = construct_2class_table(
+                df, [task], 
+                small_metric=additional_metric, target_metric=additional_metric
+            )
+            two_class_results = acc_pivot_bpb.loc[str(task)].unstack()
+            results.update({
+                f"dec_acc:{additional_metric}:4M": acc_pivot_bpb['4M'].loc[str(task)].item(),
+                f"dec_acc:{additional_metric}:20M": acc_pivot_bpb['20M'].loc[str(task)].item(),
+                f"dec_acc:{additional_metric}:60M": acc_pivot_bpb['60M'].loc[str(task)].item(),
+                f"dec_acc:{additional_metric}:90M": acc_pivot_bpb['90M'].loc[str(task)].item(),
+                f"dec_acc:{additional_metric}:150M": acc_pivot_bpb['150M'].loc[str(task)].item(),
+                f"dec_acc:{additional_metric}:300M": acc_pivot_bpb['300M'].loc[str(task)].item(),
+                f"dec_acc:{additional_metric}:530M": acc_pivot_bpb['530M'].loc[str(task)].item(),
+                f"dec_acc:{additional_metric}:750M": acc_pivot_bpb['750M'].loc[str(task)].item(),
+            })
     except Exception as e:
         print(task, 'failed on consistent ranking analysis', e)
         # raise RuntimeError(task, 'failed on consistent ranking analysis', e)
@@ -409,7 +471,8 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             total_cost += eval_cost
         total_cost = int(total_cost)
         results.update({
-            "total_cost": total_cost
+            "total_cost": total_cost,
+            "total_cost_div_4": total_cost / 4 # Hacky way to estimate BPB vs. RC cost (assumes all tasks have 4 answer choices)
         })
     except Exception as e:
         print('Failed to calculate compute cost:', e)
@@ -424,41 +487,46 @@ def run_instance_analysis(df_instances, task, alpha=0.05):
     ALPHA = 1e-4
     
     results = {}
+
+    metrics = ['logits_per_byte_corr', 'primary_score']
     
-    for metric in ['logits_per_byte_corr', 'primary_score']:
-        models = [model for model in DDOS_MODEL_NAMES if '150M' in model]
-        _, out, _ = compute_significance(
-            df_instances, models=models, metric=metric,
-            step=None, last_n=1, alpha=ALPHA, tasks=[task], quiet=True
-        )
-        mixes_A, scores_A, p_values_A, sig_clusters_A = out[task_name]
+    for aggregator in ['micro', 'macro', 'irt']:
+        for metric in metrics:
+            try:
+                models = [model for model in DDOS_MODEL_NAMES if '150M' in model]
+                _, out, _ = compute_significance(
+                    df_instances, models=models, metric=metric, aggregator=aggregator,
+                    step=None, last_n=1, alpha=ALPHA, tasks=[task], quiet=True
+                )
+                mixes_A, scores_A, p_values_A, sig_clusters_A = out[task_name]
 
-        models = [model for model in DDOS_MODEL_NAMES if '1B' in model]
-        _, out, _ = compute_significance(
-            df_instances, models=models, metric=metric,
-            step=None, last_n=1, alpha=ALPHA, tasks=[task], quiet=True
-        )
-        mixes_B, scores_B, p_values_B, sig_clusters_B = out[task_name]
+                models = [model for model in DDOS_MODEL_NAMES if '1B' in model]
+                _, out, _ = compute_significance(
+                    df_instances, models=models, metric=metric, aggregator=aggregator,
+                    step=None, last_n=1, alpha=ALPHA, tasks=[task], quiet=True
+                )
+                mixes_B, scores_B, p_values_B, sig_clusters_B = out[task_name]
 
-        # Compute metric scores
-        valid_p_values = p_values_A[~np.isnan(p_values_A)]
-        perc_sig_150M = np.sum(valid_p_values <= ALPHA) / len(valid_p_values)
+                # Compute metric scores
+                valid_p_values = p_values_A[~np.isnan(p_values_A)]
+                perc_sig_150M = np.sum(valid_p_values <= ALPHA) / len(valid_p_values)
 
-        valid_p_values = p_values_B[~np.isnan(p_values_B)]
-        perc_sig_1B = np.sum(valid_p_values <= ALPHA) / len(valid_p_values)
+                valid_p_values = p_values_B[~np.isnan(p_values_B)]
+                perc_sig_1B = np.sum(valid_p_values <= ALPHA) / len(valid_p_values)
 
-        kt_c = kendall_tau_a(mixes_A, mixes_B, sig_clusters_A, sig_clusters_B)
-        
-        plt.close()
-        
-        metric_suffix = 'bpb' if metric == 'logits_per_byte_corr' else 'primary_score'
-        results.update({
-            "task": task_name,
-            f"kt_c_{metric_suffix}": kt_c,
-            f"num_sig_clusters_150M_{metric_suffix}": max(sig_clusters_A),
-            f"num_sig_clusters_1B_{metric_suffix}": max(sig_clusters_B),
-            f"perc_sig_150M_{metric_suffix}": perc_sig_150M,
-            f"perc_sig_1B_{metric_suffix}": perc_sig_1B
-        })
+                kt_c = kendall_tau_a(mixes_A, mixes_B, sig_clusters_A, sig_clusters_B)
+                
+                plt.close()
+                
+                results.update({
+                    "task": task_name,
+                    f"kt_c:{metric}": kt_c,
+                    f"num_sig_clusters:{metric}:{aggregator}:150M": max(sig_clusters_A),
+                    f"num_sig_clusters:{metric}:{aggregator}:1B": max(sig_clusters_B),
+                    f"perc_sig:{metric}:{aggregator}:150M": perc_sig_150M,
+                    f"perc_sig:{metric}:{aggregator}:1B": perc_sig_1B
+                })
+            except Exception as e:
+                print(task, f'failed to compute decision accuracy for {metric} / {aggregator}', e)
     
     return results

@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-import pandas as pd
 import numpy as np
+from utils import get_title_from_task
 
 # Global dictionary to store colors for labels
 LABEL_COLOR_MAP = {}
@@ -11,7 +11,7 @@ COLOR_IDX = {'col': 0}
 TASK_CATEGORIES = {
     'hellaswag': 'language',
     'winogrande': 'language',
-    
+
     'arc_challenge': 'knowledge',
     'arc_easy': 'knowledge', 
     'boolq': 'knowledge',
@@ -108,7 +108,7 @@ def adjustText(ax, texts):
         #         text.arrow_patch.set_clip_on(True)
 
 
-def draw_pareto_frontier(ax, xs, ys, invert_x=False, invert_y=False, color='grey'):
+def draw_pareto_frontier(ax, xs, ys, invert_x=False, invert_y=False, color='grey', linestyle='--'):
     """Draw Pareto frontier lines on the given axes"""
     points = list(zip(xs, ys))
     frontier_points_y = set()
@@ -124,28 +124,6 @@ def draw_pareto_frontier(ax, xs, ys, invert_x=False, invert_y=False, color='grey
             max_y = y
         elif y == max_y:
             frontier_points_y.add((x, y))
-    
-    # # Find points that are optimal in x dimension (scan leftward on x dim)
-    # sorted_by_x = sorted(points, reverse=invert_x, key=lambda p: p[0])
-    # max_y = float('-inf') if not invert_y else float('inf')
-    
-    # for x, y in sorted_by_x:
-    #     if (y > max_y and not invert_y) or (y < max_y and invert_y):
-    #         frontier_points_y.add((x, y))
-    #         max_y = y
-    #     elif y == max_y:
-    #         frontier_points_y.add((x, y))
-            
-    # # Find points that are optimal in y dimension (scan upward on y dim)
-    # sorted_by_y = sorted(points, reverse=invert_y, key=lambda p: p[1]) 
-    # max_x = float('-inf') if not invert_x else float('inf')
-    
-    # for x, y in sorted_by_y:
-    #     if (x > max_x and not invert_x) or (x < max_x and invert_x):
-    #         frontier_points_x.add((x, y))
-    #         max_x = x
-    #     elif x == max_x:
-    #         frontier_points_x.add((x, y))
             
     # Convert to list and sort for drawing
     frontier_points_y = sorted(list(frontier_points_y), key=lambda p: p[0], reverse=invert_x)
@@ -154,42 +132,255 @@ def draw_pareto_frontier(ax, xs, ys, invert_x=False, invert_y=False, color='grey
     # Draw dotted grey line connecting frontier points
     if frontier_points_y:
         frontier_xs, frontier_ys = zip(*frontier_points_y)
-        ax.plot(frontier_xs, frontier_ys, color=color, linestyle='--', linewidth=1)
+        ax.plot(frontier_xs, frontier_ys, color=color, linestyle=linestyle, linewidth=1)
     if frontier_points_x:
         frontier_xs, frontier_ys = zip(*frontier_points_x)
-        ax.plot(frontier_xs, frontier_ys, color=color, linestyle='--', linewidth=1)
+        ax.plot(frontier_xs, frontier_ys, color=color, linestyle=linestyle, linewidth=1)
     if len(frontier_points_x) > 0 and len(frontier_points_y) > 0:
         # Connect the ends of both frontiers
         frontier_points_y_end = frontier_points_y[-1]
         frontier_points_x_end = frontier_points_x[-1]
         ax.plot([frontier_points_y_end[0], frontier_points_x_end[0]], 
                 [frontier_points_y_end[1], frontier_points_x_end[1]], 
-                color=color, linestyle='--', linewidth=1)
+                color=color, linestyle=linestyle, linewidth=1)
 
 
-def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=None, _type='p_values', alpha=0.01, plot_clean=False):
+def plot_task_scatter(ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, percentage=False, invert_x=False, invert_y=False, log_x=False, log_y=False, xlim=None, ylim=None, x_col_b=None, y_col_b=None):
+    points = get_valid_points(df, x_col, y_col)
+    if not points:
+        return
+    
+    xs, ys, tasks = zip(*points)
+    
+    # Filter out -inf values if needed
+    if log_x or log_y:
+        valid_indices = [i for i in range(len(xs)) if xs[i] != float('-inf') and ys[i] != float('-inf')]
+        xs = [xs[i] for i in valid_indices]
+        ys = [ys[i] for i in valid_indices]
+        tasks = [tasks[i] for i in valid_indices]
+    
+    colors = [CATEGORY_COLORS[TASK_CATEGORIES.get(task, 'knowledge')] for task in tasks]
+    
+    # If diff mode (both x_col_b and y_col_b provided)
+    if x_col_b is not None and y_col_b is not None:
+        points_b = get_valid_points(df, x_col_b, y_col_b)
+        if points_b:
+            xs_b, ys_b, tasks_b = zip(*points_b)
+            
+            # Only keep points that exist in both sets
+            common_tasks = set(tasks).intersection(tasks_b)
+            xs = [x for x, t in zip(xs, tasks) if t in common_tasks]
+            ys = [y for y, t in zip(ys, tasks) if t in common_tasks]
+            xs_b = [x for x, t in zip(xs_b, tasks_b) if t in common_tasks]
+            ys_b = [y for y, t in zip(ys_b, tasks_b) if t in common_tasks]
+            colors = [c for c, t in zip(colors, tasks) if t in common_tasks]
+            tasks = [t for t in tasks if t in common_tasks]
+            
+            # Draw arrows between corresponding points
+            for i, (x, y, x_b, y_b) in enumerate(zip(xs, ys, xs_b, ys_b)):
+                # ax.arrow(x, y, x_b-x, y_b-y, color=colors[i], length_includes_head=True, alpha=0.2)
+                ax.plot([x, x_b], [y, y_b], color=colors[i], alpha=0.2)
+            
+            # Plot both sets of points
+            ax.scatter(xs, ys, s=4, c=colors, marker='o')
+            ax.scatter(xs_b, ys_b, s=4, c=colors, marker='s')
+
+        # Draw separate Pareto frontiers for before and after points
+        for category in set(TASK_CATEGORIES.values()):
+            # Get before points for this category
+            category_points = [(x, y) for x, y, task in zip(xs, ys, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category]
+            if category_points:
+                cat_xs, cat_ys = zip(*category_points)
+                draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=CATEGORY_COLORS[category], linestyle=':')
+            
+            # Get after points for this category
+            category_points_b = [(x, y) for x, y, task in zip(xs_b, ys_b, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category]
+            if category_points_b:
+                cat_xs_b, cat_ys_b = zip(*category_points_b)
+                draw_pareto_frontier(ax, cat_xs_b, cat_ys_b, invert_x=invert_x, invert_y=invert_y, color=CATEGORY_COLORS[category], linestyle='--')
+    else:
+        # Regular scatter plot
+        ax.scatter(xs, ys, s=4, c=colors)
+
+        # Draw separate Pareto frontiers for each task category
+        for category in set(TASK_CATEGORIES.values()):
+            # Get points for this category
+            category_points = [(x, y) for x, y, task in zip(xs, ys, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category]
+            if category_points:
+                cat_xs, cat_ys = zip(*category_points)
+                draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=CATEGORY_COLORS[category])
+    
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    
+    if log_x:
+        ax.set_xscale('log')
+    if log_y:
+        ax.set_yscale('log')
+    if invert_x:
+        ax.invert_xaxis()
+    if invert_y:
+        ax.invert_yaxis()
+    if xlim is not None:
+        ax.set_xlim(**xlim)
+    if ylim is not None:
+        ax.set_ylim(**ylim)
+
+    if percentage:
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: '{:.0%}'.format(x)))
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: '{:.0%}'.format(y)))
+        if log_x:
+            ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: '{:.0%}'.format(x) if x >= 0.01 else '{:.1%}'.format(x) if x >= 0.001 else '{:.2%}'.format(x)))
+        if log_y:
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: '{:.0%}'.format(y) if y >= 0.01 else '{:.1%}'.format(y) if y >= 0.001 else '{:.2%}'.format(y)))
+    
+    texts = []
+    for x, y, task in zip(xs, ys, tasks):
+        # Only add text if point is within axis limits
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+        if ((xlim[0] <= x <= xlim[1]) if not ax.xaxis_inverted() else (xlim[1] <= x <= xlim[0])) and \
+           ((ylim[0] <= y <= ylim[1]) if not ax.yaxis_inverted() else (ylim[1] <= y <= ylim[0])):
+            texts += [ax.text(x, y, get_title_from_task(task), fontsize=5, clip_on=True)]
+        
+    adjustText(ax, texts)
+    return ax
+
+
+def plot_task_radar(df_results, result_cols):
+    from plot import TASK_CATEGORIES
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    df_plot = df_results.copy()
+
+    tv_cols = [col for col in result_cols if col.startswith('tv:')]
+    for col in tv_cols:
+        df_plot[col] = 1 - (df_plot[col] / df_plot[col].max())
+
+    rel_error_cols = [col for col in result_cols if 'error' in col]
+    for col in rel_error_cols:
+        df_plot[col] = 1 - df_plot[col]
+
+    num_vars = len(result_cols)
+    angles = [n / float(num_vars) * 2 * np.pi for n in range(num_vars)]
+    angles += angles[:1]
+
+    unique_categories = set(TASK_CATEGORIES.values())
+    num_categories = len(unique_categories)
+
+    fig, axs = plt.subplots(1, num_categories, figsize=(30, 12), subplot_kw=dict(projection='polar'))
+
+    for ax_idx, category in enumerate(sorted(unique_categories)):
+        ax = axs[ax_idx]
+        
+        ax.set_facecolor('white')
+        ax.grid(False)
+        ax.spines['polar'].set_visible(False)
+        
+        category_benchmarks = [b for b in df_plot.index if TASK_CATEGORIES.get(b, 'knowledge') == category]
+        
+        for benchmark in category_benchmarks:
+            values = df_plot.loc[benchmark, result_cols].values.tolist()
+            values += values[:1]
+            
+            ax.plot(angles, values, linewidth=1, linestyle='solid', label=benchmark)
+            ax.fill(angles, values, alpha=0.1)
+        
+        ax.set_theta_offset(np.pi / 2)
+        ax.set_theta_direction(-1)
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(result_cols, rotation=45)
+        ax.set_yticklabels([])
+        ax.set_title(category)
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1))
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_task_bar(ax: plt.Axes, df, col, ylabel, title, top_perc=1, percentage=False, sort_ascending=True):
+    valid_tasks = df[df[col].notna()].index
+    y_vals = df.loc[valid_tasks, col]
+    task_names = [get_title_from_task(t) for t in valid_tasks]
+    
+    sorted_indices = np.argsort(y_vals)
+    if not sort_ascending:
+        sorted_indices = sorted_indices[::-1]
+
+    valid_tasks = valid_tasks[sorted_indices]
+    y_vals = y_vals[sorted_indices]
+    task_names = [task_names[i] for i in sorted_indices]
+
+    # Only keep the top_perc% of benchmarks
+    import math
+    valid_tasks = valid_tasks[math.floor(len(valid_tasks)*(1-top_perc)):]
+    y_vals = y_vals[math.floor(len(y_vals)*(1-top_perc)):]
+    task_names = task_names[math.floor(len(task_names)*(1-top_perc)):]
+        
+    colors = [CATEGORY_COLORS[TASK_CATEGORIES.get(task, 'knowledge')] for task in valid_tasks]
+    ax.bar(range(len(valid_tasks)), y_vals, color=colors)
+    ax.set_xticks(range(len(valid_tasks)))
+    ax.set_xticklabels(task_names, rotation=45, ha='right', fontsize=6)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    
+    if percentage:
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: '{:.0%}'.format(y)))
+    
+    return ax
+
+
+def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=None, _type='p_values', alpha=0.01, plot_clean=False, use_sig_colors=False):
     """ Plot a pairwise heatmap of statistical significance """
     # Reorder values matrix according to sorted mixes
     mask = np.isnan(values)
 
+    use_sig_colors = True
+
     # Create a custom colormap that maps values between 0.5-0.95 to viridis
     # and values outside that range to grey
     if _type == 'p_values':
-        def custom_colormap(value):
-            if np.isnan(value):
-                return (0, 0, 0, 0)
-            elif value < alpha: # or value > (1-alpha):
-                return (1, 1, 1, 0.05)
-            else:
-                return plt.cm.viridis(value*4)
+        if use_sig_colors:
+            def custom_colormap(value):
+                if np.isnan(value):
+                    return (0, 0, 0, 0)
+                elif value < alpha:
+                    # Significant values - shade of green based on p-value
+                    green_intensity = 1 - (value/alpha)  # Closer to 0 = darker green
+                    green_intensity = 0.3 + 0.5*green_intensity # Shift range to be lighter
+                    return (0, green_intensity, 0, 0.8)
+                else:
+                    # Non-significant values - shade of red based on p-value
+                    red_intensity = (value - alpha)/(1 - alpha)  # Further from alpha = darker red
+                    red_intensity = 0.3 + 0.5*red_intensity  # Shift range to be lighter
+                    return (red_intensity, 0, 0, 0.8)
+        else:
+            def custom_colormap(value):
+                if np.isnan(value):
+                    return (0, 0, 0, 0)
+                elif value < alpha:
+                    return (1, 1, 1, 0.05)
+                else:
+                    return plt.cm.viridis(value)
     elif _type == 'power':
-        def custom_colormap(value):
-            if np.isnan(value) or value < 0:
-                return (0, 0, 0, 0)
-            elif value > 0.8:
-                return (1, 1, 1, 0.05)
-            else:
-                return plt.cm.viridis(value*4)
+        if use_sig_colors:
+            def custom_colormap(value):
+                if np.isnan(value) or value < 0:
+                    return (0, 0, 0, 0)
+                elif value > 0.8:
+                    return (0, 0.8, 0, 0.8)  # Dark green for high power
+                else:
+                    return (0.8, 0, 0, 0.8)  # Dark red for low power
+        else:
+            def custom_colormap(value):
+                if np.isnan(value) or value < 0:
+                    return (0, 0, 0, 0)
+                elif value > 0.8:
+                    return (1, 1, 1, 0.05)
+                else:
+                    return plt.cm.viridis(value)
 
     # Apply custom colors
     colors = [[custom_colormap(val) for val in row] for row in values]
@@ -215,11 +406,23 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=
         ax.set_xticklabels([])
         ax.set_yticklabels([])
 
-    # Add colorbar only for the viridis range
-    norm = plt.Normalize(0, 0.25)
-    sm = plt.cm.ScalarMappable(cmap=plt.cm.viridis, norm=norm)
+    # Add colorbar
+    if use_sig_colors:
+        from matplotlib.colors import LinearSegmentedColormap
+        colors = [(0.8,0,0), (0.8,0,0), (0,0.8,0), (0,0.8,0)]  # Red below alpha, green above
+        positions = [0, alpha, alpha, 1]
+        cmap = LinearSegmentedColormap.from_list("custom", list(zip(positions, colors)))
+    else:
+        cmap = plt.cm.viridis
+        
+    norm = plt.Normalize(0, 1)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     cbar = plt.colorbar(sm, ax=ax, fraction=0.05, pad=0.04)
-    label = r'$p$' + f'-values (highlighted if not significant,' + r'$\alpha$=' + f'{alpha})'
+    
+    if use_sig_colors:
+        label = r'$p$' + f'-values (green=significant,' + r'$\alpha$=' + f'{alpha})'
+    else:
+        label = r'$p$' + f'-values (highlighted if not significant,' + r'$\alpha$=' + f'{alpha})'
     if len(values) < 15 or plot_clean:
         label = r'$p$' + f'-values'
     cbar.set_label(label)

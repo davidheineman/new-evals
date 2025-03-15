@@ -94,6 +94,8 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
 
     if len(slices) == 0:
         # raise RuntimeError(f'Encountered empty slice: {slices}')
+        if return_index:
+            return [], [], np.array([])
         return [], np.array([])
 
     if use_max_step: 
@@ -163,14 +165,14 @@ def get_nd_array(df, col, metric, mix=None, model=None, task=None, step=None, so
         if len(col) == 1 and not is_multiindex: 
             sorted_indices = np.argsort(scores)
             columns = columns[sorted_indices]
-            index = index[sorted_indices]
+            # index = index[sorted_indices]
             scores  = scores[sorted_indices]
         else:
             # Sort by overall performance
             mix_sums = scores.sum(axis=1)
             sorted_indices = mix_sums.argsort()[::-1]
             columns = columns[sorted_indices].tolist()
-            index = index[sorted_indices].tolist()
+            # index = index[sorted_indices].tolist()
             scores = scores[sorted_indices]
 
     if not isinstance(columns, list): 

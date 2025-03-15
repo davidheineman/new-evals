@@ -19,6 +19,8 @@ import numpy as np
 from scipy.stats import t
 
 import warnings
+
+from tqdm import tqdm
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid value encountered in multiply")
 
 
@@ -190,8 +192,10 @@ def compute_deltas(seg_scores, num_permutations=1000, seed: int = 4):
     return null_deltas, test_deltas, p_vals
 
 
-def compute_weighted_pairwise_p_values(seg_scores, weights=None, return_scores=False, num_permutations=1000, seed: int = 4):
-    """ Same code as above, but modified to weight each instance by the weights array """
+def compute_weighted_pairwise_p_values(seg_scores, instance_names=None, aggregator=None, weights=None, return_scores=False, num_permutations=1000, seed: int = 4):
+    """
+    Compute pairwise p-values using permutation test with a custom aggregation function.
+    """
     num_systems, num_segments = seg_scores.shape
 
     rng = np.random.default_rng(seed)
@@ -203,18 +207,33 @@ def compute_weighted_pairwise_p_values(seg_scores, weights=None, return_scores=F
     two_m_minus_one *= 2.0
     two_m_minus_one -= 1.0
 
-    if weights is None:
-        # equal weight of instances
-        weights = np.ones(seg_scores.shape[1]) / np.ones(seg_scores.shape[1]).sum() 
-    else:
-        # weight instances
-        weights = weights / weights.sum() # normalize to 1
-        seg_scores = seg_scores * weights
-
     seg_scores = seg_scores.astype(np.float32)  # shape: (num_systems, num_segments)
-    sys_scores = np.sum(seg_scores, axis=1)  # shape: (num_systems, )
+    
+    if aggregator is None:
+        # Default to weighted average
+        if weights is None:
+            # equal weight of instances
+            weights = np.ones(seg_scores.shape[1]) / np.ones(seg_scores.shape[1]).sum() 
+        else:
+            # weight instances
+            weights = weights / weights.sum() # normalize to 1
+            seg_scores = seg_scores * weights
+        sys_scores = np.sum(seg_scores, axis=1)  # shape: (num_systems, )
+        partial = np.matmul(two_m_minus_one, seg_scores.T)  # shape: (num_permutations, num_systems)
+    else:
+        # Use custom aggregator function
+        assert instance_names is not None, 'Custom aggregator requires instance names!'
 
-    partial = np.matmul(two_m_minus_one, seg_scores.T)  # shape: (num_permutations, num_systems)
+        sys_scores = aggregator(instance_names, seg_scores)
+        partial = np.empty((num_permutations, num_systems), dtype=np.float32)
+        for p in tqdm(range(num_permutations), desc='Slow pairwise permutation'):
+            perm_idx = rng.permutation(num_segments)
+            if isinstance(instance_names, list):
+                perm_instance_names = [instance_names[k] for k in perm_idx]
+            else:
+                perm_instance_names = instance_names[perm_idx]
+            perm_scores = seg_scores[:, perm_idx]
+            partial[p, :] = aggregator(perm_instance_names, perm_scores)
 
     # initialize p value matrix to NaN
     p_vals = np.empty((num_systems, num_systems,)) * np.nan

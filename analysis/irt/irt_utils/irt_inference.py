@@ -1,5 +1,6 @@
 from tqdm import tqdm
 import numpy as np
+import json
 from scipy import optimize, special
 from concurrent.futures import ProcessPoolExecutor
 
@@ -45,7 +46,7 @@ def _optimize_single(theta_fn, args):
     return result["x"].item()
 
 
-def calculate_theta(difficulties, discriminations, responses, func="bernoulli"):
+def calculate_theta(difficulties, discriminations, responses, func="bernoulli", quiet=False):
     """Calculate the ability param for multiple response sets in parallel"""
     # Create args for each optimization
     args = [(difficulties, discriminations, response_set) for response_set in responses]
@@ -61,7 +62,53 @@ def calculate_theta(difficulties, discriminations, responses, func="bernoulli"):
         thetas = list(tqdm(
             executor.map(_optimize_single, [theta_fn] * len(args), args),
             total=len(args),
-            desc="Calculating abilities"
+            desc="Calculating abilities",
+            disable=quiet
         ))
     
     return thetas
+
+
+def save_irt_params(save_path, train_model_names, train_instance_names, discriminations, difficulties, thetas):
+    # Save IRT parameters
+    params = {
+        'a': {name: disc for name, disc in zip(train_instance_names, discriminations)},
+        'b': {name: diff for name, diff in zip(train_instance_names, difficulties)},
+        'theta': {name: theta for name, theta in zip(train_model_names, thetas)}
+    }
+
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(save_path, 'w') as f:
+        json.dump(params, f, indent=4)
+
+    return save_path
+
+
+def load_irt_params(load_path):
+    with open(load_path, "r") as f:
+        irt_params = json.load(f)
+
+    # Extract IRT params
+    items = list(irt_params["a"].keys())
+    discriminations = np.array([irt_params["a"][i] for i in items])
+    difficulties = np.array([irt_params["b"][i] for i in items])
+
+    return items, discriminations, difficulties
+
+
+# import huggingface_hub as hf_hub
+# IRT_REPO = "allenai/irt-evals"  # https://huggingface.co/datasets/allenai/irt-evals
+# IRT_FILEPATH = "{version}/{metric_name}/{task_alias}.json"
+# def pull_irt_params(task_alias):
+#     """Pull trained IRT parameters from HF"""
+#     remote_filename = IRT_FILEPATH.format(
+#         version="v0", metric_name="primary_metric", task_alias=task_alias
+#     )
+
+#     local_path = hf_hub.hf_hub_download(
+#         repo_id=IRT_REPO, filename=remote_filename, repo_type="dataset"
+#     )
+    
+#     items, discriminations, difficulties = load_irt_params(local_path)
+
+#     return items, discriminations, difficulties
