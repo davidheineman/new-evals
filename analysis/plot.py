@@ -45,13 +45,18 @@ TASK_CATEGORIES = {
     'mbppplus': 'code',
     'codex_humaneval': 'code',
     'codex_humanevalplus': 'code',
+    
+    'paloma_c4_en': 'loss',
+    'paloma_m2d2_s2orc_unsplit': 'loss',
 }
+CATEGORIES = set(TASK_CATEGORIES.values())
 
 CATEGORY_COLORS = {
     'language': '#2ecc71',
     'knowledge': '#3498db',
     'math': '#e74c3c',
-    'code': '#9b59b6'
+    'code': '#9b59b6',
+    'loss': '#f1c40f',
 }
 
 
@@ -145,11 +150,19 @@ def draw_pareto_frontier(ax, xs, ys, invert_x=False, invert_y=False, color='grey
                 color=color, linestyle=linestyle, linewidth=1)
 
 
-def plot_task_scatter(ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, percentage=False, invert_x=False, invert_y=False, log_x=False, log_y=False, xlim=None, ylim=None, x_col_b=None, y_col_b=None):
+def plot_task_scatter(ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, category=None, percentage=False, invert_x=False, invert_y=False, log_x=False, log_y=False, xlim=None, ylim=None, x_col_b=None, y_col_b=None):
     points = get_valid_points(df, x_col, y_col)
     if not points:
         return
     
+    # Filter out points not in the specified task category (e.g., math)
+    if category is not None:
+        task_categories = [TASK_CATEGORIES.get(task, 'knowledge') for _, _, task in points]
+        points = [p for p, cat in zip(points, task_categories) if cat == category]
+        if not points:
+            return
+    
+    # points = points[:-1]
     xs, ys, tasks = zip(*points)
     
     # Filter out -inf values if needed
@@ -175,40 +188,49 @@ def plot_task_scatter(ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, per
             ys_b = [y for y, t in zip(ys_b, tasks_b) if t in common_tasks]
             colors = [c for c, t in zip(colors, tasks) if t in common_tasks]
             tasks = [t for t in tasks if t in common_tasks]
+
+            if category is None:
+                colors_a = colors_b = line_colors = colors
+            else:
+                colors_a = 'r'
+                colors_b = 'g'
+                line_colors = ['k' for _ in colors]
             
             # Draw arrows between corresponding points
             for i, (x, y, x_b, y_b) in enumerate(zip(xs, ys, xs_b, ys_b)):
                 # ax.arrow(x, y, x_b-x, y_b-y, color=colors[i], length_includes_head=True, alpha=0.2)
-                ax.plot([x, x_b], [y, y_b], color=colors[i], alpha=0.2)
+                ax.plot([x, x_b], [y, y_b], color=line_colors[i], alpha=0.5, linewidth=0.5)
             
             # Plot both sets of points
-            ax.scatter(xs, ys, s=4, c=colors, marker='o')
-            ax.scatter(xs_b, ys_b, s=4, c=colors, marker='s')
+            ax.scatter(xs, ys, s=4, c=colors_a, marker='o')
+            ax.scatter(xs_b, ys_b, s=4, c=colors_b, marker='s')
 
         # Draw separate Pareto frontiers for before and after points
-        for category in set(TASK_CATEGORIES.values()):
+        for category_name in set(TASK_CATEGORIES.values()):
             # Get before points for this category
             category_points = [(x, y) for x, y, task in zip(xs, ys, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category]
             if category_points:
                 cat_xs, cat_ys = zip(*category_points)
-                draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=CATEGORY_COLORS[category], linestyle=':')
+                color = CATEGORY_COLORS[category_name] if category is None else 'r'
+                draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=color, linestyle=':')
             
             # Get after points for this category
             category_points_b = [(x, y) for x, y, task in zip(xs_b, ys_b, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category]
             if category_points_b:
                 cat_xs_b, cat_ys_b = zip(*category_points_b)
-                draw_pareto_frontier(ax, cat_xs_b, cat_ys_b, invert_x=invert_x, invert_y=invert_y, color=CATEGORY_COLORS[category], linestyle='--')
+                color = CATEGORY_COLORS[category_name] if category is None else 'g'
+                draw_pareto_frontier(ax, cat_xs_b, cat_ys_b, invert_x=invert_x, invert_y=invert_y, color=color, linestyle='--')
     else:
         # Regular scatter plot
         ax.scatter(xs, ys, s=4, c=colors)
 
         # Draw separate Pareto frontiers for each task category
-        for category in set(TASK_CATEGORIES.values()):
+        for category_name in set(TASK_CATEGORIES.values()):
             # Get points for this category
-            category_points = [(x, y) for x, y, task in zip(xs, ys, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category]
+            category_points = [(x, y) for x, y, task in zip(xs, ys, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category_name]
             if category_points:
                 cat_xs, cat_ys = zip(*category_points)
-                draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=CATEGORY_COLORS[category])
+                draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=CATEGORY_COLORS[category_name])
     
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
@@ -248,11 +270,8 @@ def plot_task_scatter(ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, per
     return ax
 
 
-def plot_task_radar(df_results, result_cols):
-    from plot import TASK_CATEGORIES
-    import matplotlib.pyplot as plt
-    import numpy as np
-
+def plot_task_radar(df_results, result_cols, categories=None):
+    if categories is None: categories = set(TASK_CATEGORIES.values())
     df_plot = df_results.copy()
 
     tv_cols = [col for col in result_cols if col.startswith('tv:')]
@@ -267,12 +286,11 @@ def plot_task_radar(df_results, result_cols):
     angles = [n / float(num_vars) * 2 * np.pi for n in range(num_vars)]
     angles += angles[:1]
 
-    unique_categories = set(TASK_CATEGORIES.values())
-    num_categories = len(unique_categories)
+    num_categories = len(categories)
 
     fig, axs = plt.subplots(1, num_categories, figsize=(30, 12), subplot_kw=dict(projection='polar'))
 
-    for ax_idx, category in enumerate(sorted(unique_categories)):
+    for ax_idx, category in enumerate(sorted(categories)):
         ax = axs[ax_idx]
         
         ax.set_facecolor('white')
@@ -300,13 +318,16 @@ def plot_task_radar(df_results, result_cols):
     plt.show()
 
 
-def plot_task_bar(ax: plt.Axes, df, col, ylabel, title, top_perc=1, percentage=False, sort_ascending=True):
-    valid_tasks = df[df[col].notna()].index
+def plot_task_bar(ax: plt.Axes, df, col, ylabel, title, top_perc=1, percentage=False, invert_y=False, log_y=False, ylim=None):
+    # Filter out -inf values and get valid tasks
+    valid_tasks = df[(df[col].notna()) & (df[col] != float('-inf'))].index
     y_vals = df.loc[valid_tasks, col]
     task_names = [get_title_from_task(t) for t in valid_tasks]
+
+    print(task_names)
     
     sorted_indices = np.argsort(y_vals)
-    if not sort_ascending:
+    if invert_y:
         sorted_indices = sorted_indices[::-1]
 
     valid_tasks = valid_tasks[sorted_indices]
@@ -328,6 +349,12 @@ def plot_task_bar(ax: plt.Axes, df, col, ylabel, title, top_perc=1, percentage=F
     
     if percentage:
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: '{:.0%}'.format(y)))
+    
+    if log_y:
+        ax.set_yscale('log')
+        
+    if ylim is not None:
+        ax.set_ylim(**ylim)
     
     return ax
 

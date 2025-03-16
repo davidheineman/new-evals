@@ -294,56 +294,63 @@ def main():
     llm_compression = [t for t in TASKS if 'llm_compression' in t]
     custom_loss = [t for t in TASKS if 'custom_loss' in t]
     
-    selected_tasks = olmes + olmes_gen + mmlu + olmes_mc + mmlu_mc
-    selected_tasks += [olmes, olmes_gen, mmlu, olmes_mc, mmlu_mc]
-    selected_tasks += ['autobencher', 'autobencher:mc']
+    selected_tasks = []
+    selected_tasks += [olmes, olmes_gen, mmlu, minerva, olmes_mc, mmlu_mc]
+    selected_tasks += olmes + olmes_gen + mmlu + olmes_mc + mmlu_mc
     selected_tasks += minerva + ['mbpp', 'mbppplus', 'codex_humaneval', 'codex_humanevalplus']
+    selected_tasks += ['autobencher', 'autobencher:mc']
+    selected_tasks += ['paloma_c4_en', 'paloma_m2d2_s2orc_unsplit']
 
     EXCLUDED_TASKS = ['hellaswag', 'squad'] # duplicate instances problem
     TASKS = [task for task in TASKS if task not in EXCLUDED_TASKS] # exclude tasks
     selected_task_sets = [[task] if not isinstance(task, list) else task for task in TASKS] # convert to lists
 
+    train_irt_models = True
+    if train_irt_models:
+        for i, task_set in enumerate(selected_task_sets):
+            task_name = get_title_from_task((task_set if len(task_set) > 1 else task_set[0]))
+            
+            print(f'Training IRT model for {task_name} on task set: {task_set} ({i}/{len(selected_task_sets)})')
+            
+            # Get data
+            train_instance_names, train_model_names, train_scores = \
+                get_train_data(df_instances, "primary_score", task_set, external_models)
+
+            train_scores = normalize_scores(train_scores, _type='acc')
+
+            # Train IRT model
+            discriminations, difficulties = train_irt_model(train_instance_names, train_model_names, train_scores)
+
+            # Eval trained IRT model to save reference scores (not used at inference)
+            thetas = calculate_theta(difficulties, discriminations, train_scores)
+
+            # Sort discriminations and difficulties by instance name
+            sorted_indices       = np.argsort(train_instance_names)
+            train_instance_names = np.array(train_instance_names)[sorted_indices]
+            discriminations      = np.array(discriminations)[sorted_indices]
+            difficulties         = np.array(difficulties)[sorted_indices]
+
+            save_irt_params(
+                save_path=Path(DATA_DIR) / "irt" / f"{task_name}.json",
+                train_model_names=train_model_names,
+                train_instance_names=train_instance_names,
+                discriminations=discriminations,
+                difficulties=difficulties,
+                thetas=thetas,
+            )
 
     for i, task_set in enumerate(selected_task_sets):
         task_name = get_title_from_task((task_set if len(task_set) > 1 else task_set[0]))
-        
-        print(f'Training IRT model for {task_name} on task set: {task_set} ({i}/{len(selected_task_sets)})')
-        
-        # Get data
-        train_instance_names, train_model_names, train_scores = \
-            get_train_data(df_instances, "primary_score", task_set, external_models)
 
-        train_scores = normalize_scores(train_scores, _type='acc')
-
-        # Train IRT model
-        discriminations, difficulties = train_irt_model(train_instance_names, train_model_names, train_scores)
-
-        # Eval trained IRT model to save reference scores (not used at inference)
-        thetas = calculate_theta(difficulties, discriminations, train_scores)
-
-        # Sort discriminations and difficulties by instance name
-        sorted_indices       = np.argsort(train_instance_names)
-        train_instance_names = np.array(train_instance_names)[sorted_indices]
-        discriminations      = np.array(discriminations)[sorted_indices]
-        difficulties         = np.array(difficulties)[sorted_indices]
-
-        save_irt_params(
-            save_path=Path(DATA_DIR) / "irt" / f"{task_name}.json",
-            train_model_names=train_model_names,
-            train_instance_names=train_instance_names,
-            discriminations=discriminations,
-            difficulties=difficulties,
-            thetas=thetas,
-        )
-
-    for i, task_set in enumerate(selected_task_sets):
         print(f'Computing IRT model for {task_name} on task set: {task_set} ({i}/{len(selected_task_sets)})')
 
-        task_name = get_title_from_task((task_set if len(task_set) > 1 else task_set[0]))
-
-        train_instance_names, discriminations, difficulties = load_irt_params(
-            load_path=Path(DATA_DIR) / "irt" / f"{task_name}.json",
-        )
+        try:
+            train_instance_names, discriminations, difficulties = load_irt_params(
+                load_path=Path(DATA_DIR) / "irt" / f"{task_name}.json",
+            )
+        except FileNotFoundError as e:
+            print(f'Could not find IRT model for {task_name}. Skipping...')
+            continue
 
         test_instance_names, test_model_names, test_scores_acc = \
             get_test_data(

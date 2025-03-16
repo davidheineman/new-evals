@@ -480,17 +480,15 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
     return results
 
 
-def run_instance_analysis(df_instances, task, alpha=0.05):
+def run_instance_analysis(df_instances, task, aggregators=['micro', 'macro'], metrics=['logits_per_byte_corr', 'primary_score'], alpha=0.05):
     task_name = get_title_from_task(task)
 
     # ALPHA = 0.01
     ALPHA = 1e-4
     
     results = {}
-
-    metrics = ['logits_per_byte_corr', 'primary_score']
     
-    for aggregator in ['micro', 'macro', 'irt']:
+    for aggregator in aggregators:
         for metric in metrics:
             try:
                 models = [model for model in DDOS_MODEL_NAMES if '150M' in model]
