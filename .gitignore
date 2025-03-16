@@ -13,3 +13,4 @@ data-bak/
 *.png
 olmes_requests/
 .tmp/
+gcp-service-account.json

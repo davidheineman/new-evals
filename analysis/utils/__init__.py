@@ -25,3 +25,6 @@ def get_title_from_task(task):
                 return title
         return 'aggregate'
     return task
+
+def weka_to_gcs(model_name):
+    return f"gs://ai2-llm/checkpoints/davidh/{model_name.split('checkpoints/')[1]}"
