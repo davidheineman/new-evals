@@ -1,7 +1,11 @@
+# CLUSTER="\
+# ai2/jupiter-cirrascale-2,\
+# ai2/neptune-cirrascale,\
+# ai2/saturn-cirrascale
+# "
+
 CLUSTER="\
-ai2/jupiter-cirrascale-2,\
-ai2/neptune-cirrascale,\
-ai2/saturn-cirrascale
+ai2/augusta-google-1
 "
 
 # Test configuration
@@ -88,14 +92,14 @@ autobencher::none \
 # "
 
 MODEL_LIST="\
-Yi-1.5-9B \
+gs://ai2-llm/checkpoints/davidh/OLMo-ladder/peteish-moreeval-1B-5xC/step0-unsharded-hf \
 "
 
 # GPUS=4
 # MODEL_TYPE=vllm
 
 GPUS=1
-MODEL_TYPE=vllm
+MODEL_TYPE=hf
 
 oe-eval \
     --task $TASK_LIST \
@@ -103,15 +107,30 @@ oe-eval \
     --cluster $CLUSTER \
     --model-type $MODEL_TYPE \
     --gpus $GPUS \
-    --beaker-workspace ai2/davidh \
+    --beaker-workspace ai2/lm-eval \
     --beaker-image davidh/oe-eval-metaeval \
-    --gantry-secret-aws-access-key-id AWS_ACCESS_KEY_ID \
-    --gantry-secret-aws-secret-access AWS_SECRET_ACCESS_KEY \
+    --gantry-secret-aws-access-key-id lucas_AWS_ACCESS_KEY_ID \
+    --gantry-secret-aws-secret-access lucas_AWS_SECRET_ACCESS_KEY \
     --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
     --recompute-metrics \
-    --delete-raw-requests \
     --batch-size 1 \
-    --beaker-priority normal
+    --beaker-priority high
+
+# oe-eval \
+#     --task $TASK_LIST \
+#     --model $MODEL_LIST \
+#     --cluster $CLUSTER \
+#     --model-type $MODEL_TYPE \
+#     --gpus $GPUS \
+#     --beaker-workspace ai2/davidh \
+#     --beaker-image davidh/oe-eval-metaeval \
+#     --gantry-secret-aws-access-key-id AWS_ACCESS_KEY_ID \
+#     --gantry-secret-aws-secret-access AWS_SECRET_ACCESS_KEY \
+#     --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
+#     --recompute-metrics \
+#     --delete-raw-requests \
+#     --batch-size 1 \
+#     --beaker-priority normal
 
 # --limit 20 \
 # --dry-run

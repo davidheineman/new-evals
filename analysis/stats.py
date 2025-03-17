@@ -246,8 +246,14 @@ def compute_significance(
                 mixes = mixes[sorted_indices].tolist()
                 scores = scores[sorted_indices]
             else:
-                instance_names, mixes, scores = get_nd_array(df, 'mix', metric, model=models, task=task, step=step, sorted=True, return_index=True)
-                # instance_names, mixes, scores = get_nd_array(df, 'mix', metric, model=models, task=task, step=step, sorted=False, return_index=True)
+                # instance_names, mixes, scores = get_nd_array(df, 'mix', metric, model=models, task=task, step=step, sorted=True, return_index=True)
+                instance_names, mixes, scores = get_nd_array(df, 'mix', metric, model=models, task=task, step=step, sorted=False, return_index=True)
+
+                # Sort by overall performance (get_nd_array sorting is broken!)
+                mix_sums = scores.sum(axis=1)
+                sorted_indices = mix_sums.argsort()[::-1]
+                mixes = np.array(mixes)[sorted_indices].tolist()
+                scores = scores[sorted_indices]
 
         if aggregator == 'irt':
             import os, sys

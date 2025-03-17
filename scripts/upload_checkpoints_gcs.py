@@ -21,10 +21,11 @@ weka_models = [model for model in MODEL_LIST_ALL if model.startswith('weka://')]
 gcs_paths = [weka_to_gcs(model) for model in weka_models]
 
 # Create rsync commands
-for weka_model, gcs_path in zip(weka_models, gcs_paths):
-    weka_model = weka_model.replace('weka://', '/')
+from concurrent.futures import ThreadPoolExecutor
 
-    check_command = f"gsutil -q stat {gcs_path}"
+def check_and_sync(weka_model, gcs_path):
+    weka_model = weka_model.replace('weka://', '/')
+    check_command = f"gsutil ls {gcs_path}"
     
     if os.system(check_command) != 0:
         command = f"""\
@@ -34,3 +35,6 @@ for weka_model, gcs_path in zip(weka_models, gcs_paths):
         os.system(command)
     else:
         print(f'Skipping {gcs_path} - already exists')
+
+with ThreadPoolExecutor() as executor:
+    executor.map(lambda x: check_and_sync(*x), zip(weka_models, gcs_paths))

@@ -159,7 +159,7 @@ def set_title_from_task(ax: plt.Axes, task):
     ax.set_title(get_title_from_task(task))
 
 
-def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_models, metric='primary_score', axes=None, small_fig=False, ladder_config_path=DEFAULT_LADDER_CONFIG_PATH):
+def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_models, metric='primary_score', axes=None, small_fig=False, run_irt=False, ladder_config_path=DEFAULT_LADDER_CONFIG_PATH):
     results = {}
     
     primary_score_name = PRIMARY_METRICS_OLMES[task] if isinstance(task, str) and task in PRIMARY_METRICS_OLMES else 'primary_score'
@@ -278,26 +278,27 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             "rel_error:stacked:13b:c4_to_primary": rel_error_stacked[1], 
         })
 
-        try:
-            # Stacked prediction -- BPB -> IRT ability
-            rel_error_step_1, _, rel_error_stacked = run_ladder(
-                df,
-                task, 
-                train_models=ladder_models,
-                eval_models=["peteish7", "peteish13-highlr"],
-                intermediate_task_name=task,
-                # intermediate_feature="logits_per_byte_corr",
-                downstream_feature="theta_primary_score", # theta_bpb, theta_primary_score
-                config_path=ladder_config_path,
-            )
-            results.update({
-                "rel_error:step_1:7b:bpb_to_irt": rel_error_step_1[0], 
-                "rel_error:step_1:13b:bpb_to_irt": rel_error_step_1[1], 
-                "rel_error:stacked:7b:bpb_to_irt": rel_error_stacked[0], 
-                "rel_error:stacked:13b:bpb_to_irt": rel_error_stacked[1], 
-            })
-        except Exception as e:
-            print(task, 'failed to fit IRT model', e)
+        if run_irt:
+            try:
+                # Stacked prediction -- BPB -> IRT ability
+                rel_error_step_1, _, rel_error_stacked = run_ladder(
+                    df,
+                    task, 
+                    train_models=ladder_models,
+                    eval_models=["peteish7", "peteish13-highlr"],
+                    intermediate_task_name=task,
+                    # intermediate_feature="logits_per_byte_corr",
+                    downstream_feature="theta_primary_score", # theta_bpb, theta_primary_score
+                    config_path=ladder_config_path,
+                )
+                results.update({
+                    "rel_error:step_1:7b:bpb_to_irt": rel_error_step_1[0], 
+                    "rel_error:step_1:13b:bpb_to_irt": rel_error_step_1[1], 
+                    "rel_error:stacked:7b:bpb_to_irt": rel_error_stacked[0], 
+                    "rel_error:stacked:13b:bpb_to_irt": rel_error_stacked[1], 
+                })
+            except Exception as e:
+                print(task, 'failed to fit IRT model', e)
     except Exception as e:
         print(task, 'failed on ladder fits', e)
         # raise RuntimeError(task, 'failed on ladder fits', e)
@@ -357,7 +358,8 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
 
         # Additional metric calculations
         additional_metrics = ['primary_score', 'logits_per_char_corr']
-        additional_metrics += ['theta_bpb', 'theta_primary_score']
+        if run_irt: 
+            additional_metrics += ['theta_bpb', 'theta_primary_score']
         for additional_metric in additional_metrics:
             try:
                 tv, _ = compute_total_variation(
@@ -429,7 +431,8 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
         })
 
         additional_metrics = ['primary_score', 'logits_per_char_corr']
-        additional_metrics += ['theta_bpb', 'theta_primary_score']
+        if run_irt: 
+            additional_metrics += ['theta_bpb', 'theta_primary_score']
         for additional_metric in additional_metrics:
             two_class, acc_pivot_bpb, metric_pivot = construct_2class_table(
                 df, [task], 
@@ -525,6 +528,6 @@ def run_instance_analysis(df_instances, task, aggregators=['micro', 'macro'], me
                     f"perc_sig:{metric}:{aggregator}:1B": perc_sig_1B
                 })
             except Exception as e:
-                print(task, f'failed to compute decision accuracy for {metric} / {aggregator}', e)
+                print(task, f'failed to compute significance test for aggregator={aggregator} on metric={metric}', e)
     
     return results
