@@ -365,7 +365,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
                 tv, _ = compute_total_variation(
                     df, models=[model], metric=additional_metric, tasks=[task]
                 )
-                tv_result = tv[task]['total_variation'] if not isinstance(task, list) else tv.loc
+                tv_result = tv[task]['total_variation'] if not isinstance(task, list) else tv.loc['total_variation']['aggregate']
                 results.update({
                     f'tv:{additional_metric}:{model_name}': tv_result
                 })
@@ -528,6 +528,6 @@ def run_instance_analysis(df_instances, task, aggregators=['micro', 'macro'], me
                     f"perc_sig:{metric}:{aggregator}:1B": perc_sig_1B
                 })
             except Exception as e:
-                print(task, f'failed to compute significance test for aggregator={aggregator} on metric={metric}', e)
+                print(task_name, f'failed to compute significance test for aggregator={aggregator} on metric={metric}', e)
     
     return results

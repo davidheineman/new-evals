@@ -1,4 +1,4 @@
-import os
+import os, copy
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -438,25 +438,27 @@ def run_ladder(
             raise RuntimeError(f'Step 2 failed to fit: {e}')
 
     if run_stacked:
+        data_by_name_stacked = copy.deepcopy(data_by_name)
+
         # Predict stacked
         if use_flops:
             (
                 predicted_data_by_name_stacked, plotted_predicted_data_by_name_stacked, 
                 (y, stacked_y_pred, rel_error)
             ) = predict_chained_flops(
-                data_by_name, step1_coefficients, step2_coefficients
+                data_by_name_stacked, step1_coefficients, step2_coefficients
             )
         else:
             (
                 predicted_data_by_name_stacked, plotted_predicted_data_by_name_stacked, 
                 (y, stacked_y_pred, rel_error)
             ) = predict_chained(
-                data_by_name, step1_coefficients, step2_coefficients, use_log_sigmoid=False
+                data_by_name_stacked, step1_coefficients, step2_coefficients, use_log_sigmoid=False
             )
 
         # For stacked predictions, the x axis is now the y axis
-        for key in data_by_name:
-            data_by_name[key]['xs'] = data_by_name[key]['ys']
+        for key in data_by_name_stacked:
+            data_by_name_stacked[key]['xs'] = data_by_name_stacked[key]['ys']
 
         # Plot stacked prediction
         if axes is not None:
@@ -464,7 +466,7 @@ def run_ladder(
             if use_flops:
                 plot_chained_flops(
                     configs,
-                    data_by_name,
+                    data_by_name_stacked,
                     predicted_data_by_name_stacked,
                     plotted_predicted_data_by_name_stacked,
                     task_name,
@@ -475,7 +477,7 @@ def run_ladder(
             else:
                 plot_chained(
                     configs,
-                    data_by_name,
+                    data_by_name_stacked,
                     predicted_data_by_name_stacked,
                     plotted_predicted_data_by_name_stacked,
                     task_name,
@@ -530,7 +532,7 @@ def run_ladder(
             if run_step2:
                 process_step(data_by_name_step_2, predicted_data_by_name_step_2, target_name, 'ys', step_2_y, step_2_y_pred, rel_error_step_2)
             if run_stacked:
-                process_step(data_by_name, predicted_data_by_name_stacked, target_name, 'ys', stacked_y, stacked_y_pred, rel_errors_stacked)
+                process_step(data_by_name_stacked, predicted_data_by_name_stacked, target_name, 'ys', stacked_y, stacked_y_pred, rel_errors_stacked)
 
     process_model(eval_models, 'peteish7', '7B-4T')
     process_model(eval_models, 'peteish13-highlr', '13B-5T')

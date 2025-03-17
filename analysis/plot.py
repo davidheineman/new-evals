@@ -94,6 +94,7 @@ CATEGORY_COLORS = {
     'code': '#9b59b6',
     'loss': '#f1c40f',
 }
+CATEGORY_COLORS_SMALL = {cat: color for cat, color in CATEGORY_COLORS.items() if ':' not in cat}
 
 
 def get_valid_points(df_results, x_col, y_col):
@@ -102,7 +103,7 @@ def get_valid_points(df_results, x_col, y_col):
     for task in df_results.index:
         x = df_results[x_col][task]
         y = df_results[y_col][task]
-        if x != 0 and y != 0 and x != float('nan') and y != float('nan'):
+        if x != float('nan') and y != float('nan') and not callable(x) and not callable(y):
             points.append((x, y, task))
     return points
 
@@ -186,7 +187,7 @@ def draw_pareto_frontier(ax, xs, ys, invert_x=False, invert_y=False, color='grey
                 color=color, linestyle=linestyle, linewidth=1)
 
 
-def plot_task_scatter(ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, category=None, percentage=False, invert_x=False, invert_y=False, log_x=False, log_y=False, xlim=None, ylim=None, x_col_b=None, y_col_b=None):
+def plot_task_scatter(ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, category=None, percentage=False, invert_x=False, invert_y=False, log_x=False, log_y=False, xlim=None, ylim=None, xdesc=None, ydesc=None, x_col_b=None, y_col_b=None):
     points = get_valid_points(df, x_col, y_col)
     if not points:
         return
@@ -303,10 +304,74 @@ def plot_task_scatter(ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, cat
             texts += [ax.text(x, y, get_title_from_task(task), fontsize=5, clip_on=True)]
         
     adjustText(ax, texts)
+
+    # Add axis description text if provided
+    if xdesc is not None or ydesc is not None:
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+        transform = ax.transData
+
+        if xdesc is not None:
+            # Add x-axis description text to bottom right
+            x_pos = xlim[1]
+            y_pos = ylim[0]
+            display_coords = transform.transform((x_pos, y_pos))
+            display_coords = (display_coords[0] - 5, display_coords[1] + 5)
+            data_coords = transform.inverted().transform(display_coords)
+            x_pos, y_pos = data_coords
+            ax.text(x_pos, y_pos, f'{xdesc} →',
+                    horizontalalignment='right',
+                    verticalalignment='bottom',
+                    fontsize=8,
+                    weight='bold')
+
+        if ydesc is not None:
+            # Add y-axis description text to top left
+            x_pos = xlim[0]
+            y_pos = ylim[1]
+            display_coords = transform.transform((x_pos, y_pos))
+            display_coords = (display_coords[0] + 5, display_coords[1] - 5)
+            data_coords = transform.inverted().transform(display_coords)
+            x_pos, y_pos = data_coords
+            ax.text(x_pos, y_pos, f'↑ {ydesc}',
+                    horizontalalignment='left',
+                    verticalalignment='top',
+                    fontsize=8,
+                    weight='bold')
+    
     return ax
 
 
 def plot_task_radar(df_results, result_cols, categories=None):
+    RADAR_TASK_NAMES = {
+        # Separability (Statistical significance)
+        'perc_sig:logits_per_byte_corr:macro:150M': '% Sig. BPB 150M',
+        'perc_sig:logits_per_byte_corr:macro:1B': '% Sig. BPB 1B',
+        'perc_sig:primary_score:macro:150M': '% Sig. Primary 150M',
+        'perc_sig:primary_score:macro:1B': '% Sig. Primary 1B',
+
+        # Predictability 
+        'rel_error:step_1:7b:bpb_to_primary': 'Rel. Error 7B Step 1',
+        'rel_error:step_1:13b:bpb_to_primary': 'Rel. Error 13B Step 1',
+        'rel_error:step_2:7b:bpb_to_primary': 'Rel. Error 7B Step 2', 
+        'rel_error:step_2:13b:bpb_to_primary': 'Rel. Error 13B Step 2',
+        'rel_error:stacked:7b:bpb_to_primary': 'Rel. Error 7B Stack',
+        'rel_error:stacked:13b:bpb_to_primary': 'Rel. Error 13B Stack',
+        'mean_error:step_2:external:bpb_to_primary': 'Mean Error External',
+
+        # Smoothness
+        'tv:logits_per_char_corr:1b': 'Total Var. BPB 1B',
+        'tv:logits_per_char_corr:13b': 'Total Var. BPB 13B',
+        'tv:primary_score:1b': 'Total Var. Primary 1B',
+        'tv:primary_score:13b': 'Total Var. Primary 13B',
+
+        # Separability (Consistent Ranking)
+        'dec_acc:primary_score:150M': 'Dec. Acc. Primary 150M',
+        'dec_acc:primary_score:60M': 'Dec. Acc. Primary 60M', 
+        'dec_acc:logits_per_byte_corr:150M': 'Dec. Acc. BPB 150M',
+        'dec_acc:logits_per_byte_corr:60M': 'Dec. Acc. BPB 60M'
+    }
+
     if categories is None: categories = set(TASK_CATEGORIES.values())
     df_plot = df_results.copy()
 
@@ -323,11 +388,11 @@ def plot_task_radar(df_results, result_cols, categories=None):
     angles += angles[:1]
 
     num_categories = len(categories)
-
-    fig, axs = plt.subplots(1, num_categories, figsize=(30, 12), subplot_kw=dict(projection='polar'))
+    # fig, axs = plt.subplots(1, num_categories, figsize=(22, 8), subplot_kw=dict(projection='polar'))
+    fig, axs = plt.subplots(1, num_categories, figsize=(18, 6), subplot_kw=dict(projection='polar'))
 
     for ax_idx, category in enumerate(sorted(categories)):
-        ax = axs[ax_idx]
+        ax: plt.Axes = axs[ax_idx]
         
         ax.set_facecolor('white')
         ax.grid(False)
@@ -339,16 +404,16 @@ def plot_task_radar(df_results, result_cols, categories=None):
             values = df_plot.loc[benchmark, result_cols].values.tolist()
             values += values[:1]
             
-            ax.plot(angles, values, linewidth=1, linestyle='solid', label=benchmark)
-            ax.fill(angles, values, alpha=0.1)
+            ax.plot(angles, values, linewidth=1, linestyle='solid', label=benchmark, zorder=2)
+            ax.fill(angles, values, alpha=0.1, zorder=2)
         
         ax.set_theta_offset(np.pi / 2)
         ax.set_theta_direction(-1)
         ax.set_xticks(angles[:-1])
-        ax.set_xticklabels(result_cols, rotation=45)
+        ax.set_xticklabels([RADAR_TASK_NAMES.get(col, '') for col in result_cols], rotation=45)
         ax.set_yticklabels([])
-        ax.set_title(category)
-        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1))
+        ax.set_title(category.capitalize(), fontsize=16)
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncols=2)
 
     plt.tight_layout()
     plt.show()

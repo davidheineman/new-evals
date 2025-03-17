@@ -211,6 +211,8 @@ def compute_significance(
             axes = do_plot
 
     for i, task in tqdm(enumerate(tasks), desc='Computing pairwise comparisons', total=len(tasks), disable=quiet):
+        task_name = get_title_from_task(task)
+
         if last_n > 1:
             assert step == 'max'
             
@@ -261,10 +263,6 @@ def compute_significance(
             sys.path.append(path_to_add)
             from irt_utils.irt_inference import load_irt_params, calculate_theta
             from run_irt import normalize_scores
-
-            from utils import get_title_from_task
-
-            task_name = get_title_from_task(task)
 
             train_instance_names, discriminations, difficulties = load_irt_params(
                 load_path=Path(DATA_DIR) / "irt" / f"{task_name}.json",
@@ -336,10 +334,6 @@ def compute_significance(
             mixes          = np.array(mixes)[sorted_indices]
             mix_scores     = mix_scores[sorted_indices]
             p_values[np.tril_indices_from(p_values, k=-1)] = np.nan
-
-            # Change task name
-            from metaanalysis import get_title_from_task
-            task = get_title_from_task(task)
         elif isinstance(task, str) or aggregator == 'micro':
             # Micro average (default setup for single tasks)
             p_values, mix_scores, _ = compute_pairwise_p_values(scores, num_permutations=num_permutations, return_scores=True)
@@ -357,8 +351,8 @@ def compute_significance(
             sig_clusters = get_sig_clusters(p_values, alpha=alpha)
 
         perc_sig = perc_significant(p_values, alpha=alpha)
-        sig_results.loc['perc_sig', task] = perc_sig
-        all_p_values[task] = (mixes, scores, p_values, sig_clusters)
+        sig_results.loc['perc_sig', task_name] = perc_sig
+        all_p_values[task_name] = (mixes, scores, p_values, sig_clusters)
 
         if do_plot is not None: 
             if pretty_mix_names is not None:
@@ -366,9 +360,9 @@ def compute_significance(
             else:
                 mix_names = mixes
             axes[i] = plot_heatmap(axes[i], p_values, mix_names, mix_scores, sig_clusters, alpha=alpha, plot_clean=plot_clean)
-            title = r'$p$' + f'-values for {task} (n={scores.shape[1]}) across data mixes at {("last " + str(last_n) + " steps" if last_n > 1 else "final checkpoint")} ({metric}), perc sig={(perc_sig*100):.2f}%'
+            title = r'$p$' + f'-values for {task_name} (n={scores.shape[1]}) across data mixes at {("last " + str(last_n) + " steps" if last_n > 1 else "final checkpoint")} ({metric}), perc sig={(perc_sig*100):.2f}%'
             if len(models) < 15:
-                title = r'$p$' + f'-values for {task}, perc sig={(perc_sig*100):.2f}%'
+                title = r'$p$' + f'-values for {task_name}, perc sig={(perc_sig*100):.2f}%'
             axes[i].set_title(title, fontsize=10)
 
     if do_plot is not None: 

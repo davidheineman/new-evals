@@ -295,15 +295,15 @@ def main():
     custom_loss = [t for t in TASKS if 'custom_loss' in t]
     
     selected_tasks = []
-    selected_tasks += [olmes, olmes_gen, mmlu, minerva, olmes_mc, mmlu_mc]
+    selected_tasks += [olmes, mmlu, minerva, olmes_mc, mmlu_mc] # olmes_gen ( causing issues :( )
     selected_tasks += olmes + olmes_gen + mmlu + olmes_mc + mmlu_mc
     selected_tasks += minerva + ['mbpp', 'mbppplus', 'codex_humaneval', 'codex_humanevalplus']
     selected_tasks += ['autobencher', 'autobencher:mc']
     selected_tasks += ['paloma_c4_en', 'paloma_m2d2_s2orc_unsplit']
 
-    EXCLUDED_TASKS = ['hellaswag', 'squad'] # duplicate instances problem
-    TASKS = [task for task in TASKS if task not in EXCLUDED_TASKS] # exclude tasks
-    selected_task_sets = [[task] if not isinstance(task, list) else task for task in TASKS] # convert to lists
+    # EXCLUDED_TASKS = ['hellaswag', 'squad'] # duplicate instances problem
+    # TASKS = [task for task in TASKS if task not in EXCLUDED_TASKS] # exclude tasks
+    selected_task_sets = [[task] if not isinstance(task, list) else task for task in selected_tasks] # convert to lists
 
     train_irt_models = True
     if train_irt_models:
