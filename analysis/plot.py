@@ -194,8 +194,9 @@ def plot_task_scatter(ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, cat
     
     # Filter out points not in the specified task category (e.g., math)
     if category is not None:
+        category = [category] if not isinstance(category, list) else category
         task_categories = [TASK_CATEGORIES.get(task, 'knowledge') for _, _, task in points]
-        points = [p for p, cat in zip(points, task_categories) if cat == category]
+        points = [p for p, cat in zip(points, task_categories) if cat in category]
         if not points:
             return
     
