@@ -483,7 +483,14 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
     return results
 
 
-def run_instance_analysis(df_instances, task, aggregators=['micro', 'macro'], metrics=['logits_per_byte_corr', 'primary_score'], alpha=0.05):
+def run_instance_analysis(
+    df_instances, 
+    task, 
+    aggregators=['micro', 'macro'], 
+    metrics=['logits_per_byte_corr', 'primary_score'], 
+    sizes=DDOS_SIZES, # ['4M', '20M', ..., '750M', '1B'],
+    alpha=0.05
+    ):
     task_name = get_title_from_task(task)
 
     # ALPHA = 0.01
@@ -493,41 +500,34 @@ def run_instance_analysis(df_instances, task, aggregators=['micro', 'macro'], me
     
     for aggregator in aggregators:
         for metric in metrics:
-            try:
-                models = [model for model in DDOS_MODEL_NAMES if '150M' in model]
-                _, out, _ = compute_significance(
-                    df_instances, models=models, metric=metric, aggregator=aggregator,
-                    step=None, last_n=1, alpha=ALPHA, tasks=[task], quiet=True
-                )
-                mixes_A, scores_A, p_values_A, sig_clusters_A = out[task_name]
+            for size in sizes:
+                try:
+                    models = [model for model in DDOS_MODEL_NAMES if size in model] # e.g., 150M
+                    _, out, _ = compute_significance(
+                        df_instances, models=models, metric=metric, aggregator=aggregator,
+                        step=None, last_n=1, alpha=ALPHA, tasks=[task], quiet=True
+                    )
+                    mixes_A, scores_A, p_values_A, sig_clusters_A = out[task_name]
 
-                models = [model for model in DDOS_MODEL_NAMES if '1B' in model]
-                _, out, _ = compute_significance(
-                    df_instances, models=models, metric=metric, aggregator=aggregator,
-                    step=None, last_n=1, alpha=ALPHA, tasks=[task], quiet=True
-                )
-                mixes_B, scores_B, p_values_B, sig_clusters_B = out[task_name]
+                    # Compute metric scores
+                    valid_p_values = p_values_A[~np.isnan(p_values_A)]
+                    perc_sig = np.sum(valid_p_values <= ALPHA) / len(valid_p_values)
 
-                # Compute metric scores
-                valid_p_values = p_values_A[~np.isnan(p_values_A)]
-                perc_sig_150M = np.sum(valid_p_values <= ALPHA) / len(valid_p_values)
+                    # valid_p_values = p_values_B[~np.isnan(p_values_B)]
+                    # perc_sig_1B = np.sum(valid_p_values <= ALPHA) / len(valid_p_values)
+                    # kt_c = kendall_tau_a(mixes_A, mixes_B, sig_clusters_A, sig_clusters_B)
+                    # f"kt_c:{metric}": kt_c,
+                    # f"num_sig_clusters:{metric}:{aggregator}:1B": max(sig_clusters_B),
+                    # f"perc_sig:{metric}:{aggregator}:1B": perc_sig_1B
 
-                valid_p_values = p_values_B[~np.isnan(p_values_B)]
-                perc_sig_1B = np.sum(valid_p_values <= ALPHA) / len(valid_p_values)
-
-                kt_c = kendall_tau_a(mixes_A, mixes_B, sig_clusters_A, sig_clusters_B)
-                
-                plt.close()
-                
-                results.update({
-                    "task": task_name,
-                    f"kt_c:{metric}": kt_c,
-                    f"num_sig_clusters:{metric}:{aggregator}:150M": max(sig_clusters_A),
-                    f"num_sig_clusters:{metric}:{aggregator}:1B": max(sig_clusters_B),
-                    f"perc_sig:{metric}:{aggregator}:150M": perc_sig_150M,
-                    f"perc_sig:{metric}:{aggregator}:1B": perc_sig_1B
-                })
-            except Exception as e:
-                print(task_name, f'failed to compute significance test for aggregator={aggregator} on metric={metric}', e)
+                    plt.close()
+                    
+                    results.update({
+                        "task": task_name,
+                        f"num_sig_clusters:{metric}:{aggregator}:{size}": max(sig_clusters_A),
+                        f"perc_sig:{metric}:{aggregator}:{size}": perc_sig,
+                    })
+                except Exception as e:
+                    print(task_name, f'failed to compute significance test for aggregator={aggregator} on metric={metric}', e)
     
     return results
