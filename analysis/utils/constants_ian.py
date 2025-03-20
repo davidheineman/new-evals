@@ -27,7 +27,7 @@ DATA_NAME_LATEX = {
 }
 
 DATA_NAME_CLEAN = {
-    "dolma": "Dolma1.7",
+    # "dolma": "Dolma1.7",
     "dolma17": "Dolma1.7",
     "no_code": "Dolma1.7 (no code)", 
     "no_math_no_code": "Dolma1.7 (no math, code)",

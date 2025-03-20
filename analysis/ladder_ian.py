@@ -35,6 +35,11 @@ TASK_KEY_MAP = {
 
 SIZE_COLORS = {
     '4M': 'brown',
+    '6M': '#7f7f7f',  # gray
+    '8M': '#17becf',  # cyan
+    '10M': '#bcbd22', # olive
+    '14M': '#e377c2', # pink
+    '16M': '#8c564b', # brown
     '20M': 'black',
     '60M': 'teal',
     '90M': 'pink',
@@ -59,6 +64,11 @@ FULL_SCHEDULE = {
 
 MODEL_TO_BATCH = {
     '4M': 32, # batch_size=32, gpus=8
+    '6M': 32,
+    '8M': 32,
+    '10M': 32,
+    '14M': 32,
+    '16M': 32,
     '20M': 64,
     '60M': 96,
     '90M': 160,
@@ -71,6 +81,12 @@ MODEL_TO_BATCH = {
 
 MODEL_TO_PARAMETERS = {
     '4M': 3_744_832,
+    '6M': 6_010_464,
+    '8M': 8_538_240,
+    '10M': 9_900_432,
+    '12M': 12_066_600,
+    '14M': 14_380_224,
+    '16M': 16_004_560,
     '20M': 19_101_888,
     '60M': 57_078_144,
     '90M': 97_946_640,
@@ -224,7 +240,8 @@ def create_ladder_config(task_name, train_models, eval_models, color=None):
     configs = {}
     for model in train_models + eval_models:
         size = model.split('-')[-2]
-        if color == None: color = SIZE_COLORS.get(size, 'k')
+        # if color == None: 
+        color = SIZE_COLORS.get(size, 'k')
         mode = 'eval' if model in eval_models else 'train'
         
         # Create dummy config for new eval points
