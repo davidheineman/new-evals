@@ -273,15 +273,11 @@ def main():
         and not is_excluded_from_lite(model)
     ])
 
-    # olmes = ['arc_challenge', 'arc_easy', 'boolq', 'csqa', 'openbookqa', 'piqa', 'socialiqa', 'winogrande'] # 'hellaswag'
-    # mmlu  = [t for t in TASKS if 'mmlu' in t]
-    # TASKS = olmes + [olmes, mmlu]
-
     mmlu      = [t for t in TASKS if 'mmlu' in t and ':' not in t and '_pro_' not in t]
     minerva   = [t for t in TASKS if 'minerva' in t and ':' not in t and 'math_500' not in t]
     mmlu_pro  = [t for t in TASKS if '_pro_' in t and ':rc' in t]
     mmlu_mc   = [t for t in TASKS if 'mmlu' in t and ':mc' in t and '_pro_' not in t]
-    olmes     = ['arc_challenge', 'arc_easy', 'boolq', 'csqa', 'openbookqa', 'piqa', 'socialiqa', 'winogrande'] # 'hellaswag',
+    olmes     = ['arc_challenge', 'arc_easy', 'boolq', 'csqa', 'hellaswag', 'openbookqa', 'piqa', 'socialiqa', 'winogrande']
     olmes_mc  = [f'{task}:mc' for task in olmes]
     olmes_para        = [f'{task}:para' for task in olmes]
     olmes_distractors = [f'{task}:distractors' for task in olmes]
@@ -301,8 +297,8 @@ def main():
     selected_tasks += ['autobencher', 'autobencher:mc']
     selected_tasks += ['paloma_c4_en', 'paloma_m2d2_s2orc_unsplit']
 
-    # EXCLUDED_TASKS = ['hellaswag', 'squad'] # duplicate instances problem
-    # TASKS = [task for task in TASKS if task not in EXCLUDED_TASKS] # exclude tasks
+    selected_tasks = ['gsm8k']
+
     selected_task_sets = [[task] if not isinstance(task, list) else task for task in selected_tasks] # convert to lists
 
     train_irt_models = True

@@ -187,7 +187,12 @@ def draw_pareto_frontier(ax, xs, ys, invert_x=False, invert_y=False, color='grey
                 color=color, linestyle=linestyle, linewidth=1)
 
 
-def plot_task_scatter(ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, category=None, percentage=False, invert_x=False, invert_y=False, log_x=False, log_y=False, xlim=None, ylim=None, xdesc=None, ydesc=None, x_col_b=None, y_col_b=None):
+def plot_task_scatter(
+    ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, 
+    category=None, percentage=False, 
+    invert_x=False, invert_y=False, log_x=False, log_y=False, xlim=None, ylim=None, x_col_b=None, y_col_b=None,
+    xdesc=None, ydesc=None, draw_frontier=True
+    ):
     points = get_valid_points(df, x_col, y_col)
     if not points:
         return
@@ -244,31 +249,33 @@ def plot_task_scatter(ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, cat
             ax.scatter(xs_b, ys_b, s=4, c=colors_b, marker='s')
 
         # Draw separate Pareto frontiers for before and after points
-        for category_name in set(TASK_CATEGORIES.values()):
-            # Get before points for this category
-            category_points = [(x, y) for x, y, task in zip(xs, ys, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category]
-            if category_points:
-                cat_xs, cat_ys = zip(*category_points)
-                color = CATEGORY_COLORS[category_name] if category is None else 'r'
-                draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=color, linestyle=':')
-            
-            # Get after points for this category
-            category_points_b = [(x, y) for x, y, task in zip(xs_b, ys_b, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category]
-            if category_points_b:
-                cat_xs_b, cat_ys_b = zip(*category_points_b)
-                color = CATEGORY_COLORS[category_name] if category is None else 'g'
-                draw_pareto_frontier(ax, cat_xs_b, cat_ys_b, invert_x=invert_x, invert_y=invert_y, color=color, linestyle='--')
+        if draw_frontier:
+            for category_name in set(TASK_CATEGORIES.values()):
+                # Get before points for this category
+                category_points = [(x, y) for x, y, task in zip(xs, ys, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category]
+                if category_points:
+                    cat_xs, cat_ys = zip(*category_points)
+                    color = CATEGORY_COLORS[category_name] if category is None else 'r'
+                    draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=color, linestyle=':')
+                
+                # Get after points for this category
+                category_points_b = [(x, y) for x, y, task in zip(xs_b, ys_b, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category]
+                if category_points_b:
+                    cat_xs_b, cat_ys_b = zip(*category_points_b)
+                    color = CATEGORY_COLORS[category_name] if category is None else 'g'
+                    draw_pareto_frontier(ax, cat_xs_b, cat_ys_b, invert_x=invert_x, invert_y=invert_y, color=color, linestyle='--')
     else:
         # Regular scatter plot
         ax.scatter(xs, ys, s=4, c=colors)
 
-        # Draw separate Pareto frontiers for each task category
-        for category_name in set(TASK_CATEGORIES.values()):
-            # Get points for this category
-            category_points = [(x, y) for x, y, task in zip(xs, ys, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category_name]
-            if category_points:
-                cat_xs, cat_ys = zip(*category_points)
-                draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=CATEGORY_COLORS[category_name])
+        if draw_frontier:
+            # Draw separate Pareto frontiers for each task category
+            for category_name in set(TASK_CATEGORIES.values()):
+                # Get points for this category
+                category_points = [(x, y) for x, y, task in zip(xs, ys, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category_name]
+                if category_points:
+                    cat_xs, cat_ys = zip(*category_points)
+                    draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=CATEGORY_COLORS[category_name])
     
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)

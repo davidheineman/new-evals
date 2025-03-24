@@ -240,8 +240,8 @@ def create_ladder_config(task_name, train_models, eval_models, color=None):
     configs = {}
     for model in train_models + eval_models:
         size = model.split('-')[-2]
-        # if color == None: 
-        color = SIZE_COLORS.get(size, 'k')
+        if color == None: 
+            color = SIZE_COLORS.get(size, 'k')
         mode = 'eval' if model in eval_models else 'train'
         
         # Create dummy config for new eval points
@@ -351,6 +351,7 @@ def run_ladder(
                     configs, data_by_name, predicted_data_by_name, plotted_predicted_data,
                     task_name, str_chinchilla_flops_fit(step1_coefficients), y_metric_func,
                     step1_coefficients, cov, ax,
+                    plot_clean=True
                 )
             else:
                 plot_step1(
@@ -440,6 +441,7 @@ def run_ladder(
                     task_name,
                     str_chained_fit_flops(step1_coefficients, step2_coefficients),
                     ax,
+                    plot_clean=True
                 )
             else:
                 plot_chained(
