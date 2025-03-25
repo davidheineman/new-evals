@@ -157,6 +157,8 @@ def get_train_data(df, metric, tasks, all_models):
         mix=None, step=None, return_index=True
     )
 
+    assert len(train_model_names) > 0, f'Found no results for task: {tasks}!'
+
     # Set NaN values to 0
     train_scores = np.nan_to_num(train_scores, nan=0)
     train_scores = np.round(train_scores).astype(int) # round scores to {0, 1} for IRT model
@@ -283,7 +285,8 @@ def main():
     olmes_distractors = [f'{task}:distractors' for task in olmes]
     olmes_enlarge     = [f'{task}:enlarge' for task in olmes]
     # olmes_gen = ['drop', 'gsm8k', 'jeopardy', 'naturalqs', 'squad', 'triviaqa']
-    olmes_gen = ['drop', 'gsm8k', 'jeopardy', 'squad', 'triviaqa']
+    # olmes_gen = ['drop', 'gsm8k', 'jeopardy', 'squad', 'triviaqa'] # Accidentally excluded GSM, SQuAD has problems at inference
+    olmes_gen = ['drop', 'jeopardy', 'triviaqa']
     agi_eval  = [t for t in TASKS if 'agi_eval' in t and ':' not in t]
     bbh       = [t for t in TASKS if 'bbh' in t and ':' not in t]
     paloma    = [t for t in TASKS if 'paloma' in t]
@@ -297,11 +300,9 @@ def main():
     selected_tasks += ['autobencher', 'autobencher:mc']
     selected_tasks += ['paloma_c4_en', 'paloma_m2d2_s2orc_unsplit']
 
-    selected_tasks = ['gsm8k']
-
     selected_task_sets = [[task] if not isinstance(task, list) else task for task in selected_tasks] # convert to lists
 
-    train_irt_models = True
+    train_irt_models = False
     if train_irt_models:
         for i, task_set in enumerate(selected_task_sets):
             task_name = get_title_from_task((task_set if len(task_set) > 1 else task_set[0]))

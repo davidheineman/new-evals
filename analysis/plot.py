@@ -188,8 +188,8 @@ def draw_pareto_frontier(ax, xs, ys, invert_x=False, invert_y=False, color='grey
 
 
 def plot_task_scatter(
-    ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title, 
-    category=None, percentage=False, 
+    ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title=None, 
+    category=None, percentage=False, threshold=None,
     invert_x=False, invert_y=False, log_x=False, log_y=False, xlim=None, ylim=None, x_col_b=None, y_col_b=None,
     xdesc=None, ydesc=None, draw_frontier=True
     ):
@@ -347,6 +347,19 @@ def plot_task_scatter(
                     fontsize=8,
                     weight='bold')
     
+    if threshold is not None:
+        # Add shaded regions
+        x_threshold = np.percentile(df[x_col].dropna(), threshold[0])
+        y_threshold = np.percentile(df[y_col].dropna(), threshold[1])
+        
+        ax.axvspan(ax.get_xlim()[0], x_threshold, color='red', alpha=0.2)
+        ax.axhspan(y_threshold, ax.get_ylim()[0], color='blue', alpha=0.2)
+        ax.axvspan(x_threshold, ax.get_xlim()[1], ymin=(ax.get_ylim()[0]-y_threshold)/abs(ax.get_ylim()[0]-ax.get_ylim()[1]), ymax=1, color='green', alpha=0.05)
+        
+        ax.text(0.02, 0.98, 'Not correlated with\ndownstream task', transform=ax.transAxes, ha='left', va='top', color='darkred', fontsize=8)
+        ax.text(0.98, 0.02, 'Too noisy', transform=ax.transAxes, ha='right', va='bottom', color='darkblue', fontsize=8)
+        ax.text(0.98, 0.98, 'Decision-optimal', transform=ax.transAxes, ha='right', va='top', color='darkgreen', fontsize=8)
+
     return ax
 
 
