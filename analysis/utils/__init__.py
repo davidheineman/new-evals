@@ -33,3 +33,14 @@ def weka_to_gcs(model_name):
         return f"gs://ai2-llm/checkpoints/davidh/{model_name.split('checkpoints/')[1]}"
     else:
         return model_name
+
+def fix_model_path(name):
+    if name.endswith('peteish7/step928646-hf'):
+        name = 'peteish7/step928646-hf-vllm-2'
+    name = name.replace('OLMoE-1B-7B-0924', 'olmoe-1b-7b-0924')
+    name = name.replace('OLMo-7B-hf', 'olmo-7b')
+    name = name.replace('phi-1.5', 'phi-1_5')
+    name = name.replace('Qwen2-1.5B', 'qwen2-1.5b')
+    name = name.replace('Qwen2.5-3B', 'qwen2.5-3b')
+    name = name.replace('deepseek-7b', 'deepseek-llm-7b-base')
+    return name

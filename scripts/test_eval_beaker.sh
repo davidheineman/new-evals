@@ -56,7 +56,7 @@ ai2/augusta-google-1
 # "
 
 TASK_LIST="\
-autobencher::none \
+mbppplus::ladder \
 "
 
 # TASK_LIST="\
@@ -92,14 +92,14 @@ autobencher::none \
 # "
 
 MODEL_LIST="\
-gs://ai2-llm/checkpoints/davidh/OLMo-ladder/peteish-moreeval-1B-5xC/step0-unsharded-hf \
+gs://ai2-llm/checkpoints/davidh/OLMo-medium/peteish13-highlr/step224000 \
 "
 
-# GPUS=4
-# MODEL_TYPE=vllm
+GPUS=4
+MODEL_TYPE=vllm
 
-GPUS=1
-MODEL_TYPE=hf
+# GPUS=1
+# MODEL_TYPE=hf
 
 oe-eval \
     --task $TASK_LIST \

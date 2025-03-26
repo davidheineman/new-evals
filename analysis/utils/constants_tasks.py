@@ -1,3 +1,5 @@
+from . import DATA_DIR, fix_model_path
+
 RC_TASKS_OLMES = [
     "arc_challenge:rc::olmes:full",
     "arc_easy:rc::olmes:full",
@@ -73,12 +75,12 @@ ENLARGE_TASKS_OLMES     = [task.replace(":rc", ":enlarge") for task in RC_TASKS_
 DISTRACTORS_TASKS_OLMES = [task.replace(":rc", ":distractors") for task in RC_TASKS_OLMES if 'winogrande' not in task and 'mmlu' not in task]
 
 MC_TASKS_COPY_COLORS = [
-    "copycolors_2way:mc::none",
-    "copycolors_cyclic_2way:mc::none",
+    # "copycolors_2way:mc::none",
+    # "copycolors_cyclic_2way:mc::none",
     "copycolors_4way:mc::none",
-    "copycolors_cyclic_4way:mc::none",
-    "copycolors_8way:mc::none",
-    "copycolors_cyclic_8way:mc::none",
+    # "copycolors_cyclic_4way:mc::none",
+    # "copycolors_8way:mc::none",
+    # "copycolors_cyclic_8way:mc::none",
 ]
 
 PALOMA = [
@@ -114,7 +116,7 @@ GEN_TASKS_OLMES = [
     # Core generation-based benchmarks
     # "coqa::olmes:full", # <- coqa is not setup properly (no few shot examples)
     "drop::olmes:full",
-    "gsm8k::olmes:full",
+    # "gsm8k::olmes:full", # <- already included elsewhere under a different name
     "jeopardy::olmes:full",
     "naturalqs::olmes:full",
     "squad::olmes:full",
@@ -324,7 +326,41 @@ AGI_EVAL_TULU_3 = [
     "agi_eval_gaokao-english:0shot_cot::tulu3",
 ]
 
-MISSING_EVALS = [
-    # ('weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step0', ['codex_humanevalplus', 'minerva_math_prealgebra', 'minerva_math_algebra', 'mbpp', 'mbppplus', 'minerva_math_counting_and_probability', 'minerva_math_geometry', 'minerva_math_number_theory', 'codex_humaneval']),
-    ('weka://oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step476848-hf-vllm', ['codex_humanevalplus', 'minerva_math_prealgebra', 'minerva_math_algebra', 'mbpp', 'mbppplus', 'minerva_math_counting_and_probability', 'minerva_math_geometry', 'minerva_math_number_theory', 'codex_humaneval']),
-]
+from pathlib import Path
+def load_missing_tasks(load_path):
+    """
+    load Path(DATA_DIR) / aws_missing_tasks.json. This is a dict of model to task list. 
+    Convert it to a list of tuples of (model, task_list) where there's a seperate tuple 
+    for each unique prefix before the first _ in the task list
+    """
+    import json
+    from collections import defaultdict
+
+    with open(load_path) as f:
+        data = json.load(f)
+    
+    # Group tasks by prefix before first _
+    model_prefix_tasks = defaultdict(list)
+    for model, tasks in data.items():
+        for task in tasks:
+            prefix = task.split("_")[0]
+            model_path = fix_model_path(model)
+            model_prefix_tasks[(model_path, prefix)].append(task)
+
+    # Convert to list of tuples
+    missing_tasks = [
+        (model, task_list) for (model, _), task_list in model_prefix_tasks.items() \
+            if len(task_list) > 0 \
+            # and 'weka://' not in model
+    ]
+    
+    return missing_tasks
+
+MISSING_EVALS = load_missing_tasks(Path(DATA_DIR) / "aws_missing_tasks.json")
+MISSING_EVALS = MISSING_EVALS # launched first batch
+
+# MISSING_EVALS = [
+#     ('qwen2.5-72b', ['hellaswag:rc::olmes:full']),
+#     ('llama3-70b', ['hellaswag:rc::olmes:full']),
+#     ('llama3.1-70b', ['hellaswag:rc::olmes:full']),
+# ]

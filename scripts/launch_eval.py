@@ -4,9 +4,11 @@ from pathlib import Path
 parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
 
+from analysis.utils import weka_to_gcs
+
 from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_MIXES_FINAL, MODEL_LIST_MIXES_FINAL_EXTENDED, MODEL_LIST_INTERMEDIATE, MODEL_LIST_INTERMEDIATE_13B, MODEL_LIST_MIXES, OE_EVAL_BASE_MODELS, OE_EVAL_INSTRUCT_MODELS, OE_EVAL_ALL_MODELS, OE_EVAL_BASE_MODELS_EXTENDED
 from analysis.utils.constants_final_6_ckpts import MODEL_LIST_FINAL_SIX_CKPTS
-from analysis.utils.constants_models import WEKA_CLUSTERS
+from analysis.utils.constants_models import WEKA_CLUSTERS, GCP_CLUSTERS
 from analysis.utils.constants_tasks import MC_TASKS_COPY_COLORS, MISSING_EVALS
 
 # OLMES Classic Tasks
@@ -26,7 +28,8 @@ from analysis.utils.constants_tasks import PERTURB_COT_TASKS
 from analysis.utils.constants_tasks import PALOMA, LLM_COMPRESSION, CUSTOM_LOSS
 
 MODEL_LIST_ALL = []
-MODEL_LIST_ALL += MODEL_LADDER_LIST + MODEL_LIST_INTERMEDIATE
+MODEL_LIST_ALL += MODEL_LADDER_LIST
+MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE
 MODEL_LIST_ALL += OE_EVAL_BASE_MODELS
 MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_13B # 13B intermediate ckpts
 MODEL_LIST_ALL += MODEL_LIST_MIXES_FINAL # ian's new mixes
@@ -45,10 +48,12 @@ TASK_LIST_ALL += ENLARGE_TASKS_OLMES
 TASK_LIST_ALL += DISTRACTORS_TASKS_OLMES
 TASK_LIST_ALL += MC_TASKS_OLMES
 
-# TASK_LIST_ALL += MC_TASKS_COPY_COLORS # broken!!!
+TASK_LIST_ALL += MC_TASKS_COPY_COLORS
 TASK_LIST_ALL += GEN_TASKS_OLMES
-TASK_LIST_ALL += AGI_EVAL_MC + BBH_MC + MMLU_PRO_MC # + MINERVA_MC
+TASK_LIST_ALL += AGI_EVAL_MC + MMLU_PRO_MC # + MINERVA_MC
 TASK_LIST_ALL += AGI_EVAL_COT # + MMLU_PRO_COT
+TASK_LIST_ALL += BBH_MC # BPB verison of BBH
+TASK_LIST_ALL += BBH_COT
 
 TASK_LIST_ALL += MMLU_PRO_RC + AGI_EVAL_RC
 TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
@@ -58,7 +63,7 @@ TASK_LIST_ALL += ['autobencher::none', 'autobencher:mc::none']
 
 TASK_LIST_ALL += [
     # GSM CoT
-    "gsm8k::olmes",
+    "gsm8k::olmes:full",
     # Minerva CoT (olmes version)
     "minerva_math_algebra::olmes:full",
     "minerva_math_counting_and_probability::olmes:full",
@@ -94,15 +99,13 @@ TASK_LIST_ALL += PALOMA
 TASK_LIST_ALL += LLM_COMPRESSION
 TASK_LIST_ALL += CUSTOM_LOSS
 
-TASK_LIST_ALL += BBH_COT
-
-
 # # FOR TESTING
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' not in task] # exclude MMLU (long arg lists may crash beaker! https://github.com/allenai/beaker/issues/5530)
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' in task] # <- MMLU only
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' in task and ':para' in task] # <- MMLU:para only
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'coqa:' not in task] # <- coqa is not setup properly
-# TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'gsm8k' in task] # <- coqa is not setup properly
+# TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'hellaswag' in task] # <- hs is not setup properly
+# TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'gsm8k' in task] # <- gsm is not setup properly
 # MODEL_LIST_ALL = [MODEL_LIST_INTERMEDIATE[1]] # <- only use first model!
 # MODEL_LIST_ALL = [OE_EVAL_INSTRUCT_MODELS[0]]
 # MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if 'peteish7' in model] # <- 3B models!
@@ -137,17 +140,27 @@ TASK_LIST_ALL += BBH_COT
 #     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/dclm_ft7percentile_fw2-60M-5xC/step29042-unsharded-hf",
 #     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/DCLM-baseline-20M-5xC/step14594-unsharded-hf",
 # ]
+# MODEL_LIST_ALL = ['weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-1B-1xC/step16279-unsharded-hf'] # model used for question text
 
 
 def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_size=None, save_requests=True):
     if isinstance(task_list, list): 
         task_list = ' '.join([f'"{task}"' for task in task_list])
+    if not isinstance(model_list, list): 
+        model_list = [model_list]
+
+    cluster_list = GCP_CLUSTERS
+    if any('weka://' in model for model in model_list):
+        model_list = [weka_to_gcs(model) for model in model_list]
+
+    if len(model_list) == 1: # convert back list -> str
+        model_list = model_list[0]
 
     command = f"""
     oe-eval \
         --model {model_list} \
         --task {task_list} \
-        --cluster {WEKA_CLUSTERS} \
+        --cluster {cluster_list} \
         --model-type {model_type} \
         --gpus {gpus} \
         --beaker-workspace ai2/ladder-evals \
@@ -156,9 +169,26 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_s
         --gantry-secret-aws-secret-access AWS_SECRET_ACCESS_KEY \
         --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
         --recompute-metrics \
-        --run-local \
         --beaker-priority normal
     """
+
+    # command = f"""
+    # oe-eval \
+    #     --model {model_list} \
+    #     --task {task_list} \
+    #     --cluster {cluster_list} \
+    #     --model-type {model_type} \
+    #     --gpus {gpus} \
+    #     --beaker-workspace ai2/lm-eval \
+    #     --beaker-image davidh/oe-eval-metaeval \
+    #     --gantry-secret-aws-access-key-id lucas_AWS_ACCESS_KEY_ID \
+    #     --gantry-secret-aws-secret-access lucas_AWS_SECRET_ACCESS_KEY \
+    #     --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
+    #     --recompute-metrics \
+    #     --beaker-priority high
+    # """
+    # --run-local \
+
     command = command.replace('\n', '').replace('  ', '') # remove extra spacing!
     if limit is not None: 
         print(f'🫢😧 Using a {limit} instance limit 🤫🫣')
@@ -178,18 +208,25 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_s
 
 def main():
     print(f'Launching {len(MODEL_LIST_ALL)} models on {len(TASK_LIST_ALL)} tasks (5 second sleep to confirm...)')
-    time.sleep(5)
+    # time.sleep(5)
 
-    # task_list = TASK_LIST_ALL
-    # for model in MODEL_LIST_ALL:
+    # for (model, missing_tasks) in MISSING_EVALS:
+    #     task_list = []
+    #     for missing_task in missing_tasks:
+    #         task_list += [task_name for task_name in TASK_LIST_ALL if missing_task in task_name]
 
-    for (model, missing_tasks) in MISSING_EVALS:
-        task_list = []
-        for missing_task in missing_tasks:
-            task_list += [task_name for task_name in TASK_LIST_ALL if missing_task in task_name]
+    #     if len(task_list) == 0:
+    #         # print(f'Cant find tasks for {missing_task}')
+    #         continue
+    #         # raise
+
+    task_list = TASK_LIST_ALL
+    for model in MODEL_LIST_ALL:
 
         batch_size = None
         save_requests = True
+
+        # batch_size = 4 # TMP OVERRIDE FOR LADDER MODELS
 
         if model in OE_EVAL_ALL_MODELS:
             # From my testing, looks like anything less than 4 GPUs on 13B+ models (or Gemma 7B+) breaks
@@ -202,7 +239,7 @@ def main():
         elif 'peteish13' in model or 'peteish7' in model:
             model_type = 'vllm'
             gpus = 4
-        elif model in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED or ('-3B-' in model):
+        elif model in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED or ('-3B-' in model) or model in [weka_to_gcs(m) for m in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED]:
             # Our 3B models have a head size of 208. This is not supported by PagedAttention and will throw errors.
             model_type = 'hf'
             gpus = 1
