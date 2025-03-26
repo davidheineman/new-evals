@@ -1,6 +1,5 @@
 import json, os, re, sys, yaml
 from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Pool
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -15,9 +14,12 @@ import boto3
 parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
 
-from utils import DATA_DIR
+parent_dir = Path(__file__).resolve().parent
+sys.path.append(str(parent_dir))
+
+from utils import DATA_DIR, weka_to_gcs, fix_model_path
 from utils.constants_tasks import RC_TASKS_OLMES, MC_TASKS_OLMES, GEN_TASKS_OLMES, MINERVA_COT
-# from utils_cheap_decisions import process_predictions_cheap_decisions, process_prediction_path, clean_data_and_compute_averages, expand_df
+from utils_cheap_decisions import process_predictions_cheap_decisions, process_prediction_path, clean_data_and_compute_averages, expand_df
 
 # Metrics to use when converting to table:
 METRICS_TO_KEEP = [
@@ -49,7 +51,7 @@ MODEL_OUTPUT_TO_KEEP = [
 ]
 
 SIZE_PREFIXES = [
-    f'-{size}-' for size in ['3B', '1B', '760M', '750M', '530M', '370M', '300M', '190M', '150M', '90M', '60M', '20M', '4M']
+    f'-{size}-' for size in ['3B', '1B', '760M', '750M', '530M', '370M', '300M', '190M', '150M', '90M', '60M', '20M', '16M', '14M', '10M', '8M', '6M', '4M']
 ]
 SIZE_PREFIXES_FIX = {'3B': '3.2B', '1B': '1.3B'}
 
@@ -199,7 +201,11 @@ def process_predictions(file_path):
     for pred in predictions:
         entry = {}
 
-        entry['native_id'] = get_native_id(pred)
+        task_name = file_path.split('/')[-1].replace('-predictions.jsonl', '')
+
+        native_id = get_native_id(pred)
+        entry['native_id'] = native_id
+        entry['instance_id'] = str(native_id) + ':::' + str(task_name) # should be get_metadata_from_file_name()?
         metrics = pred['metrics']
         model_output = pred['model_output']
 
@@ -222,7 +228,6 @@ def process_predictions(file_path):
 
         # If primary_score does not exist, add it
         from utils_cheap_decisions import PRIMARY_METRICS_OLMES
-        task_name = file_path.split('/')[-1].replace('-predictions.jsonl', '')
         primary_metric_key = PRIMARY_METRICS_OLMES.get(task_name, None)
         if primary_metric_key is None: 
             primary_metric_key = 'acc_per_char'
@@ -447,7 +452,7 @@ def load_file(file_data, _type, load_lite_tasks=None):
         if load_lite_tasks == 'lite_predictions':
             LITE_TASKS = RC_TASKS_OLMES
         elif load_lite_tasks == 'medium_predictions':
-            LITE_TASKS = RC_TASKS_OLMES + MC_TASKS_OLMES + GEN_TASKS_OLMES + MINERVA_COT + ['mbpp', 'mbppplus', 'codex_humaneval', 'codex_humanevalplus', 'autobencher', 'autobencher:mc']
+            LITE_TASKS = RC_TASKS_OLMES + MC_TASKS_OLMES + GEN_TASKS_OLMES + MINERVA_COT + ['gsm8k', 'mbpp', 'mbppplus', 'codex_humaneval', 'codex_humanevalplus', 'autobencher', 'autobencher:mc'] + ["paloma_c4_en", "paloma_m2d2_s2orc_unsplit"]
         lite_task_ids = [task_id.split('::')[0].replace(':rc', '') for task_id in LITE_TASKS]
         if task not in lite_task_ids:
             # For the small instance dataset, only include a small set of tasks
@@ -457,6 +462,8 @@ def load_file(file_data, _type, load_lite_tasks=None):
         # Load predictions
         if 'predictions.jsonl' not in file_path: 
             return []
+        if 'consistent_ranking' in str(root) and ':para' in file_path:
+            return []
         results = process_predictions(file_path)
     elif _type == 'metrics':
         if 'metrics.json' not in file_path:
@@ -465,6 +472,8 @@ def load_file(file_data, _type, load_lite_tasks=None):
             return []
         if file == 'metrics.json' and 'consistent_ranking' in str(root):
             raise RuntimeError('For consistent rankings, we only process predictions.jsonl -> metrics file')
+        if 'consistent_ranking' in str(root) and ':para' in file_path:
+            return []
         metrics = process_metrics(file_path)
 
         # Sometimes the metrics file causes OOM errors, so we will delete if it's too big
@@ -505,8 +514,8 @@ def load_file(file_data, _type, load_lite_tasks=None):
                 for request in olmes_requests:
                     native_id_small = str(request['native_id'])
                     olmes_requests_ids += [native_id_small]
-                print(f'Found request IDs for {task}:')
-                print(olmes_requests_ids)
+                # print(f'Found request IDs for {task}:')
+                # print(olmes_requests_ids)
 
         for i, request in enumerate(requests):
             native_id = get_native_id(request)
@@ -520,7 +529,7 @@ def load_file(file_data, _type, load_lite_tasks=None):
             if olmes_requests_ids is not None and native_id_small in olmes_requests_ids:
                 in_olmes_small = True
 
-            request = {'instance_id': instance_id, 'task_alias': task_alias, 'in_olmes_small': in_olmes_small, 'context': context, 'continuation': continuation, **request}
+            request = {'instance_id': instance_id, 'native_id': native_id, 'task_alias': task_alias, 'in_olmes_small': in_olmes_small, 'context': context, 'continuation': continuation, **request}
             request = {k: str(v) for k, v in request.items()}
             requests[i] = request
         
@@ -584,16 +593,16 @@ def load_file(file_data, _type, load_lite_tasks=None):
         # Use Tai's code to compute aggregate metrics for each prediction file
         metrics = process_prediction_path(file_path, results)
 
-        # Add S3 path and other metrics data
+        # Add S3 path and other metrics data (if exists)
         metrics_path = file_path.replace('predictions.jsonl', 'metrics.json')
-        with open(metrics_path, 'r') as f:
-            orig_metrics = json.load(f)
-        metrics['num_instances']   = int(orig_metrics['num_instances'])
-        metrics['processing_time'] = int(orig_metrics['processing_time'])
-        metrics['num_shots']       = int(orig_metrics['task_config']['num_shots'])
-        metrics['s3_path']         = str(orig_metrics['model_config']['model_path'])
-        metrics['primary_metric_name'] = str(orig_metrics['task_config']['primary_metric'])
-        
+        if os.path.exists(metrics_path):
+            with open(metrics_path, 'r') as f:
+                orig_metrics = json.load(f)
+            metrics['num_instances']   = int(orig_metrics['num_instances'])
+            metrics['processing_time'] = int(orig_metrics['processing_time'])
+            metrics['num_shots']       = int(orig_metrics['task_config']['num_shots'])
+            metrics['s3_path']         = str(orig_metrics['model_config']['model_path'])
+            metrics['primary_metric_name'] = str(orig_metrics['task_config']['primary_metric'])
         results = [metrics]
     
     return results
@@ -709,7 +718,9 @@ def recursive_pull(data_dir, file_type, load_lite_tasks=None):
     # all_files = all_files[:1_000_000] # for testing
 
     # chunk_size = 100 # for testing
-    chunk_size = 1_000
+    chunk_size = 700 # for testing
+    # chunk_size = 1_000
+    # chunk_size = 10_000 # for testing
 
     all_preprocessed = []
     file_chunks = [all_files[i:i + chunk_size] for i in range(0, len(all_files), chunk_size)]
@@ -773,6 +784,75 @@ def verify_df(df):
             print(f"  - Model: {model}, Task: {task}")
 
 
+def sanity_check_file(path):
+    root, file = path
+    model_name, mix_name, step, step_str, size, token_ratio, task = get_metadata_from_file_name(root, file)
+    # # synthetic evals (excluded from Ian's model for now)
+    # if ':cot' in task:
+    #     return None, None
+    
+    # # if ':para' in task:
+    # #     return None, None
+    # # if ':distractors' in task:
+    # #     return None, None
+    # # if ':enlarge' in task:
+    # #     return None, None
+
+    if ':perturb_cot' in task:
+        return None, None
+    if ':perturb_rc' in task:
+        return None, None
+    # if 'bbh_' in task:
+    #     return None, None
+
+    # if 'coqa' in task:
+    #     return None, None
+    # if 'copycolors:mc' in task:
+    #     return None, None
+    # if 'aime' in task:
+    #     # Getting OOM errors for AIME
+    #     return None, None
+
+    # # # only math/code
+    # # if not ('gsm8k' in task or 'mbpp' in task or 'codex' in task or 'minerva' in task):
+    # #     return None, None
+
+    # # perplexity evals
+    # if '-verbose' in task:
+    #     return None, None
+    if task in ["paloma_twitterAAE_HELM_fixed", "paloma_c4_100_domains", "paloma_dolma_100_subreddits"]:
+        # these tasks are half-evaluated and shouldn't be in there anyways
+        return None, None
+    # # if 'paloma' in task or 'llm_compression' in task or 'custom_loss' in task:
+    # #     return None, None
+
+    # Get model path
+    file_name = str(Path(root)) + '/' + Path(file).name.replace('predictions.jsonl', 'metrics.json')
+    with open(file_name, 'r') as f:
+        metrics = json.load(f)
+    if 'model_config' not in metrics: # not valid metrics file?
+        return None, None
+    if 'metadata' in metrics['model_config']:
+        model_path = metrics.get('model_config', {}).get("metadata", {}).get("alias", {})
+    else:
+        model_path = metrics['model_config']['model_path']
+    model_path = model_path.replace('/weka-mount/', 'weka://')
+    model_path = weka_to_gcs(model_path) # just use the gcs path for all models
+    model_path = fix_model_path(model_path)
+
+    # Get task alias
+    # task_alias = task
+    task_alias = None
+    if 'metadata' in metrics['task_config'] and 'alias' in metrics['task_config']['metadata']:
+        task_alias = metrics.get('task_config', {}).get('metadata', {}).get('alias', '')
+
+    if task_alias is None:
+        print(f'Found no task alias for task: {task}')
+        return None, None
+    
+    return model_path, task_alias
+
+
 def sanity_check(folder_name):
     """ 
     All leaf folders should have the same eval data. This prints folders
@@ -786,71 +866,41 @@ def sanity_check(folder_name):
     all_files = scan_dir(aws_dir)
 
     model_tasks = defaultdict(set)
-    for (root, file) in tqdm(all_files, desc='Running sanity check (extracting model aliases)'):
-        model_name, mix_name, step, step_str, size, token_ratio, task = get_metadata_from_file_name(root, file)
-        # synthetic evals (excluded from Ian's model for now)
-        if ':cot' in task:
-            continue
-        if ':pertub_cot' in task:
-            continue
-        if ':para' in task:
-            continue
-        if ':perturb_cot' in task:
-            continue
-        if ':distractors' in task:
-            continue
-        if ':enlarge' in task:
-            continue
-        if ':perturb_rc' in task:
-            continue
-        if 'bbh_' in task:
-            continue
-
-        if 'coqa' in task:
-            continue
-        if 'copycolors:mc' in task:
-            continue
-        if 'aime' in task:
-            # Getting OOM errors for AIME
-            continue
-
-        # # only math/code
-        # if not ('gsm8k' in task or 'mbpp' in task or 'codex' in task or 'minerva' in task):
-        #     continue
-
-        # perplexity evals
-        if '-verbose' in task:
-            continue
-        if task in ["paloma_twitterAAE_HELM_fixed", "paloma_c4_100_domains", "paloma_dolma_100_subreddits"]:
-            # these tasks are half-evaluated and shouldn't be in there anyways
-            continue
-        if 'paloma' in task or 'llm_compression' in task or 'custom_loss' in task:
-            continue
-
-        # Get model path
-        file_name = str(Path(root)) + '/' + Path(file).name.replace('predictions.jsonl', 'metrics.json')
-        with open(file_name, 'r') as f:
-            metrics = json.load(f)
-        if 'metadata' in metrics['model_config']:
-            model_path = metrics.get('model_config', {}).get("metadata", {}).get("alias", {})
-        else:
-            model_path = metrics['model_config']['model_path']
-        model_path = model_path.replace('/weka-mount/', 'weka://')
-
-        model_tasks[model_path].add(task)
-
-    # all_tasks = set(task for tasks in model_tasks.values() for task in tasks)
-    # incomplete_models = {model for model, tasks in model_tasks.items() if tasks != all_tasks}
-    # for model in sorted(list(incomplete_models)):
-    #     print(f"('{model}', {list(all_tasks - model_tasks[model])}),")
-
-    # Output a seperate line for each task
+    with ProcessPoolExecutor() as executor:
+        futures = []
+        for file in tqdm(all_files, desc='Parallize load jobs'):
+            futures.append(executor.submit(sanity_check_file, file))
+            
+        results = []
+        for future in tqdm(as_completed(futures), total=len(futures), desc='Loading result files'):
+            results.append(future.result())
+    
+    for model_path, task_alias in results:
+        if model_path and task_alias:
+            # model_path = model_path.lower() # some model names are capitalized
+            model_tasks[model_path].add(task_alias)
+    
     all_tasks = set(task for tasks in model_tasks.values() for task in tasks)
+
+    # def include_task(task):
+    #     if not isinstance(task, str):
+    #         return False
+    #     # # Require perturbed evaluation
+    #     # return (':para' in task or ':distractors' in task or ':enlarge' in task)
+    #     # # Require paloma
+    #     # return ('paloma' in task)
+    # all_tasks = set([task for task in list(all_tasks) if include_task(task)])
+
     incomplete_models = {model for model, tasks in model_tasks.items() if tasks != all_tasks}
-    for model in sorted(incomplete_models):
-        missing_tasks = all_tasks - model_tasks[model]
-        for task in sorted(missing_tasks):
-            print(f"('{model}', '{task}'),")
+    missing_entries = {model: sorted(list(all_tasks - model_tasks[model])) for model in sorted(list(incomplete_models))}
+    
+    data_dir = Path(DATA_DIR).resolve()
+    with open(data_dir / f'{folder_name}_missing_tasks.json', 'w') as f:
+        json.dump(missing_entries, f, indent=2)
+    
+    # Output missing tasks
+    for model, tasks in missing_entries.items():
+        print(f"('{model}', {tasks}),")
 
 
 def main(folder_name, file_type='predictions'):

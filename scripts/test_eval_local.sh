@@ -1,13 +1,15 @@
 OUTPUT_DIR=/root/ai2/metaeval/workspace
 
 # Clear dataloader cache
-# rm -rf ~/ai2/.cache/huggingface/datasets/_oe-eval-default_davidh_*
-# rm -rf ~/ai2/.cache/huggingface/datasets/dataloader/
+rm -rf ~/ai2/.cache/huggingface/datasets/_oe-eval-default_davidh_*
+rm -rf ~/ai2/.cache/huggingface/datasets/dataloader/
 
 # Copy data into repo
 DATA_DIR=/root/ai2/metaeval/data # data to copy into Dockerfile
 rm -rf ~/ai2/metaeval/olmo-repos/oe-eval-internal/data && \
 cp -r $DATA_DIR ~/ai2/metaeval/olmo-repos/oe-eval-internal/data && \
+
+export CUDA_VISIBLE_DEVICES=0
 
 # gsm8k:perturb_rc::olmes \
 
@@ -29,6 +31,9 @@ cp -r $DATA_DIR ~/ai2/metaeval/olmo-repos/oe-eval-internal/data && \
 # autobencher:mc::none \
 # autobencher_math::none \
 # arxiv_math::llm_compression \
+# sky_t1::custom_loss \
+# numia_math::custom_loss \
+# tulu_if::custom_loss \
 
 # qwen2-1.5b
 # llama3.1-8b \
@@ -36,18 +41,19 @@ cp -r $DATA_DIR ~/ai2/metaeval/olmo-repos/oe-eval-internal/data && \
 
 oe-eval \
     --task \
-        sky_t1::custom_loss \
-        numia_math::custom_loss \
-        tulu_if::custom_loss \
+        gsm8k::olmes:full \
+        bbh_boolean_expressions:qa::none \
+        bbh_boolean_expressions:cot::olmes:full \
+        minerva_math_algebra::olmes:full \
     --output-dir $OUTPUT_DIR \
     --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing \
     --model \
-        /oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-rerun-190M-1xC \
-    --model-type hf \
+        llama3.1-8b \
+    --model-type vllm \
     --run-local \
+    --limit 100 \
     --recompute-metrics 
     
-# --limit 1000 \
 
 
 # /oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/prox_fineweb_pro-1B-5xC \

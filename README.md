@@ -59,6 +59,8 @@ nohup python scripts/download_checkpoints.py > /tmp/out.out 2>&1 & tail -f /tmp/
 pip install https://vllm-wheels.s3.us-west-2.amazonaws.com/nightly/vllm-1.0.0.dev-cp38-abi3-manylinux1_x86_64.whl
 
 # sanity check
+oe-eval --model pythia-160m --task hellaswag:rc::olmes:full --run-local --output-dir workspace
+
 oe-eval --model pythia-160m --task drop::olmes:full gsm8k::olmes:full jeopardy::olmes:full naturalqs::olmes:full squad::olmes:full triviaqa::olmes:full arc_challenge:rc::olmes:full --run-local --output-dir /Users/dhei/ai2/new-evals/workspace --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing --limit 20
 
 oe-eval --model pythia-160m --task bbh_boolean_expressions:cot::olmes:full --run-local --output-dir /Users/dhei/ai2/new-evals/workspace --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing --limit 20
