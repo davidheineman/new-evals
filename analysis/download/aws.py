@@ -40,6 +40,10 @@ def download_file(s3_client, bucket_name, key, local_dir, excluded_file_names):
     local_path.replace('all_olmes_rc_tasks/', '')
     local_path.replace('all_olmes_paraphrase_tasks/', '')
 
+    # Fix GCS path setup
+    local_path = local_path.replace('gs://ai2-llm/checkpoints/davidh', '')
+    local_path = local_path.replace('step928646-hf-vllm-2', 'step928646-hf') # naming issue for peteish7
+
     # Manual override for Matt J's eval setup
     if 'olmo2_microanneals' in local_path:
         # 1) Seperate checkpoint: [MODEL_NAME]_step2693-hf => [MODEL_NAME]/step2693-hf
@@ -228,7 +232,10 @@ def main():
     # folder_name = 'consistent_ranking'
 
     # bucket_name = 'ai2-llm' # pull from this consistent ranking folder instead
-    # s3_prefix = ['eval-results/downstream/eval-for-consistent-ranking/', 'eval-results/downstream/eval-for-consistent-ranking-small/']
+    # s3_prefix = [
+    #     'eval-results/downstream/eval-for-consistent-ranking/', 
+    #     'eval-results/downstream/eval-for-consistent-ranking-small/', 
+    #     'eval-results/downstream/eval-for-consistent-ranking-small-seeds-extra/']
     # folder_name = 'consistent_ranking'
 
     local_dir = f'{DATA_DIR}/{folder_name}'
@@ -239,9 +246,10 @@ def main():
     # Launch preprocessing job!
     from preprocess import main
     main(folder_name, file_type='metrics')
-    main(folder_name, file_type='predictions')
+    # main(folder_name, file_type='predictions')
     main(folder_name, file_type='lite_predictions')
     main(folder_name, file_type='medium_predictions')
+    main(folder_name, file_type='questions')
 
     # Push to HF!
     from hf import main

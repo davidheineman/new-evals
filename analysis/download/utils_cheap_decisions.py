@@ -1090,8 +1090,14 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
 
     df = df.drop(columns=columns_to_drop, errors='ignore')
 
+    # '16M', '14M', '10M', '8M', '6M'
     model_to_batch = {
         '4M': 32,
+        '6M': 32,
+        '8M': 32,
+        '10M': 32,
+        '14M': 32,
+        '16M': 32,
         '20M': 64,
         '60M': 96,
         '90M': 160,
@@ -1101,17 +1107,23 @@ def ian_clean_data(df, dirty_out=False, quiet=True):
         '750M': 576,
         '1B': 704
     }
-    
+
     model_to_params = {
         '4M': 3744832,
+        '6M': 6010464,
+        '8M': 8538240,
+        '10M': 9900432,
+        '12M': 12066600,
+        '14M': 14380224,
+        '16M': 16004560,
         '20M': 19101888,
         '60M': 57078144,
         '90M': 97946640,
-        '150M': 151898880, 
-        '300M': 319980544, 
-        '530M': 530074944, 
-        '750M': 681297408, 
-        '1B': 1176832000, # Non embedding params
+        '150M': 151898880,
+        '300M': 319980544,
+        '530M': 530074944,
+        '750M': 681297408,
+        '1B': 1176832000
     }
     model_to_params = {k: float(v) for k, v in model_to_params.items()}
 
