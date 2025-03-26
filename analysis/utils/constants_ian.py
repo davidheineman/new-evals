@@ -27,7 +27,7 @@ DATA_NAME_LATEX = {
 }
 
 DATA_NAME_CLEAN = {
-    "dolma": "Dolma1.7",
+    # "dolma": "Dolma1.7",
     "dolma17": "Dolma1.7",
     "no_code": "Dolma1.7 (no code)", 
     "no_math_no_code": "Dolma1.7 (no math, code)",
@@ -56,41 +56,47 @@ DATA_NAME_CLEAN = {
 }
 
 
+PREFIXES = [
+    '\\midrule\n\\textbf{\\citet{bhagia2024establishingtaskscalinglaws} using all models} & ~ & ~ \\\\\n',
+    '\\midrule\n\\textbf{\\citet{bhagia2024establishingtaskscalinglaws} without 750M} & ~ & ~ \\\\\n',
+    '\\midrule\n\\textbf{\\citet{bhagia2024establishingtaskscalinglaws} without 530M, 750M} & ~ & ~ \\\\\n',
+]
+
 SETUP_NAME_LATEX = {
-    '3_param-default':                         'FLOPs $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, FLOPs)',
+    '3_param-default':                         PREFIXES[0] + 'FLOPs $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, FLOPs)',
     '3_param-default-helper_points':           '  + helper point',
-    '3_param-default-step2=0.5':               '  + using final 50% of checkpoints for step 2 prediction',
-    '3_param-default-helper_points-step2=0.5': '  + helper point + final 50% of checkpoints',
+    # '3_param-default-step2=0.5':               '  + using final 50% of checkpoints for step 2 prediction',
+    # '3_param-default-helper_points-step2=0.5': '  + helper point + final 50% of checkpoints',
     '2_param-default':                         '  + remove the irreducible error term $E$',
     '3_param-1_step':                          'FLOPs $\\rightarrow$ Metric (1 step)',
     '5_param-ai2':                             '$(N, D)$ $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, $(N, D)$)',
-    '5_param-1_step-ai2':                      '$(N, D)$ $\\rightarrow$ Metric (1 step, $(N, D)$)',
-    '3_param-intermediate-default':            '$(N, D)$ $\\rightarrow$ Metric $\\rightarrow$ Primary metric',
-    '3_param-intermediate-default-helper_points': '  + helper point',
+    # '5_param-1_step-ai2':                      '$(N, D)$ $\\rightarrow$ Metric (1 step, $(N, D)$)',
+    # '3_param-intermediate-default':            '$(N, D)$ $\\rightarrow$ Metric $\\rightarrow$ Primary metric',
+    # '3_param-intermediate-default-helper_points': '  + helper point',
     
     # No 750M point
-    '3_param-no_750M':                         'FLOPs $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, FLOPs)',
+    '3_param-no_750M':                         PREFIXES[1] + 'FLOPs $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, FLOPs)',
     '3_param-no_750M-helper_points':           '  + helper point',
-    '3_param-no_750M-step2=0.5':               '  + using final 50% of checkpoints for step 2 prediction',
-    '3_param-no_750M-helper_points-step2=0.5': '  + helper point + final 50% of checkpoints',
+    # '3_param-no_750M-step2=0.5':               '  + using final 50% of checkpoints for step 2 prediction',
+    # '3_param-no_750M-helper_points-step2=0.5': '  + helper point + final 50% of checkpoints',
     '2_param-no_750M':                         '  + remove the irreducible error term $E$',
     '3_param-1_step-no_750M':                  'FLOPs $\\rightarrow$ Metric (1 step)',
     '5_param-ai2-no_750M':                     '$(N, D)$ $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, $(N, D)$)',
-    '5_param-1_step-ai2-no_750M':              '$(N, D)$ $\\rightarrow$ Metric (1 step, $(N, D)$)',
-    '3_param-intermediate-no_750M':            '$(N, D)$ $\\rightarrow$ Metric $\\rightarrow$ Primary metric',
-    '3_param-intermediate-no_750M-helper_points': '  + helper point',
+    # '5_param-1_step-ai2-no_750M':              '$(N, D)$ $\\rightarrow$ Metric (1 step, $(N, D)$)',
+    # '3_param-intermediate-no_750M':            '$(N, D)$ $\\rightarrow$ Metric $\\rightarrow$ Primary metric',
+    # '3_param-intermediate-no_750M-helper_points': '  + helper point',
     
     # No 750M and 530M point
-    '3_param-no_750M_no_530M':                 'FLOPs $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, FLOPs)',
+    '3_param-no_750M_no_530M':                 PREFIXES[2] + 'FLOPs $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, FLOPs)',
     '3_param-no_750M_no_530M-helper_points':   '  + helper point',
-    '3_param-no_750M_no_530M-step2=0.5':       '  + using final 50% of checkpoints for step 2 prediction',
-    '3_param-no_750M_no_530M-helper_points-step2=0.5': '  + helper point + final 50% of checkpoints',
+    # '3_param-no_750M_no_530M-step2=0.5':       '  + using final 50% of checkpoints for step 2 prediction',
+    # '3_param-no_750M_no_530M-helper_points-step2=0.5': '  + helper point + final 50% of checkpoints',
     '2_param-no_750M_no_530M':                 '  + remove the irreducible error term $E$',
     '3_param-1_step-no_750M_no_530M':          'FLOPs $\\rightarrow$ Metric (1 step)',
     '5_param-ai2-no_750M_no_530M':             '$(N, D)$ $\\rightarrow$ Task Loss $\\rightarrow$ Metric (2 step, $(N, D)$)',
-    '5_param-1_step-ai2-no_750M_no_530M':      '$(N, D)$ $\\rightarrow$ Metric (1 step, $(N, D)$)',
-    '3_param-intermediate-no_750M_no_530M':    '$(N, D)$ $\\rightarrow$ Metric $\\rightarrow$ Primary metric',
-    '3_param-intermediate-no_750M_no_530M-helper_points': '  + helper point',
+    # '5_param-1_step-ai2-no_750M_no_530M':      '$(N, D)$ $\\rightarrow$ Metric (1 step, $(N, D)$)',
+    # '3_param-intermediate-no_750M_no_530M':    '$(N, D)$ $\\rightarrow$ Metric $\\rightarrow$ Primary metric',
+    # '3_param-intermediate-no_750M_no_530M-helper_points': '  + helper point',
 }
 
 TASK_NAME_LATEX = {

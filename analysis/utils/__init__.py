@@ -6,6 +6,8 @@ PLOT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.
 
 def get_title_from_task(task):
     if isinstance(task, list):
+        if len(task) == 1:
+            return task[0]
         title_mapping = {
             'mmlu_pro_': 'mmlu_pro',
             'mmlu_abstract_algebra:mc': 'mmlu_mc',

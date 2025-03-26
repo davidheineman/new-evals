@@ -111,6 +111,7 @@ def is_excluded_from_lite(m):
         'RedPajama-INCITE-Base-3B-v1' in m or \
         'pythia-410m' in m or \
         'Qwen1.5-MoE' in m or \
+        'Codestral-22B-v0.1' in m or \
         'Qwen1.5-0.5B' in m:
         return True
     

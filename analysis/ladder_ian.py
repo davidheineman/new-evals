@@ -35,6 +35,11 @@ TASK_KEY_MAP = {
 
 SIZE_COLORS = {
     '4M': 'brown',
+    '6M': '#7f7f7f',  # gray
+    '8M': '#17becf',  # cyan
+    '10M': '#bcbd22', # olive
+    '14M': '#e377c2', # pink
+    '16M': '#8c564b', # brown
     '20M': 'black',
     '60M': 'teal',
     '90M': 'pink',
@@ -59,6 +64,11 @@ FULL_SCHEDULE = {
 
 MODEL_TO_BATCH = {
     '4M': 32, # batch_size=32, gpus=8
+    '6M': 32,
+    '8M': 32,
+    '10M': 32,
+    '14M': 32,
+    '16M': 32,
     '20M': 64,
     '60M': 96,
     '90M': 160,
@@ -71,6 +81,12 @@ MODEL_TO_BATCH = {
 
 MODEL_TO_PARAMETERS = {
     '4M': 3_744_832,
+    '6M': 6_010_464,
+    '8M': 8_538_240,
+    '10M': 9_900_432,
+    '12M': 12_066_600,
+    '14M': 14_380_224,
+    '16M': 16_004_560,
     '20M': 19_101_888,
     '60M': 57_078_144,
     '90M': 97_946_640,
@@ -224,7 +240,8 @@ def create_ladder_config(task_name, train_models, eval_models, color=None):
     configs = {}
     for model in train_models + eval_models:
         size = model.split('-')[-2]
-        if color == None: color = SIZE_COLORS.get(size, 'k')
+        if color == None: 
+            color = SIZE_COLORS.get(size, 'k')
         mode = 'eval' if model in eval_models else 'train'
         
         # Create dummy config for new eval points
@@ -334,6 +351,7 @@ def run_ladder(
                     configs, data_by_name, predicted_data_by_name, plotted_predicted_data,
                     task_name, str_chinchilla_flops_fit(step1_coefficients), y_metric_func,
                     step1_coefficients, cov, ax,
+                    plot_clean=True
                 )
             else:
                 plot_step1(
@@ -378,7 +396,7 @@ def run_ladder(
             ax_i += 1
             plot_step2(
                 configs, data_by_name, predicted_data_by_name, plotted_predicted_data, task_key, None, y_metric_func, 'rc_acc',
-                step2_coefficients, cov, use_log_sigmoid=False, add_texts=add_texts, ax=ax
+                step2_coefficients, cov, use_log_sigmoid=False, add_texts=add_texts, ax=ax, plot_clean=True
             )
             ax.set_xlabel(x_metric)
             ax.set_ylabel(y_metric)
@@ -423,6 +441,7 @@ def run_ladder(
                     task_name,
                     str_chained_fit_flops(step1_coefficients, step2_coefficients),
                     ax,
+                    plot_clean=True
                 )
             else:
                 plot_chained(
@@ -753,7 +772,7 @@ def fit_all_mixes(df, all_models, mixes, tasks, y_metrics, setups, x_metric='cor
     return results
 
 
-def render_result_table(results, index, agg_col='setup', only_use_default_scaling_law=False, raw_values=False):
+def render_result_table(results, index, agg_col='setup', only_use_default_scaling_law=False, raw_values=False, include_decision_acc=False):
     """ Convert a df of results to LaTeX """
     from utils.constants_ian import SETUP_NAME_LATEX
 
@@ -764,6 +783,8 @@ def render_result_table(results, index, agg_col='setup', only_use_default_scalin
 
     # Select numeric columns for aggregation
     agg_cols = ['abs_error_stacked', 'rel_error_stacked', 'stacked_y']
+    if include_decision_acc: 
+        agg_cols += ['decision_acc']
 
     # Compute averages for each unique value in 'setup'
     average_by_setup = filtered_results.groupby([index, agg_col])[agg_cols].mean().reset_index()
@@ -803,10 +824,12 @@ def render_result_table(results, index, agg_col='setup', only_use_default_scalin
     if index == 'setup':
         # Create a mapping from index values to their order in SETUP_NAME_LATEX
         setup_order = {k: i for i, k in enumerate(SETUP_NAME_LATEX.keys())}
+
+        # Remove any rows from pivoted_results that aren't in SETUP_NAME_LATEX
+        pivoted_results = pivoted_results[pivoted_results.index.isin(list(SETUP_NAME_LATEX.keys()))]
         
         # Sort the index based on the order in SETUP_NAME_LATEX
-        pivoted_results = pivoted_results.reindex(sorted(pivoted_results.index, 
-                                                       key=lambda x: setup_order.get(x, float('inf')) if x != 'Average' else float('inf')))
+        pivoted_results = pivoted_results.reindex(sorted(pivoted_results.index, key=lambda x: setup_order.get(x, float('inf')) if x != 'Average' else float('inf')))
 
     cols_to_drop = [col for col in pivoted_results.columns if "OLMES Avg." in col and 'default' not in col]
     pivoted_results = pivoted_results.drop(columns=cols_to_drop)
@@ -818,7 +841,7 @@ def render_result_table(results, index, agg_col='setup', only_use_default_scalin
     return pivoted_results
 
 
-def fix_table_rendering(table):
+def fix_table_rendering(table, scaling_law_table=False):
     """ Fix formatting issues with pandas table formatter """
     from utils.constants_ian import DATA_NAME_LATEX, SETUP_NAME_LATEX, TASK_NAME_LATEX
 
@@ -853,8 +876,9 @@ def fix_table_rendering(table):
     # Rejoin and print
     table_str = '\n'.join(lines).replace('%', '\%')
 
-    if 'Scaling Law Functional Form' in table:
+    if scaling_law_table:
         table_str = table_str.replace('\n    ', '\n\\hspace{1em}\\hspace{1em}').replace('\n  ', '\n\\hspace{1em}')
+        table_str = table_str.replace('\\midrule\n\\midrule', '\\midrule')
 
     return table_str
 
