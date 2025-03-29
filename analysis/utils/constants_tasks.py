@@ -336,6 +336,9 @@ def load_missing_tasks(load_path):
     import json
     from collections import defaultdict
 
+    if not load_path.exists():
+        return []
+
     with open(load_path) as f:
         data = json.load(f)
     

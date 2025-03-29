@@ -6,7 +6,7 @@ import duckdb
 # from db import get_slice_db, get_nd_array_db, get_instance_db
 from db_duck import get_slice_db, get_nd_array_db, get_instance_db
 
-def get_slice(df, mix=None, model=None, task=None, step=None):
+def get_slice(df, mix=None, model=None, task=None, step=None, size=None):
     """ Index to return a df of some (data mix, model, task, step) """
     if isinstance(df, duckdb.DuckDBPyConnection):
         return get_slice_db(df, mix, model, task, step)
@@ -15,13 +15,15 @@ def get_slice(df, mix=None, model=None, task=None, step=None):
     models  = [model] if isinstance(model, str) else model
     tasks   = [task] if isinstance(task, str) else task
     steps   = [step] if isinstance(step, int) else step
+    sizes   = [size] if isinstance(size, str) else size
 
     # Dynamically create a slicing tuple matching the index levels
     level_slices = {
         'mix':    mixes if mixes else slice(None),
         'model':  models if models else slice(None),
         'task':   tasks if tasks else slice(None),
-        'step':   steps if steps else slice(None)
+        'step':   steps if steps else slice(None),
+        'size':   sizes if sizes else slice(None)
     }
     slicing_tuple = tuple(level_slices.get(level, slice(None)) for level in df.index.names)
 
@@ -35,10 +37,11 @@ def get_slice(df, mix=None, model=None, task=None, step=None):
     else:
         # Slow index
         df = df[
-            (df['mix'].isin(level_slices['mix']) if isinstance(level_slices['mix'], list) else True) &
+            (df['mix'].isin(level_slices['mix'])     if isinstance(level_slices['mix'], list) else True) &
             (df['model'].isin(level_slices['model']) if isinstance(level_slices['model'], list) else True) &
-            (df['task'].isin(level_slices['task']) if isinstance(level_slices['task'], list) else True) &
-            (df['step'].isin(level_slices['step']) if isinstance(level_slices['step'], list) else True)
+            (df['task'].isin(level_slices['task'])   if isinstance(level_slices['task'], list) else True) &
+            (df['step'].isin(level_slices['step'])   if isinstance(level_slices['step'], list) else True) &
+            (df['size'].isin(level_slices['size'])   if isinstance(level_slices['size'], list) else True)
         ]
     
     # Sort and return
