@@ -494,8 +494,6 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=
     # Reorder values matrix according to sorted mixes
     mask = np.isnan(values)
 
-    use_sig_colors = True
-
     # Create a custom colormap that maps values between 0.5-0.95 to viridis
     # and values outside that range to grey
     if _type == 'p_values':

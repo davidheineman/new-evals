@@ -371,6 +371,82 @@ def compute_significance(
         return sig_results, all_p_values, axes
     return sig_results, all_p_values, None
 
+def compute_agreement(
+    df, models, metric, tasks=None, 
+    do_plot=False, pretty_mix_names=None, plot_clean=False, quiet=False):
+    if tasks is None: 
+        tasks = df.index.get_level_values('task').unique()
+
+    agree_results = pd.DataFrame(index=['avg_agreement'], columns=tasks)
+    all_p_values = {}
+
+    n_tasks = len(tasks)
+    if do_plot is not None: 
+        if isinstance(do_plot, plt.Axes):
+            axes = [do_plot] # allow passing in an axes object for plotting
+        elif isinstance(do_plot, bool):
+            if do_plot:
+                fig, axes = plt.subplots(n_tasks, 1, figsize=(0.5*len(models), 0.4*len(models)*n_tasks))
+                if n_tasks == 1: axes = [axes]
+            else:
+                do_plot = None
+        else:
+            axes = do_plot
+
+    for i, task in tqdm(enumerate(tasks), desc='Computing pairwise comparisons', total=len(tasks), disable=quiet):
+        task_name = get_title_from_task(task)
+        
+        instance_names, mixes, scores = get_nd_array(
+            df, 'mix', metric, model=models, task=task, 
+            step='max', sorted=False, return_index=True
+        )
+
+        # Sort by overall performance
+        mix_sums = scores.sum(axis=1)
+        sorted_indices = mix_sums.argsort()[::-1]
+        mixes = np.array(mixes)[sorted_indices].tolist()
+        scores = scores[sorted_indices]
+
+        # Compute pairwise agreement rates between models
+        n_models = len(mixes)
+        agreement_rates = np.zeros((n_models, n_models))
+        for i_ in range(n_models):
+            for j_ in range(n_models):
+                if i_ == j_:
+                    agreement_rates[i_,j_] = 1.0
+                else:
+                    agreement = np.mean(scores[i_] == scores[j_])
+                    agreement_rates[i_,j_] = agreement
+                    agreement_rates[j_,i_] = agreement
+
+        # Set lower triangle to nan to match p-value matrix format
+        agreement_rates[np.tril_indices_from(agreement_rates, k=-1)] = np.nan
+
+        avg_agreement = np.nanmean(agreement_rates)
+        agree_results.loc['avg_agreement', task_name] = avg_agreement
+        all_p_values[task_name] = (mixes, scores, agreement_rates)
+
+        if do_plot is not None:
+            if pretty_mix_names is not None:
+                mix_names = [pretty_mix_names[mix] for mix in mixes]
+            else:
+                mix_names = mixes
+
+            axes[i] = plot_heatmap(
+                axes[i], agreement_rates, mix_names, mix_sums, 
+                sig_clusters=None, alpha=0, plot_clean=plot_clean
+            )
+            title = f'Agreement rates for {task_name} (n={scores.shape[1]}) across data mixes ({metric}), avg agreement={(avg_agreement*100):.2f}%'
+            if len(models) < 15:
+                title = f'Agreement rates for {task_name}, avg agreement={(avg_agreement*100):.2f}%'
+            axes[i].set_title(title, fontsize=10)
+
+    if do_plot is not None:
+        if isinstance(do_plot, plt.Figure):
+            fig.tight_layout()
+        return agree_results, all_p_values, axes
+    return agree_results, all_p_values, None
+
 
 def calculate_and_plot_total_variation(x, y, metric, model_name=None, num_scores=None, title=None, color=None, ax=None, add_text=True):
     # Sort by x
