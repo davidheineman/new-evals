@@ -103,7 +103,9 @@ def get_valid_points(df_results, x_col, y_col, z_col=None):
     for task in df_results.index:
         x = df_results[x_col][task]
         y = df_results[y_col][task]
-        z = df_results[y_col][task] if z_col in df_results.columns else None
+        z = None
+        if isinstance(z_col, str) and z_col in df_results.columns:
+            z = df_results[z_col][task]
         if x != float('nan') and y != float('nan') and not callable(x) and not callable(y):
             points.append((x, y, z, task))
     return points
@@ -192,7 +194,7 @@ def plot_task_scatter(
     ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title=None, 
     category=None, percentage=False, threshold=None,
     invert_x=False, invert_y=False, log_x=False, log_y=False, xlim=None, ylim=None, x_col_b=None, y_col_b=None,
-    xdesc=None, ydesc=None, draw_frontier=True, color=None
+    xdesc=None, ydesc=None, draw_frontier=True, color=None, zlabel=None, invert_z=False,
     ):
     points = get_valid_points(df, x_col, y_col, z_col=color)
     if not points:
@@ -218,10 +220,10 @@ def plot_task_scatter(
     
     if color is None:
         colors = [CATEGORY_COLORS[TASK_CATEGORIES.get(task, 'knowledge')] for task in tasks]
-    elif zs is not None:
+    elif zs is not None and any(z is not None for z in zs):
         color_values = zs
         norm = plt.Normalize(vmin=min(color_values), vmax=max(color_values))
-        colors = plt.cm.viridis(norm(color_values))
+        colors = plt.cm.viridis_r(norm(color_values)) if invert_z else plt.cm.viridis(norm(color_values))
     else:
         colors = [color for _ in tasks]
     
@@ -301,6 +303,12 @@ def plot_task_scatter(
         ax.set_xlim(**xlim)
     if ylim is not None:
         ax.set_ylim(**ylim)
+
+    # if color is not None:
+    if zs is not None and any(z is not None for z in zs):
+        cmap = plt.cm.viridis if not invert_z else plt.cm.viridis_r
+        cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label=(zlabel if zlabel is not None else color))
+        if invert_z: cbar.ax.invert_yaxis()
 
     if percentage:
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: '{:.0%}'.format(x)))

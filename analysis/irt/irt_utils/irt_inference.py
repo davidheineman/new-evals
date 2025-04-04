@@ -5,6 +5,22 @@ from scipy import optimize, special
 from concurrent.futures import ProcessPoolExecutor
 
 
+def p_theta(theta, a, b):
+    return 1 / (1 + np.exp(-a * (theta - b)))
+
+
+def fisher_information(theta, a, b):
+    p = p_theta(theta, a, b)
+    return a**2 * p * (1 - p)
+
+
+def test_information(theta, a_list, b_list):
+    item_information = np.zeros((len(a_list), len(theta)))
+    for i, (a, b) in enumerate(zip(a_list, b_list)):
+        item_information[i, :] = fisher_information(theta, a, b)
+    return item_information.sum(axis=0)
+
+
 def theta_bernoulli_fn(difficulties, discriminations, responses):
     """Return a function to compute the theta ability parameter for multiple response sets"""
     def fn(theta):

@@ -1,3 +1,5 @@
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 import os, sys, itertools
 sys.path.append(os.path.dirname(os.getcwd()))
 from utils import DATA_DIR, ROOT_DIR
@@ -8,15 +10,19 @@ import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 
-from dataloader import get_slice
+from dataloader import get_slice, get_nd_array
 from ladder_wrapper import run_ladder
 from stats import compute_significance, compute_total_variation, kendall_tau_a
+from utils.power import calculate_mde
 from table import display_task_variants
 
 from ladder_ian import compute_2_class, get_compute, plot_task_accuracy
 from utils import get_title_from_task
 from utils.constants_models import DDOS_MODEL_NAMES
 from download.utils_cheap_decisions import PRIMARY_METRICS_OLMES
+
+from ladder_wrapper import sort_experiment_names
+from download.preprocess import is_excluded_from_lite
 
 DEFAULT_LADDER_CONFIG_PATH = f'{ROOT_DIR}/analysis/utils/ladder_config.json'
 
@@ -25,7 +31,6 @@ ALL_METRICS = ['logits_per_char_corr', 'primary_score']
 REVERSED_METRICS = ['margin_per_byte', 'norm_correct_prob_per_byte', 'correct_prob_per_byte', 'correct_logit_per_byte', 'logits_per_byte_corr']
 
 DDOS_SIZES = ['4M', '20M', '60M', '90M', '150M', '300M', '530M', '750M', '1B']
-# DDOS_SIZES = ['4M', '20M', '60M', '150M', '300M', '530M', '750M', '1B']
 DDOS_COMPUTE_SIZES = tuple(get_compute(size) for size in DDOS_SIZES)
 
 def get_perf_size(df, size, task, metric):
@@ -450,6 +455,15 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
                 f"dec_acc:{additional_metric}:530M": acc_pivot_bpb['530M'].loc[str(task)].item(),
                 f"dec_acc:{additional_metric}:750M": acc_pivot_bpb['750M'].loc[str(task)].item(),
             })
+
+        # Compute range and std dev between models at each compute scale
+        for additional_metric in additional_metrics:
+            for size in DDOS_SIZES:
+                scores = get_perf_size(df, size, task, additional_metric)[additional_metric]
+                results.update({
+                    f'range:{additional_metric}:{size}': scores.max() - scores.min(),
+                    f'std_dev:{additional_metric}:{size}': scores.std()
+                })
     except Exception as e:
         print(task, 'failed on consistent ranking analysis', e)
         # raise RuntimeError(task, 'failed on consistent ranking analysis', e)
@@ -490,45 +504,202 @@ def run_instance_analysis(
     aggregators=['micro', 'macro'], 
     metrics=['logits_per_byte_corr', 'primary_score'], 
     sizes=DDOS_SIZES, # ['4M', '20M', ..., '750M', '1B'],
-    alpha=0.05
+    alpha=1e-4, # 0.05
+    target_power=0.8,
+    quiet=False
     ):
     task_name = get_title_from_task(task)
-
-    # ALPHA = 0.01
-    ALPHA = 1e-4
     
     results = {}
     
     for aggregator in aggregators:
         for metric in metrics:
             for size in sizes:
-                try:
-                    models = [model for model in DDOS_MODEL_NAMES if size in model] # e.g., 150M
-                    _, out, _ = compute_significance(
-                        df_instances, models=models, metric=metric, aggregator=aggregator,
-                        step=None, last_n=1, alpha=ALPHA, tasks=[task], quiet=True
-                    )
-                    mixes_A, scores_A, p_values_A, sig_clusters_A = out[task_name]
+                for binarize in [False, True]:
+                    try:
+                        models = [model for model in DDOS_MODEL_NAMES if size in model] # e.g., 150M
+                        _, out, _ = compute_significance(
+                            df_instances, models=models, metric=metric, aggregator=aggregator,
+                            step=None, last_n=1, alpha=alpha, tasks=[task], binarize=binarize, quiet=True
+                        )
+                        plt.close()
+                        mixes_A, scores_A, p_values_A, sig_clusters_A = out[task_name]
 
-                    # Compute metric scores
-                    valid_p_values = p_values_A[~np.isnan(p_values_A)]
-                    perc_sig = np.sum(valid_p_values <= ALPHA) / len(valid_p_values)
+                        if p_values_A == float('-inf'):
+                            # If we cannot binarize scores, return
+                            continue
 
-                    # valid_p_values = p_values_B[~np.isnan(p_values_B)]
-                    # perc_sig_1B = np.sum(valid_p_values <= ALPHA) / len(valid_p_values)
-                    # kt_c = kendall_tau_a(mixes_A, mixes_B, sig_clusters_A, sig_clusters_B)
-                    # f"kt_c:{metric}": kt_c,
-                    # f"num_sig_clusters:{metric}:{aggregator}:1B": max(sig_clusters_B),
-                    # f"perc_sig:{metric}:{aggregator}:1B": perc_sig_1B
+                        # Compute metric scores
+                        valid_p_values = p_values_A[~np.isnan(p_values_A)]
+                        perc_sig = np.sum(valid_p_values <= alpha) / len(valid_p_values)
 
-                    plt.close()
-                    
-                    results.update({
-                        "task": task_name,
-                        f"num_sig_clusters:{metric}:{aggregator}:{size}": max(sig_clusters_A),
-                        f"perc_sig:{metric}:{aggregator}:{size}": perc_sig,
-                    })
-                except Exception as e:
-                    print(task_name, f'failed to compute significance test for aggregator={aggregator} on metric={metric}', e)
+                        results.update({
+                            "task": task_name,
+                            f"num_sig_clusters:{metric}:{aggregator}:{size}:{('binary' if binarize else 'non_binary')}": max(sig_clusters_A),
+                            f"perc_sig:{metric}:{aggregator}:{size}:{('binary' if binarize else 'non_binary')}": perc_sig,
+                        })
+                    except Exception as e:
+                        print(task_name, f'failed to compute significance test for aggregator={aggregator} on metric={metric}', e)
     
+    # Compute instance-level agreement rate
+    aggregator = 'micro'
+    for metric in metrics:
+        for size in sizes:
+            instance_names, mixes, scores = get_nd_array(
+                df_instances, 'model', 
+                metric=metric, 
+                task=task, 
+                model=[m for m in DDOS_MODEL_NAMES if size in m],
+                return_index=True
+            )
+
+            n_models, n_instances = scores.shape
+
+            # Hard agreement - exact matches
+            matches = scores[:, None, :] == scores[None, :, :]  # Shape: (n_models, n_models, n_instances)
+            mask = np.triu(np.ones((n_models, n_models)), k=1)  # Upper triangular mask to avoid duplicates
+            exact_agreement_rate = np.mean(matches[mask.astype(bool)])
+
+            # Soft agreement - average diff
+            diffs = np.abs(scores[:, None, :] - scores[None, :, :])  # Shape: (n_models, n_models, n_instances) 
+            max_diff = np.max(np.abs(scores))
+            normalized_diffs = 1 - (diffs / max_diff)
+            soft_agreement_rate = np.mean(normalized_diffs[mask.astype(bool)])
+
+            results.update({
+                f'hard_agreement:{metric}:{aggregator}:{size}': exact_agreement_rate,
+                f'soft_agreement:{metric}:{aggregator}:{size}': soft_agreement_rate
+            })
+
+            # Compute Fisher information using IRT scores
+            irt_path = Path(DATA_DIR) / "irt" / f"{task_name}.json"
+            if irt_path.exists():
+                sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/irt') # Add IRT code to PATH
+                from irt_utils.irt_inference import load_irt_params, test_information
+                from stats import compute_irt
+
+                train_instance_names, discriminations, difficulties = load_irt_params(
+                    load_path=irt_path,
+                )
+                irt_params = (difficulties, discriminations, train_instance_names)
+
+                thetas = compute_irt(irt_params, instance_names, scores, metric)
+                thetas = thetas.tolist()
+                tif = test_information(thetas, discriminations, difficulties)
+                avg_tif = np.mean(tif)
+                
+                results.update({
+                    f'mean_information:{metric}:{aggregator}:{size}': avg_tif
+                })
+
+            # Check if results are {0, 1}. If results are [0, 1], then we binarize
+            binary_scores = scores
+            is_binary = np.all(np.logical_or(scores == 0, scores == 1))
+            if not is_binary and np.all((scores >= 0) & (scores <= 1)):
+                binary_scores = (scores > 0.5).astype(float) # binarize with threshold 0.5
+                is_binary = True
+
+            if is_binary:
+                # Compute MDE in parallel
+                n_models, n_instances = binary_scores.shape
+                mdes = np.full((n_models, n_models), np.nan)
+
+                args = []
+                for i in range(n_models):
+                    for j in range(i+1, n_models):
+                        baseline_acc = np.mean(binary_scores[i])
+                        agreement_rate = np.mean(binary_scores[i] == binary_scores[j])
+                        args.append((
+                            baseline_acc,
+                            agreement_rate, 
+                            n_instances, 
+                            target_power # default=0.8
+                        ))
+
+                from utils.power import calculate_mde # need to reimport for pickle
+                with ProcessPoolExecutor() as executor:
+                    mde_resp = list(tqdm(
+                        executor.map(calculate_mde, *zip(*args)),
+                        total=len(args),
+                        desc="Computing MDE",
+                        disable=quiet
+                    ))
+
+                idx = 0
+                for i in range(n_models):
+                    for j in range(i+1, n_models):
+                        mdes[i,j] = mde_resp[idx]
+                        idx += 1
+                
+                mean_mde = np.nanmean(mdes)
+
+                results.update({
+                    f'mean_mde_binary:{metric}:{aggregator}:{size}': mean_mde
+                })
+
     return results
+
+
+def compute_metaproperties(df_benchmarks, df_instances, selected_tasks, run_irt=False, quiet=False):
+    ALPHA=1e-4
+
+    task_names = [get_title_from_task(task) for task in selected_tasks]
+
+    # Get model names from df_benchmarks
+    models = sorted(list(df_benchmarks['model'].unique()))
+    ladder_models = [model for model in models if "peteish-moreeval" in model]
+    ladder_models = sort_experiment_names(ladder_models)
+    llama_3_models = [model for model in models if "Llama-3" in model]
+    external_models = sorted([
+        model for model in models 
+        if model not in
+            DDOS_MODEL_NAMES + # exclude 1B-5xC models
+            ladder_models + # exclude ladder models
+            ['peteish13-highlr'] # exclude intermediate checkpoints from 13B
+        and not is_excluded_from_lite(model)
+    ])
+
+    benchmark_results = []
+    insance_results = []
+
+    pbar = tqdm(selected_tasks, disable=quiet)
+    for task in pbar:
+        task_name = get_title_from_task(task)
+        pbar.set_description(f'Computing properties for {task_name}')
+        
+        benchmark_result = run_analysis(
+            df_benchmarks, 
+            task=task, 
+            ladder_models=ladder_models, 
+            external_ladder_models=ladder_models + llama_3_models, 
+            eval_ladder_models=external_models,
+            run_irt=run_irt
+        )
+
+        aggregators = ['micro', 'macro', 'irt'] if run_irt else ['micro', 'macro']
+
+        insance_result = run_instance_analysis(
+            df_instances, 
+            task=task, 
+            aggregators = aggregators,
+            alpha=ALPHA,
+            quiet=quiet
+        )
+
+        benchmark_results += [benchmark_result]
+        insance_results += [insance_result]
+
+    # Create dataframe, filling in missing results as -inf
+    all_keys = set().union(*benchmark_results)
+    normalized_results = [{key: d.get(key, float('-inf')) for key in all_keys} for d in benchmark_results]
+    df_benchmark_results = pd.DataFrame(normalized_results, index=task_names)
+    df_instance_results  = pd.DataFrame(insance_results, index=task_names)
+    df_results = pd.concat([df_benchmark_results, df_instance_results], axis=1)
+
+    # Remove duplciate results if they exist
+    n_duplicates = len(df_results.index) - len(df_results.index.unique())
+    if n_duplicates > 0:
+        print(f"Removing {n_duplicates} duplicates")
+        df_results = df_results[~df_results.index.duplicated()]
+
+    return df_results

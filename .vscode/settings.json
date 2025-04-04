@@ -6,7 +6,8 @@
         "./generation",
         "./olmo-repos/oe-eval-internal",
         "./olmo-repos/OLMo",
-        "./olmo-repos/oe-eval-internal"
+        "./olmo-repos/oe-eval-internal",
+        "./analysis/irt"
     ],
     "python.analysis.exclude": ["data/**", "**/data/**", "**/data", "analysis/data/**", "olmo-repos/**"]
 }

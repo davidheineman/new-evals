@@ -160,7 +160,27 @@ def compute_pairwise_mcnemar(seg_scores, return_scores=False):
 def calculate_mde(baseline_acc: float, agreement_rate: float, n_samples: int, target_power: float = 0.8, tolerance: float = 1e-4) -> float:
     """ Find the minimum detectable effect (MDE) w/ binary search """
     def calculate_power(Δacc):
-        power, _, _, _ = run_power_test(baseline_acc, baseline_acc + Δacc, agreement_rate, n_samples, quiet=True)
+        # If the delta is too high, clamp it to the bounds of possible accuracy scores
+        EPS = 1e-9
+        acc2 = baseline_acc + Δacc
+        max_acc2 = min(1.0, 1 - (agreement_rate - baseline_acc) - EPS)
+        min_acc2 = max(0.0, (1-agreement_rate) - baseline_acc + EPS)        
+        if max_acc2 < acc2: 
+            acc2 = max_acc2
+        elif min_acc2 > acc2: 
+            acc2 = min_acc2
+
+        if (1 - (agreement_rate - baseline_acc)) == ((1-agreement_rate) - baseline_acc):
+            # Not possible to compute power at this config (max acc == min acc)
+            return float('inf')
+
+        try:
+            power, _, _, _ = run_power_test(baseline_acc, acc2, agreement_rate, n_samples, quiet=True)
+        except AssertionError as e:
+            print(f'Failed on: {e}')
+            print(baseline_acc, acc2, agreement_rate, (min_acc2, max_acc2), n_samples)
+            return float('inf')
+
         return power
     
     low, high = 0, 1 - baseline_acc
