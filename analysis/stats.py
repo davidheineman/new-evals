@@ -5,6 +5,7 @@ import math
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import os, sys
 
 from utils import DATA_DIR, get_title_from_task
 from utils.pce import compute_pairwise_p_values, compute_weighted_pairwise_p_values, compute_pairwise_p_values_paired_t_test
@@ -78,6 +79,53 @@ def compute_f1_binary(gold_arr, pred_arr):
     f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
     return precision, recall, f1
+
+def compute_irt(irt_params, test_instance_names, test_scores, metric):
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/irt') # Add IRT code to PATH
+    from irt_utils.irt_inference import load_irt_params, calculate_theta
+    from run_irt import normalize_scores
+
+    difficulties, discriminations, train_instance_names = irt_params
+
+    _type = 'acc'
+    _func = 'bernoulli'
+    if 'logits' in metric:
+        _type = 'bpb'
+        _func = 'gaussian'
+
+    test_scores = normalize_scores(test_scores, _type=_type)
+
+    # Sort train instances by the test IRT param ordering
+    id_to_idx_map = {instance_id: idx for idx, instance_id in enumerate(test_instance_names)}
+    reorder_idx = [id_to_idx_map[train_id] for train_id in train_instance_names]
+
+    # # Different sort implementation
+    # name_to_index = {name: i for i, name in enumerate(train_instance_names)}
+    # sorted_indices = np.array([name_to_index[name] for name in test_instance_names])
+    
+    diff_reordered = [difficulties[i] for i in reorder_idx]
+    disc_reordered = [discriminations[i] for i in reorder_idx]
+    train_instances_reordered = [train_instance_names[i] for i in reorder_idx]
+
+    # print(len(train_instance_names))
+    # print(len(test_instance_names))
+    # print(len(train_instances_reordered))
+
+    # print(train_instance_names[:10])
+    # print(train_instances_reordered[:10])
+    # print(test_instance_names[:10])
+
+    # print(set(test_instance_names) - set(train_instances_reordered))
+    # print(set(train_instances_reordered) - set(test_instance_names))
+
+    # print(sorted(train_instances_reordered) == sorted(test_instance_names))
+
+    # assert train_instances_reordered == test_instance_names, (train_instances_reordered, test_instance_names)
+
+    # Compute IRT ability parameter
+    thetas_acc = calculate_theta(diff_reordered, disc_reordered, test_scores, func=_func, quiet=True)
+
+    return np.array(thetas_acc)
 
 
 def reorder_items_and_ranks(itemsA, itemsB, ranksA, ranksB):
@@ -189,7 +237,7 @@ def get_sig_clusters(p_vals, alpha=0.01):
 def compute_significance(
     df, models, metric, tasks=None, 
     aggregator='macro', # macro, micro, irt (for single tasks, macro avg == micro avg)
-    step='max', last_n=1, alpha=0.05, num_permutations=1_000, 
+    step='max', last_n=1, alpha=0.05, num_permutations=1_000, binarize=False,
     do_plot=False, pretty_mix_names=None, plot_sig_clusters=True, plot_clean=False, quiet=False):
     if tasks is None: 
         tasks = df.index.get_level_values('task').unique()
@@ -256,64 +304,37 @@ def compute_significance(
                 sorted_indices = mix_sums.argsort()[::-1]
                 mixes = np.array(mixes)[sorted_indices].tolist()
                 scores = scores[sorted_indices]
+        
+        if binarize:
+            # Check if results are {0, 1}. If results are [0, 1], then we binarize
+            is_binary = np.all(np.logical_or(scores == 0, scores == 1))
+            if not is_binary and np.all((scores >= 0) & (scores <= 1)):
+                scores = (scores > 0.5).astype(float) # binarize with threshold 0.5
+                is_binary = True
+
+            # If we cannot binarize scores, we cannot compute stats test
+            if not is_binary:
+                sig_results.loc['perc_sig', task_name] = float('-inf')
+                all_p_values[task_name] = (mixes, scores, float('-inf'), float('-inf'))
+                continue
 
         if aggregator == 'irt':
-            import os, sys
-            path_to_add = os.path.dirname(os.path.abspath(__file__)) + '/irt'
-            sys.path.append(path_to_add)
-            from irt_utils.irt_inference import load_irt_params, calculate_theta
-            from run_irt import normalize_scores
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/irt') # Add IRT code to PATH
+            from irt_utils.irt_inference import load_irt_params
 
             train_instance_names, discriminations, difficulties = load_irt_params(
                 load_path=Path(DATA_DIR) / "irt" / f"{task_name}.json",
             )
+            irt_params = (difficulties, discriminations, train_instance_names)
 
-            def compute_irt(test_instance_names, test_scores):
-                _type = 'acc'
-                _func = 'bernoulli'
-                if 'logits' in metric:
-                    _type = 'bpb'
-                    _func = 'gaussian'
-
-                test_scores = normalize_scores(test_scores, _type=_type)
-
-                # Sort train instances by the test IRT param ordering
-                id_to_idx_map = {instance_id: idx for idx, instance_id in enumerate(test_instance_names)}
-                reorder_idx = [id_to_idx_map[train_id] for train_id in train_instance_names]
-
-                # # Different sort implementation
-                # name_to_index = {name: i for i, name in enumerate(train_instance_names)}
-                # sorted_indices = np.array([name_to_index[name] for name in test_instance_names])
-                
-                diff_reordered = [difficulties[i] for i in reorder_idx]
-                disc_reordered = [discriminations[i] for i in reorder_idx]
-                train_instances_reordered = [train_instance_names[i] for i in reorder_idx]
-
-                # print(len(train_instance_names))
-                # print(len(test_instance_names))
-                # print(len(train_instances_reordered))
-
-                # print(train_instance_names[:10])
-                # print(train_instances_reordered[:10])
-                # print(test_instance_names[:10])
-
-                # print(set(test_instance_names) - set(train_instances_reordered))
-                # print(set(train_instances_reordered) - set(test_instance_names))
-
-                # print(sorted(train_instances_reordered) == sorted(test_instance_names))
-
-                # assert train_instances_reordered == test_instance_names, (train_instances_reordered, test_instance_names)
-
-                # Compute IRT ability parameter
-                thetas_acc = calculate_theta(diff_reordered, disc_reordered, test_scores, func=_func, quiet=True)
-
-                return np.array(thetas_acc)
+            def compute_irt_f(test_instance_names, test_scores):
+                return compute_irt(irt_params, test_instance_names, test_scores, metric)
 
             num_permutations = 10
 
             print('Computing IRT permutation test...')
             p_values, mix_scores, _ = compute_weighted_pairwise_p_values(
-                scores, instance_names=instance_names, aggregator=compute_irt, 
+                scores, instance_names=instance_names, aggregator=compute_irt_f, 
                 num_permutations=num_permutations, return_scores=True
             )
             print('Done!')
@@ -359,7 +380,7 @@ def compute_significance(
                 mix_names = [pretty_mix_names[mix] for mix in mixes]
             else:
                 mix_names = mixes
-            axes[i] = plot_heatmap(axes[i], p_values, mix_names, mix_scores, sig_clusters, alpha=alpha, plot_clean=plot_clean)
+            axes[i] = plot_heatmap(axes[i], p_values, mix_names, mix_scores, sig_clusters, alpha=alpha, plot_clean=plot_clean, use_sig_colors=plot_clean)
             title = r'$p$' + f'-values for {task_name} (n={scores.shape[1]}) across data mixes at {("last " + str(last_n) + " steps" if last_n > 1 else "final checkpoint")} ({metric}), perc sig={(perc_sig*100):.2f}%'
             if len(models) < 15:
                 title = r'$p$' + f'-values for {task_name}, perc sig={(perc_sig*100):.2f}%'
@@ -370,6 +391,85 @@ def compute_significance(
             fig.tight_layout()
         return sig_results, all_p_values, axes
     return sig_results, all_p_values, None
+
+def compute_agreement(
+    df, models, metric, tasks=None, 
+    do_plot=False, pretty_mix_names=None, plot_clean=False, quiet=False):
+    if tasks is None: 
+        tasks = df.index.get_level_values('task').unique()
+
+    agree_results = pd.DataFrame(index=['avg_agreement'], columns=tasks)
+    all_p_values = {}
+
+    n_tasks = len(tasks)
+    if do_plot is not None: 
+        if isinstance(do_plot, plt.Axes):
+            axes = [do_plot] # allow passing in an axes object for plotting
+        elif isinstance(do_plot, bool):
+            if do_plot:
+                fig, axes = plt.subplots(n_tasks, 1, figsize=(0.5*len(models), 0.4*len(models)*n_tasks))
+                if n_tasks == 1: axes = [axes]
+            else:
+                do_plot = None
+        else:
+            axes = do_plot
+
+    for i, task in tqdm(enumerate(tasks), desc='Computing pairwise comparisons', total=len(tasks), disable=quiet):
+        task_name = get_title_from_task(task)
+        
+        instance_names, mixes, scores = get_nd_array(
+            df, 'mix', metric, model=models, task=task, 
+            step='max', sorted=False, return_index=True
+        )
+
+        # Sort by overall performance
+        mix_sums = scores.sum(axis=1)
+        sorted_indices = mix_sums.argsort()[::-1]
+        mixes = np.array(mixes)[sorted_indices].tolist()
+        scores = scores[sorted_indices]
+
+        non_nan_scores = scores[~np.isnan(scores)]
+        assert np.all(np.isin(non_nan_scores, [0, 1])), "Can only calculate agreemeent rate on binary scores"
+
+        # Compute pairwise agreement rates between models
+        n_models = len(mixes)
+        agreement_rates = np.zeros((n_models, n_models))
+        for i_ in range(n_models):
+            for j_ in range(n_models):
+                if i_ == j_:
+                    agreement_rates[i_,j_] = 1.0
+                else:
+                    agreement = np.mean(scores[i_] == scores[j_])
+                    agreement_rates[i_,j_] = agreement
+                    agreement_rates[j_,i_] = agreement
+
+        # Set lower triangle to nan to match p-value matrix format
+        agreement_rates[np.tril_indices_from(agreement_rates, k=-1)] = np.nan
+
+        avg_agreement = np.nanmean(agreement_rates)
+        agree_results.loc['avg_agreement', task_name] = avg_agreement
+        all_p_values[task_name] = (mixes, scores, agreement_rates)
+
+        if do_plot is not None:
+            if pretty_mix_names is not None:
+                mix_names = [pretty_mix_names[mix] for mix in mixes]
+            else:
+                mix_names = mixes
+
+            axes[i] = plot_heatmap(
+                axes[i], agreement_rates, mix_names, mix_sums, 
+                sig_clusters=None, alpha=0, plot_clean=plot_clean
+            )
+            title = f'Agreement rates for {task_name} (n={scores.shape[1]}) across data mixes ({metric}), avg agreement={(avg_agreement*100):.2f}%'
+            if len(models) < 15:
+                title = f'Agreement rates for {task_name}, avg agreement={(avg_agreement*100):.2f}%'
+            axes[i].set_title(title, fontsize=10)
+
+    if do_plot is not None:
+        if isinstance(do_plot, plt.Figure):
+            fig.tight_layout()
+        return agree_results, all_p_values, axes
+    return agree_results, all_p_values, None
 
 
 def calculate_and_plot_total_variation(x, y, metric, model_name=None, num_scores=None, title=None, color=None, ax=None, add_text=True):

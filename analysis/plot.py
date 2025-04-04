@@ -97,14 +97,17 @@ CATEGORY_COLORS = {
 CATEGORY_COLORS_SMALL = {cat: color for cat, color in CATEGORY_COLORS.items() if ':' not in cat}
 
 
-def get_valid_points(df_results, x_col, y_col):
+def get_valid_points(df_results, x_col, y_col, z_col=None):
     """ Helper function to get valid points from rows in a df """
     points = []
     for task in df_results.index:
         x = df_results[x_col][task]
         y = df_results[y_col][task]
+        z = None
+        if isinstance(z_col, str) and z_col in df_results.columns:
+            z = df_results[z_col][task]
         if x != float('nan') and y != float('nan') and not callable(x) and not callable(y):
-            points.append((x, y, task))
+            points.append((x, y, z, task))
     return points
 
 
@@ -191,22 +194,22 @@ def plot_task_scatter(
     ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title=None, 
     category=None, percentage=False, threshold=None,
     invert_x=False, invert_y=False, log_x=False, log_y=False, xlim=None, ylim=None, x_col_b=None, y_col_b=None,
-    xdesc=None, ydesc=None, draw_frontier=True
+    xdesc=None, ydesc=None, draw_frontier=True, color=None, zlabel=None, invert_z=False,
     ):
-    points = get_valid_points(df, x_col, y_col)
+    points = get_valid_points(df, x_col, y_col, z_col=color)
     if not points:
         return
     
     # Filter out points not in the specified task category (e.g., math)
     if category is not None:
         category = [category] if not isinstance(category, list) else category
-        task_categories = [TASK_CATEGORIES.get(task, 'knowledge') for _, _, task in points]
+        task_categories = [TASK_CATEGORIES.get(task, 'knowledge') for _, _, _, task in points]
         points = [p for p, cat in zip(points, task_categories) if cat in category]
         if not points:
             return
     
     # points = points[:-1]
-    xs, ys, tasks = zip(*points)
+    xs, ys, zs, tasks = zip(*points)
     
     # Filter out -inf values if needed
     if log_x or log_y:
@@ -215,7 +218,14 @@ def plot_task_scatter(
         ys = [ys[i] for i in valid_indices]
         tasks = [tasks[i] for i in valid_indices]
     
-    colors = [CATEGORY_COLORS[TASK_CATEGORIES.get(task, 'knowledge')] for task in tasks]
+    if color is None:
+        colors = [CATEGORY_COLORS[TASK_CATEGORIES.get(task, 'knowledge')] for task in tasks]
+    elif zs is not None and any(z is not None for z in zs):
+        color_values = zs
+        norm = plt.Normalize(vmin=min(color_values), vmax=max(color_values))
+        colors = plt.cm.viridis_r(norm(color_values)) if invert_z else plt.cm.viridis(norm(color_values))
+    else:
+        colors = [color for _ in tasks]
     
     # If diff mode (both x_col_b and y_col_b provided)
     if x_col_b is not None and y_col_b is not None:
@@ -242,7 +252,7 @@ def plot_task_scatter(
             # Draw arrows between corresponding points
             for i, (x, y, x_b, y_b) in enumerate(zip(xs, ys, xs_b, ys_b)):
                 # ax.arrow(x, y, x_b-x, y_b-y, color=colors[i], length_includes_head=True, alpha=0.2)
-                ax.plot([x, x_b], [y, y_b], color=line_colors[i], alpha=0.5, linewidth=0.5)
+                ax.plot([x, x_b], [y, y_b], color=line_colors[i], alpha=0.2, linewidth=0.5)
             
             # Plot both sets of points
             ax.scatter(xs, ys, s=4, c=colors_a, marker='o')
@@ -266,7 +276,7 @@ def plot_task_scatter(
                     draw_pareto_frontier(ax, cat_xs_b, cat_ys_b, invert_x=invert_x, invert_y=invert_y, color=color, linestyle='--')
     else:
         # Regular scatter plot
-        ax.scatter(xs, ys, s=4, c=colors)
+        ax.scatter(xs, ys, s=8, c=colors) # s=4
 
         if draw_frontier:
             # Draw separate Pareto frontiers for each task category
@@ -275,7 +285,7 @@ def plot_task_scatter(
                 category_points = [(x, y) for x, y, task in zip(xs, ys, tasks) if TASK_CATEGORIES.get(task, 'knowledge') == category_name]
                 if category_points:
                     cat_xs, cat_ys = zip(*category_points)
-                    draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=CATEGORY_COLORS[category_name])
+                    draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=(CATEGORY_COLORS[category_name] if color is None else color))
     
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
@@ -293,6 +303,12 @@ def plot_task_scatter(
         ax.set_xlim(**xlim)
     if ylim is not None:
         ax.set_ylim(**ylim)
+
+    # if color is not None:
+    if zs is not None and any(z is not None for z in zs):
+        cmap = plt.cm.viridis if not invert_z else plt.cm.viridis_r
+        cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label=(zlabel if zlabel is not None else color))
+        if invert_z: cbar.ax.invert_yaxis()
 
     if percentage:
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: '{:.0%}'.format(x)))
@@ -356,9 +372,9 @@ def plot_task_scatter(
         ax.axhspan(y_threshold, ax.get_ylim()[0], color='blue', alpha=0.2)
         ax.axvspan(x_threshold, ax.get_xlim()[1], ymin=(ax.get_ylim()[0]-y_threshold)/abs(ax.get_ylim()[0]-ax.get_ylim()[1]), ymax=1, color='green', alpha=0.05)
         
-        ax.text(0.02, 0.98, 'Not correlated with\ndownstream task', transform=ax.transAxes, ha='left', va='top', color='darkred', fontsize=8)
-        ax.text(0.98, 0.02, 'Too noisy', transform=ax.transAxes, ha='right', va='bottom', color='darkblue', fontsize=8)
-        ax.text(0.98, 0.98, 'Decision-optimal', transform=ax.transAxes, ha='right', va='top', color='darkgreen', fontsize=8)
+        ax.text(0.02, 0.98, 'Too noisy', transform=ax.transAxes, ha='left', va='top', color='darkred', fontsize=8)
+        ax.text(0.98, 0.02, 'Not correlated with\ndownstream task', transform=ax.transAxes, ha='right', va='bottom', color='darkblue', fontsize=8)
+        ax.text(0.98, 0.98, 'Low risk & high correlation\nwith downstream task', transform=ax.transAxes, ha='right', va='top', color='darkgreen', fontsize=8)
 
     return ax
 
@@ -485,8 +501,6 @@ def plot_heatmap(ax: plt.Axes, values, mix_names, mix_scores=None, sig_clusters=
     """ Plot a pairwise heatmap of statistical significance """
     # Reorder values matrix according to sorted mixes
     mask = np.isnan(values)
-
-    use_sig_colors = True
 
     # Create a custom colormap that maps values between 0.5-0.95 to viridis
     # and values outside that range to grey
