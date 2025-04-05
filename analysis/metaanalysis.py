@@ -23,6 +23,7 @@ from download.utils_cheap_decisions import PRIMARY_METRICS_OLMES
 
 from ladder_wrapper import sort_experiment_names
 from download.preprocess import is_excluded_from_lite
+from db_duck import connect_db_backend
 
 DEFAULT_LADDER_CONFIG_PATH = f'{ROOT_DIR}/analysis/utils/ladder_config.json'
 
@@ -640,6 +641,32 @@ def run_instance_analysis(
     return results
 
 
+def run_task_analysis(args):
+    (df_benchmarks, df_instances, task, ladder_models, external_ladder_models, 
+        eval_ladder_models, run_irt, aggregators, alpha, quiet) = args
+    
+    df_instances = connect_db_backend(df_instances)
+
+    benchmark_result = run_analysis(
+        df_benchmarks,
+        task=task,
+        ladder_models=ladder_models,
+        external_ladder_models=external_ladder_models,
+        eval_ladder_models=eval_ladder_models, 
+        run_irt=run_irt
+    )
+
+    instance_result = run_instance_analysis(
+        df_instances,
+        task=task,
+        aggregators=aggregators,
+        alpha=alpha,
+        quiet=quiet
+    )
+
+    return benchmark_result, instance_result
+
+
 def compute_metaproperties(df_benchmarks, df_instances, selected_tasks, run_irt=False, quiet=False):
     ALPHA=1e-4
 
@@ -662,32 +689,35 @@ def compute_metaproperties(df_benchmarks, df_instances, selected_tasks, run_irt=
     benchmark_results = []
     insance_results = []
 
-    pbar = tqdm(selected_tasks, disable=quiet)
-    for task in pbar:
+    # Prepare arguments for parallel processing
+    args = []
+    for task in selected_tasks:
         task_name = get_title_from_task(task)
-        pbar.set_description(f'Computing properties for {task_name}')
-        
-        benchmark_result = run_analysis(
-            df_benchmarks, 
-            task=task, 
-            ladder_models=ladder_models, 
-            external_ladder_models=ladder_models + llama_3_models, 
-            eval_ladder_models=external_models,
-            run_irt=run_irt
-        )
-
         aggregators = ['micro', 'macro', 'irt'] if run_irt else ['micro', 'macro']
-
-        insance_result = run_instance_analysis(
+        args.append((
+            df_benchmarks,
             df_instances, 
-            task=task, 
-            aggregators = aggregators,
-            alpha=ALPHA,
-            quiet=quiet
-        )
+            task,
+            ladder_models,
+            ladder_models + llama_3_models,
+            external_models,
+            run_irt,
+            aggregators,
+            ALPHA,
+            quiet
+        ))
 
-        benchmark_results += [benchmark_result]
-        insance_results += [insance_result]
+    with ProcessPoolExecutor() as executor:
+        results = list(tqdm(
+            executor.map(run_task_analysis, args),
+            total=len(args),
+            desc="Computing task properties",
+            disable=quiet
+        ))
+
+    # Unpack results
+    benchmark_results = [r[0] for r in results]
+    insance_results   = [r[1] for r in results]
 
     # Create dataframe, filling in missing results as -inf
     all_keys = set().union(*benchmark_results)

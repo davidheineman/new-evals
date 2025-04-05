@@ -4,7 +4,9 @@ import warnings
 import duckdb
 
 def load_db_backend(local_path):
-    con = duckdb.connect()
+    local_path_db = local_path.replace('.parquet', '.db')
+
+    con = duckdb.connect(local_path_db)
 
     # WEKA optimizations
     con.execute("PRAGMA threads=200")
@@ -25,6 +27,11 @@ def load_db_backend(local_path):
     CREATE INDEX idx_task_model ON instances (task, model);
     """)
     return con
+
+
+def connect_db_backend(db_path):
+    conn = duckdb.connect(db_path, read_only=True)
+    return conn
 
 
 def get_slice_db(db, mix=None, model=None, task=None, step=None):
