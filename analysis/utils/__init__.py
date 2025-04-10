@@ -44,3 +44,19 @@ def fix_model_path(name):
     name = name.replace('Qwen2.5-3B', 'qwen2.5-3b')
     name = name.replace('deepseek-7b', 'deepseek-llm-7b-base')
     return name
+
+def extract_size(model_name):
+    """ Extract size from model name 'falcon-11B' => 11_000_000_000 """
+    parts = model_name.split('-')
+    for part in parts:
+        if part.endswith('M') or part.endswith('m'):
+            try:
+                return float(part[:-1]) * 1e6
+            except ValueError as e:
+                continue
+        elif part.endswith('B') or part.endswith('b'):
+            try:
+                return float(part[:-1]) * 1e9
+            except ValueError as e:
+                continue
+    return None

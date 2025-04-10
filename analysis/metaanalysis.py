@@ -7,6 +7,7 @@ from utils import DATA_DIR, ROOT_DIR
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy import stats
 
 from tqdm import tqdm
 
@@ -17,7 +18,7 @@ from utils.power import calculate_mde
 from table import display_task_variants
 
 from ladder_ian import compute_2_class, get_compute, plot_task_accuracy
-from utils import get_title_from_task
+from utils import get_title_from_task, extract_size
 from utils.constants_models import DDOS_MODEL_NAMES
 from download.utils_cheap_decisions import PRIMARY_METRICS_OLMES
 
@@ -105,6 +106,8 @@ def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_
         _slice = get_slice(df, task=task)
         # _slice = _slice[((_slice['size'] == size)) & (_slice['task'] == task) & (_slice['model'].isin(DDOS_MODEL_NAMES))] # get data for small scale
         _slice = _slice[((_slice['size'] == size)) & (_slice['model'].isin(DDOS_MODEL_NAMES))] # get data for small scale
+        if _slice.empty:
+            raise RuntimeError(f"Empty slice for metric={metric}, size={size}, task={task}")
         steps = [sorted(_slice['step'].unique())[-1]]
         for step in steps:
             # get data at the small scale
@@ -166,9 +169,130 @@ def set_title_from_task(ax: plt.Axes, task):
     ax.set_title(get_title_from_task(task))
 
 
+def get_task_correlations(df_benchmarks, selected_tasks, pred_metric='logits_per_char_corr', target_metric='primary_score'):
+    """Calculate correlation matrix between tasks based on how well models rank on pred_metric vs target_metric."""
+    # Get model names from df_benchmarks
+    models = sorted(list(df_benchmarks['model'].unique()))
+    ladder_models = [model for model in models if "peteish-moreeval" in model]
+    ladder_models = sort_experiment_names(ladder_models)
+    llama_3_models = [model for model in models if "Llama-3" in model]
+    external_models = sorted([
+        model for model in models 
+        if model not in
+            DDOS_MODEL_NAMES + # exclude 1B-5xC models
+            ladder_models + # exclude ladder models
+            ['peteish13-highlr'] # exclude intermediate checkpoints from 13B
+        and not is_excluded_from_lite(model)
+    ])
+    
+    # Get data slice for analysis
+    flattened_tasks = [subtask for task in selected_tasks for subtask in (task if isinstance(task, list) else [task])]
+    _slice = get_slice(df_benchmarks, model=external_models, task=flattened_tasks)
+
+    # Pre-compute scores dictionary for better performance
+    pred_scores_dict = {}
+    target_scores_dict = {}
+    for task in selected_tasks:
+        if isinstance(task, list):
+            # For task lists, calculate average score across all subtasks
+            task_name = get_title_from_task(task)
+            pred_task_scores = []
+            target_task_scores = []
+            for subtask in task:
+                subtask_pred = _slice[_slice['task'] == subtask].set_index('model')[pred_metric]
+                subtask_target = _slice[_slice['task'] == subtask].set_index('model')[target_metric]
+                if not subtask_pred.empty and not subtask_target.empty:
+                    pred_task_scores.append(subtask_pred)
+                    target_task_scores.append(subtask_target)
+            
+            if pred_task_scores and target_task_scores:
+                pred_scores_dict[task_name] = pd.concat(pred_task_scores, axis=1).mean(axis=1)
+                target_scores_dict[task_name] = pd.concat(target_task_scores, axis=1).mean(axis=1)
+        else:
+            # Negate scores for paloma tasks (lower is better)
+            if task.startswith('paloma_'):
+                pred_scores = -_slice[_slice['task'] == task].set_index('model')[pred_metric]
+                target_scores = -_slice[_slice['task'] == task].set_index('model')[target_metric]
+            else:
+                pred_scores = _slice[_slice['task'] == task].set_index('model')[pred_metric]
+                target_scores = _slice[_slice['task'] == task].set_index('model')[target_metric]
+            pred_scores_dict[task] = pred_scores
+            target_scores_dict[task] = target_scores
+
+    # Get task names for display
+    task_names = [get_title_from_task(task) if isinstance(task, list) else task for task in selected_tasks]
+    n_tasks = len(selected_tasks)
+
+    # Initialize correlation matrix
+    corr_matrix = np.zeros((n_tasks, n_tasks))
+
+    # Calculate correlations
+    for i in tqdm(range(n_tasks)):
+        task1 = selected_tasks[i]
+        task1_name = task_names[i]
+        task1_pred = pred_scores_dict[task1_name if isinstance(task1, list) else task1]
+        
+        # Only compute upper triangle for efficiency
+        for j in range(i, n_tasks):
+            task2 = selected_tasks[j]
+            task2_name = task_names[j]
+            task2_target = target_scores_dict[task2_name if isinstance(task2, list) else task2]
+            
+            # Find models with scores for both tasks
+            common_models = task1_pred.index.intersection(task2_target.index)
+            
+            if len(common_models) > 1:
+                # Get scores for common models
+                pred1 = task1_pred[common_models].dropna()
+                target2 = task2_target[common_models].dropna()
+                
+                # Find common models after dropping NaN values
+                valid_models = pred1.index.intersection(target2.index)
+                
+                if len(valid_models) > 1:
+                    # Calculate correlation between rankings on pred_metric for task1 vs target_metric for task2
+                    tau, _ = stats.kendalltau(pred1[valid_models], target2[valid_models])
+                    tau = abs(tau) # lazy way to deal with inverted metrics
+                    corr_matrix[i,j] = corr_matrix[j,i] = tau
+
+    return corr_matrix, task_names
+
+
 def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_models, metric='primary_score', axes=None, small_fig=False, run_irt=False, ladder_config_path=DEFAULT_LADDER_CONFIG_PATH):
     results = {}
+
+    # Observational noise
+    observational_models = eval_ladder_models+DDOS_MODEL_NAMES
+    _slice = get_slice(df, task=task, model=observational_models)
+    numerical_cols     = [col for col in _slice.select_dtypes(include='number').columns if col != 'extracted_size']
+    non_numerical_cols = _slice.select_dtypes(exclude='number').columns.tolist() + ['extracted_size']
+    _slice = _slice.groupby('model', as_index=False).agg({col: 'mean' for col in numerical_cols} | {col: 'first' for col in non_numerical_cols})
+    weight_classes = [
+        {
+            'label': '7B',
+            'weight_range': (6_000_000_000, 8_000_000_000)
+        },
+        {
+            'label': '13B',
+            'weight_range': (12_000_000_000, 14_000_000_000)
+        }
+    ]
+    metrics = ['primary_score', 'logits_per_char_corr']
+    for metric in metrics:
+        for weight_class in weight_classes:
+            size_label = weight_class['label']
+            weight_min, weight_max = weight_class['weight_range']
+
+            _slice['extracted_size'] = pd.to_numeric(_slice['extracted_size'], errors='coerce').fillna(_slice['extracted_size']).astype('Int64')
+            _weight_class_scores = _slice[(_slice['extracted_size'] >= weight_min) & (_slice['extracted_size'] <= weight_max)][metric]
+
+            results.update({
+                f'mean:{metric}:{size_label}': _weight_class_scores.mean(),
+                f'range:{metric}:{size_label}': _weight_class_scores.max() - _weight_class_scores.min(),
+                f'std_dev:{metric}:{size_label}': _weight_class_scores.std()
+            })
     
+    # Scaling laws
     primary_score_name = PRIMARY_METRICS_OLMES[task] if isinstance(task, str) and task in PRIMARY_METRICS_OLMES else 'primary_score'
     try:
         # Step 1 ladder prediction (base models)
@@ -310,7 +434,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
         print(task, 'failed on ladder fits', e)
         # raise RuntimeError(task, 'failed on ladder fits', e)
 
-    # intermediate checkpoints
+    # Step-to-step noise
     intermediate_models = ['peteish-moreeval-1B-5xC', 'peteish13-highlr']
     intermediate_model_names = ['1b', '13b']
     for j, model in enumerate(intermediate_models):
@@ -379,7 +503,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             except Exception as e:
                 print(task, f'failed to compute decision accuracy for {additional_metric}', e)
 
-    # Consistent rankings analysis
+    # Decision accuracy
     try:
         two_class, acc_pivot_bpb_primary, metric_pivot = construct_2class_table(
             df, [task], small_metric='logits_per_byte_corr', target_metric='primary_score'
@@ -462,12 +586,13 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             for size in DDOS_SIZES:
                 scores = get_perf_size(df, size, task, additional_metric)[additional_metric]
                 results.update({
+                    f'mean:{additional_metric}:{size}': scores.mean(),
                     f'range:{additional_metric}:{size}': scores.max() - scores.min(),
                     f'std_dev:{additional_metric}:{size}': scores.std()
                 })
     except Exception as e:
-        print(task, 'failed on consistent ranking analysis', e)
-        # raise RuntimeError(task, 'failed on consistent ranking analysis', e)
+        # print(task, 'failed on consistent ranking analysis', e)
+        raise RuntimeError(task, 'failed on consistent ranking analysis', e)
 
     if axes is not None:
         for ax in axes.flat:
@@ -512,6 +637,8 @@ def run_instance_analysis(
     task_name = get_title_from_task(task)
     
     results = {}
+
+    return results
     
     for aggregator in aggregators:
         for metric in metrics:
@@ -646,6 +773,8 @@ def run_task_analysis(args):
         eval_ladder_models, run_irt, aggregators, alpha, quiet) = args
     
     df_instances = connect_db_backend(df_instances)
+
+    df_benchmarks['extracted_size'] = df_benchmarks['model'].apply(extract_size)
 
     benchmark_result = run_analysis(
         df_benchmarks,

@@ -370,7 +370,7 @@ def plot_task_scatter(
         
         ax.axvspan(ax.get_xlim()[0], x_threshold, color='red', alpha=0.2)
         ax.axhspan(y_threshold, ax.get_ylim()[0], color='blue', alpha=0.2)
-        ax.axvspan(x_threshold, ax.get_xlim()[1], ymin=(ax.get_ylim()[0]-y_threshold)/abs(ax.get_ylim()[0]-ax.get_ylim()[1]), ymax=1, color='green', alpha=0.05)
+        # ax.axvspan(x_threshold, ax.get_xlim()[1], ymin=(ax.get_ylim()[0]-y_threshold)/abs(ax.get_ylim()[0]-ax.get_ylim()[1]), ymax=1, color='green', alpha=0.05)
         
         ax.text(0.02, 0.98, 'Too noisy', transform=ax.transAxes, ha='left', va='top', color='darkred', fontsize=8)
         ax.text(0.98, 0.02, 'Not correlated with\ndownstream task', transform=ax.transAxes, ha='right', va='bottom', color='darkblue', fontsize=8)
