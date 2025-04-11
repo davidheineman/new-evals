@@ -2,7 +2,7 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 import os, sys, itertools
 sys.path.append(os.path.dirname(os.getcwd()))
-from utils import DATA_DIR, ROOT_DIR
+from utils import DATA_DIR, PLOT_DIR, ROOT_DIR
 
 import numpy as np
 import pandas as pd
@@ -277,19 +277,19 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             'weight_range': (12_000_000_000, 14_000_000_000)
         }
     ]
-    metrics = ['primary_score', 'logits_per_char_corr']
-    for metric in metrics:
+    observational_metrics = ['primary_score', 'logits_per_char_corr']
+    for observational_metric in observational_metrics:
         for weight_class in weight_classes:
             size_label = weight_class['label']
             weight_min, weight_max = weight_class['weight_range']
 
             _slice['extracted_size'] = pd.to_numeric(_slice['extracted_size'], errors='coerce').fillna(_slice['extracted_size']).astype('Int64')
-            _weight_class_scores = _slice[(_slice['extracted_size'] >= weight_min) & (_slice['extracted_size'] <= weight_max)][metric]
+            _weight_class_scores = _slice[(_slice['extracted_size'] >= weight_min) & (_slice['extracted_size'] <= weight_max)][observational_metric]
 
             results.update({
-                f'mean:{metric}:{size_label}': _weight_class_scores.mean(),
-                f'range:{metric}:{size_label}': _weight_class_scores.max() - _weight_class_scores.min(),
-                f'std_dev:{metric}:{size_label}': _weight_class_scores.std()
+                f'mean:{observational_metric}:{size_label}': _weight_class_scores.mean(),
+                f'range:{observational_metric}:{size_label}': _weight_class_scores.max() - _weight_class_scores.min(),
+                f'std_dev:{observational_metric}:{size_label}': _weight_class_scores.std()
             })
     
     # Scaling laws
@@ -309,8 +309,8 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             axes=[ax]
         )
         results.update({
-            "rel_error:step_1:7b:bpb_to_primary": rel_error_step_1[0], 
-            "rel_error:step_1:13b:bpb_to_primary": rel_error_step_1[1], 
+            "rel_error:step_1:7B:bpb_to_primary": rel_error_step_1[0], 
+            "rel_error:step_1:13B:bpb_to_primary": rel_error_step_1[1], 
         })
         if ax:
             ax.set_ylabel('Task loss (BPB)')
@@ -331,8 +331,8 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             axes=[ax]
         )
         results.update({
-            "rel_error:step_2:7b:bpb_to_primary": rel_error_step_2[0], 
-            "rel_error:step_2:13b:bpb_to_primary": rel_error_step_2[1], 
+            "rel_error:step_2:7B:bpb_to_primary": rel_error_step_2[0], 
+            "rel_error:step_2:13B:bpb_to_primary": rel_error_step_2[1], 
         })
         if ax:
             ax.set_xlabel('Task loss (BPB)')
@@ -381,14 +381,18 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             axes=[ax]
         )
         results.update({
-            "rel_error:stacked:7b:bpb_to_primary": rel_error_stacked[0], 
-            "rel_error:stacked:13b:bpb_to_primary": rel_error_stacked[1], 
+            "rel_error:stacked:7B:bpb_to_primary": rel_error_stacked[0], 
+            "rel_error:stacked:13B:bpb_to_primary": rel_error_stacked[1], 
         })
         if ax:
             # ax.set_ylabel(primary_score_name)
             ax.set_ylabel(metric)
             ax.legend(fontsize=6)
             ax.set_title('Scaling Law Prediction')
+        
+        # fig, ax = plt.subplots(figsize=(10, 6))
+        # plt.savefig(os.path.join(PLOT_DIR, f'debug:{task}:{metric}.pdf'))
+        # plt.close()
 
         # Stacked prediction -- C4 as intermediate feature
         rel_error_step_1, _, rel_error_stacked = run_ladder(
@@ -403,10 +407,10 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             config_path=ladder_config_path,
         )
         results.update({
-            "rel_error:step_1:7b:c4_to_primary": rel_error_step_1[0], 
-            "rel_error:step_1:13b:c4_to_primary": rel_error_step_1[1], 
-            "rel_error:stacked:7b:c4_to_primary": rel_error_stacked[0], 
-            "rel_error:stacked:13b:c4_to_primary": rel_error_stacked[1], 
+            "rel_error:step_1:7B:c4_to_primary": rel_error_step_1[0], 
+            "rel_error:step_1:13B:c4_to_primary": rel_error_step_1[1], 
+            "rel_error:stacked:7B:c4_to_primary": rel_error_stacked[0], 
+            "rel_error:stacked:13B:c4_to_primary": rel_error_stacked[1], 
         })
 
         if run_irt:
@@ -423,10 +427,10 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
                     config_path=ladder_config_path,
                 )
                 results.update({
-                    "rel_error:step_1:7b:bpb_to_irt": rel_error_step_1[0], 
-                    "rel_error:step_1:13b:bpb_to_irt": rel_error_step_1[1], 
-                    "rel_error:stacked:7b:bpb_to_irt": rel_error_stacked[0], 
-                    "rel_error:stacked:13b:bpb_to_irt": rel_error_stacked[1], 
+                    "rel_error:step_1:7B:bpb_to_irt": rel_error_step_1[0], 
+                    "rel_error:step_1:13B:bpb_to_irt": rel_error_step_1[1], 
+                    "rel_error:stacked:7B:bpb_to_irt": rel_error_stacked[0], 
+                    "rel_error:stacked:13B:bpb_to_irt": rel_error_stacked[1], 
                 })
             except Exception as e:
                 print(task, 'failed to fit IRT model', e)
@@ -436,7 +440,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
 
     # Step-to-step noise
     intermediate_models = ['peteish-moreeval-1B-5xC', 'peteish13-highlr']
-    intermediate_model_names = ['1b', '13b']
+    intermediate_model_names = ['1B', '13B']
     for j, model in enumerate(intermediate_models):
         model_name = intermediate_model_names[j]
 
@@ -624,7 +628,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
     return results
 
 
-def run_instance_analysis(
+def compute_instance_analysis(
     df_instances, 
     task, 
     aggregators=['micro', 'macro'], 
@@ -635,10 +639,11 @@ def run_instance_analysis(
     quiet=False
     ):
     task_name = get_title_from_task(task)
+
+    if isinstance(df_instances, str):
+        df_instances = connect_db_backend(df_instances)
     
     results = {}
-
-    return results
     
     for aggregator in aggregators:
         for metric in metrics:
@@ -653,7 +658,7 @@ def run_instance_analysis(
                         plt.close()
                         mixes_A, scores_A, p_values_A, sig_clusters_A = out[task_name]
 
-                        if p_values_A == float('-inf'):
+                        if isinstance(p_values_A, float) and p_values_A == float('-inf'):
                             # If we cannot binarize scores, return
                             continue
 
@@ -667,7 +672,7 @@ def run_instance_analysis(
                             f"perc_sig:{metric}:{aggregator}:{size}:{('binary' if binarize else 'non_binary')}": perc_sig,
                         })
                     except Exception as e:
-                        print(task_name, f'failed to compute significance test for aggregator={aggregator} on metric={metric}', e)
+                        raise RuntimeError(task_name, f'failed to compute significance test for aggregator={aggregator} on metric={metric}', e)
     
     # Compute instance-level agreement rate
     aggregator = 'micro'
@@ -720,6 +725,8 @@ def run_instance_analysis(
                     f'mean_information:{metric}:{aggregator}:{size}': avg_tif
                 })
 
+            continue
+
             # Check if results are {0, 1}. If results are [0, 1], then we binarize
             binary_scores = scores
             is_binary = np.all(np.logical_or(scores == 0, scores == 1))
@@ -728,7 +735,7 @@ def run_instance_analysis(
                 is_binary = True
 
             if is_binary:
-                # Compute MDE in parallel
+                # Compute MDE in parallel (warning: causes lots of deadlocks)
                 n_models, n_instances = binary_scores.shape
                 mdes = np.full((n_models, n_models), np.nan)
 
@@ -768,35 +775,9 @@ def run_instance_analysis(
     return results
 
 
-def run_task_analysis(args):
-    (df_benchmarks, df_instances, task, ladder_models, external_ladder_models, 
-        eval_ladder_models, run_irt, aggregators, alpha, quiet) = args
-    
-    df_instances = connect_db_backend(df_instances)
-
-    df_benchmarks['extracted_size'] = df_benchmarks['model'].apply(extract_size)
-
-    benchmark_result = run_analysis(
-        df_benchmarks,
-        task=task,
-        ladder_models=ladder_models,
-        external_ladder_models=external_ladder_models,
-        eval_ladder_models=eval_ladder_models, 
-        run_irt=run_irt
-    )
-
-    instance_result = run_instance_analysis(
-        df_instances,
-        task=task,
-        aggregators=aggregators,
-        alpha=alpha,
-        quiet=quiet
-    )
-
-    return benchmark_result, instance_result
 
 
-def compute_metaproperties(df_benchmarks, df_instances, selected_tasks, run_irt=False, quiet=False):
+def compute_metaproperties(df_benchmarks, df_instances, selected_tasks, run_irt=False, run_instance_analysis=False, quiet=False):
     ALPHA=1e-4
 
     task_names = [get_title_from_task(task) for task in selected_tasks]
@@ -815,47 +796,67 @@ def compute_metaproperties(df_benchmarks, df_instances, selected_tasks, run_irt=
         and not is_excluded_from_lite(model)
     ])
 
+    # Add extracted size
+    df_benchmarks['extracted_size'] = df_benchmarks['model'].apply(extract_size)
+
     benchmark_results = []
-    insance_results = []
+    instance_results = []
 
-    # Prepare arguments for parallel processing
-    args = []
+    # Run benchmark analysis
+    benchmark_args = []
     for task in selected_tasks:
-        task_name = get_title_from_task(task)
-        aggregators = ['micro', 'macro', 'irt'] if run_irt else ['micro', 'macro']
-        args.append((
-            df_benchmarks,
-            df_instances, 
-            task,
-            ladder_models,
-            ladder_models + llama_3_models,
-            external_models,
-            run_irt,
-            aggregators,
-            ALPHA,
-            quiet
-        ))
-
+        benchmark_args.append({
+            'df': df_benchmarks,
+            'task': task,
+            'ladder_models': ladder_models,
+            'eval_ladder_models': ladder_models + llama_3_models,
+            'external_ladder_models': external_models,
+            'run_irt': run_irt
+        })
+    
     with ProcessPoolExecutor() as executor:
-        results = list(tqdm(
-            executor.map(run_task_analysis, args),
-            total=len(args),
-            desc="Computing task properties",
-            disable=quiet
+        futures = []
+        for kwargs in benchmark_args:
+            futures.append(executor.submit(run_analysis, **kwargs))
+        
+        benchmark_results = list(tqdm(
+            (f.result() for f in futures),
+            total=len(benchmark_args),
+            desc="Computing benchmark properties"
         ))
 
-    # Unpack results
-    benchmark_results = [r[0] for r in results]
-    insance_results   = [r[1] for r in results]
+    # Run instance analysis
+    if run_instance_analysis:
+        instance_args = []
+        for task in selected_tasks:
+            aggregators = ['micro', 'macro', 'irt'] if run_irt else ['micro', 'macro']
+            instance_args.append({
+                'df_instances': df_instances,
+                'task': task,
+                'aggregators': aggregators,
+                'alpha': ALPHA,
+                'quiet': quiet
+            })
+
+        with ProcessPoolExecutor() as executor:
+            futures = []
+            for kwargs in instance_args:
+                futures.append(executor.submit(compute_instance_analysis, **kwargs))
+            
+            instance_results = list(tqdm(
+                (f.result() for f in futures),
+                total=len(instance_args),
+                desc="Computing instance properties"
+            ))
 
     # Create dataframe, filling in missing results as -inf
     all_keys = set().union(*benchmark_results)
     normalized_results = [{key: d.get(key, float('-inf')) for key in all_keys} for d in benchmark_results]
     df_benchmark_results = pd.DataFrame(normalized_results, index=task_names)
-    df_instance_results  = pd.DataFrame(insance_results, index=task_names)
+    df_instance_results = pd.DataFrame(instance_results, index=task_names)
     df_results = pd.concat([df_benchmark_results, df_instance_results], axis=1)
 
-    # Remove duplciate results if they exist
+    # Remove duplicate results if they exist
     n_duplicates = len(df_results.index) - len(df_results.index.unique())
     if n_duplicates > 0:
         print(f"Removing {n_duplicates} duplicates")

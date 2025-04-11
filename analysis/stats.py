@@ -5,7 +5,7 @@ import math
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-import os, sys
+import os, sys, warnings
 
 from utils import DATA_DIR, get_title_from_task
 from utils.pce import compute_pairwise_p_values, compute_weighted_pairwise_p_values, compute_pairwise_p_values_paired_t_test
@@ -552,7 +552,10 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
                 
                 if scores.ndim > 1:
                     # Average all dims except dim 1
-                    acc = np.nanmean(scores, axis=tuple(range(1, scores.ndim)))
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", RuntimeWarning)
+                        with np.errstate(invalid='ignore', divide='ignore'):
+                            acc = np.nanmean(scores, axis=tuple(range(1, scores.ndim)))
                 else:
                     acc = scores
 

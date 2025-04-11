@@ -516,7 +516,7 @@ def run_ladder(
     def compute_rel_error(data, predicted_data, target_name, key):
         y = data[target_name][key][0]
         y_pred = predicted_data[target_name][key][0]
-        rel_error = np.abs(y_pred - y) / y if y > 0 else float('inf')
+        rel_error = np.abs(y_pred - y) / np.abs(y) # if y > 0 else float('inf')
         return y, y_pred, rel_error
 
     def process_step(data, predicted_data, target_name, key, y_list, y_pred_list, rel_error_list):

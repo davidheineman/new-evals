@@ -112,6 +112,8 @@ def is_excluded_from_lite(m):
         'pythia-410m' in m or \
         'Qwen1.5-MoE' in m or \
         'Codestral-22B-v0.1' in m or \
+        'RYS-Medium' in m or \
+        'falcon-mamba-7b' in m or \
         'Qwen1.5-0.5B' in m:
         return True
     
