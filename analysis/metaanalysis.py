@@ -707,23 +707,26 @@ def compute_instance_analysis(
             # Compute Fisher information using IRT scores
             irt_path = Path(DATA_DIR) / "irt" / f"{task_name}.json"
             if irt_path.exists():
-                sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/irt') # Add IRT code to PATH
-                from irt_utils.irt_inference import load_irt_params, test_information
-                from stats import compute_irt
+                try:
+                    sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/irt') # Add IRT code to PATH
+                    from irt_utils.irt_inference import load_irt_params, test_information
+                    from stats import compute_irt
 
-                train_instance_names, discriminations, difficulties = load_irt_params(
-                    load_path=irt_path,
-                )
-                irt_params = (difficulties, discriminations, train_instance_names)
+                    train_instance_names, discriminations, difficulties = load_irt_params(
+                        load_path=irt_path,
+                    )
+                    irt_params = (difficulties, discriminations, train_instance_names)
 
-                thetas = compute_irt(irt_params, instance_names, scores, metric)
-                thetas = thetas.tolist()
-                tif = test_information(thetas, discriminations, difficulties)
-                avg_tif = np.mean(tif)
-                
-                results.update({
-                    f'mean_information:{metric}:{aggregator}:{size}': avg_tif
-                })
+                    thetas = compute_irt(irt_params, instance_names, scores, metric)
+                    thetas = thetas.tolist()
+                    tif = test_information(thetas, discriminations, difficulties)
+                    avg_tif = np.mean(tif)
+                    
+                    results.update({
+                        f'mean_information:{metric}:{aggregator}:{size}': avg_tif
+                    })
+                except Exception as e:
+                    print(f'failed to compute fisher information for task_name={task_name} aggregator={aggregator} on metric={metric}: {e}')
 
             continue
 

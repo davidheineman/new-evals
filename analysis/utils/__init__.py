@@ -28,6 +28,37 @@ def get_title_from_task(task):
         return 'aggregate'
     return task
 
+def get_pretty_task_name(task):
+    """Map task names to prettier display names"""
+    mapping = {
+        'arc_challenge': 'ARC Challenge',
+        'arc_easy': 'ARC Easy', 
+        'autobencher': 'AutoBencher',
+        'boolq': 'BoolQ',
+        'codex_humaneval': 'HumanEval',
+        'codex_humanevalplus': 'HumanEval+',
+        'csqa': 'CommonsenseQA',
+        'drop': 'DROP',
+        'gsm8k': 'GSM8K',
+        'hellaswag': 'HellaSwag',
+        'jeopardy': 'Jeopardy',
+        'mbpp': 'MBPP',
+        'mbppplus': 'MBPP+',
+        'minerva': 'Minerva',
+        'mmlu': 'MMLU',
+        'olmes_core9': 'OLMES Core 9',
+        'olmes_gen': 'OLMES Gen',
+        'openbookqa': 'OpenBookQA',
+        'paloma_c4_en': 'Paloma C4',
+        'paloma_m2d2_s2orc_unsplit': 'Paloma M2D2',
+        'piqa': 'PIQA',
+        'socialiqa': 'SocialIQA', 
+        'squad': 'SQuAD',
+        'triviaqa': 'TriviaQA',
+        'winogrande': 'WinoGrande'
+    }
+    return mapping.get(task, task)
+
 def weka_to_gcs(model_name):
     if 'weka://' in model_name:
         return f"gs://ai2-llm/checkpoints/davidh/{model_name.split('checkpoints/')[1]}"

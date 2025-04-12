@@ -343,7 +343,7 @@ def plot_task_scatter(
             display_coords = (display_coords[0] - 5, display_coords[1] + 5)
             data_coords = transform.inverted().transform(display_coords)
             x_pos, y_pos = data_coords
-            ax.text(x_pos, y_pos, f'{xdesc} →',
+            ax.text(x_pos, y_pos, f'← {xdesc}', # →
                     horizontalalignment='right',
                     verticalalignment='bottom',
                     fontsize=8,
@@ -357,7 +357,7 @@ def plot_task_scatter(
             display_coords = (display_coords[0] + 5, display_coords[1] - 5)
             data_coords = transform.inverted().transform(display_coords)
             x_pos, y_pos = data_coords
-            ax.text(x_pos, y_pos, f'↑ {ydesc}',
+            ax.text(x_pos, y_pos, f'↓ {ydesc}', # ↑ 
                     horizontalalignment='left',
                     verticalalignment='top',
                     fontsize=8,
