@@ -32,6 +32,7 @@ def get_pretty_task_name(task):
     """Map task names to prettier display names"""
     mapping = {
         'arc_challenge': 'ARC Challenge',
+        'arc_challenge:mc': 'ARC Challenge',
         'arc_easy': 'ARC Easy', 
         'autobencher': 'AutoBencher',
         'boolq': 'BoolQ',

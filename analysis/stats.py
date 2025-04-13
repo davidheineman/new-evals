@@ -80,6 +80,29 @@ def compute_f1_binary(gold_arr, pred_arr):
 
     return precision, recall, f1
 
+
+def compute_decision_accuracy(mixes_1b, mixes_size):
+    # Count pairs that agree in relative ordering
+    agree_count = 0
+    total_pairs = 0
+    for i in range(len(mixes_1b)):
+        for j in range(i+1, len(mixes_1b)):
+            mix1_1b, mix2_1b = mixes_1b[i], mixes_1b[j]
+            # Find positions of same mixes in size ordering
+            try:
+                pos1_size = mixes_size.index(mix1_1b)
+                pos2_size = mixes_size.index(mix2_1b)
+                # Check if relative ordering agrees
+                if (pos1_size < pos2_size) == (i < j):
+                    agree_count += 1
+                total_pairs += 1
+            except ValueError:
+                continue
+
+    decision_accuracy = agree_count / total_pairs if total_pairs > 0 else 0
+    return decision_accuracy
+
+
 def compute_irt(irt_params, test_instance_names, test_scores, metric):
     sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/irt') # Add IRT code to PATH
     from irt_utils.irt_inference import load_irt_params, calculate_theta
