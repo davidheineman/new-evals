@@ -607,20 +607,29 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             if not ax.has_data():
                 ax.remove()
 
+    # SNR
+    for size in DDOS_SIZES + ['1B', '7B', '13B']:
+        if f'std_dev:{metric}:{size}' in results and \
+            f'mean:{metric}:{size}' in results and \
+            f'tv:{metric}:{size}' in results:
+            results[f'rel_std:{metric}:{size}'] = results[f'std_dev:{metric}:{size}'] / results[f'mean:{metric}:{size}']
+            results[f'snr:{metric}:{size}'] = results[f'rel_std:{metric}:{size}'] / results[f'tv:{metric}:{size}']
+    
     # Total cost of evaluation
     try:
         task_as_list = [task] if isinstance(task, str) else task
-        total_cost = 0
+        total_instances = 0
         for subtask in task_as_list:
             task_results = get_slice(df, task=subtask)
             num_instances = task_results['num_instances'].iloc[0]
             eval_cost = num_instances
             assert (task_results['num_instances'] == num_instances).all(), f"num_instances should be constant across task={subtask} for task_as_list={task_as_list}"
-            total_cost += eval_cost
-        total_cost = int(total_cost)
+            total_instances += eval_cost
+        total_instances = int(total_instances)
         results.update({
-            "total_cost": total_cost,
-            "total_cost_div_4": total_cost / 4 # Hacky way to estimate BPB vs. RC cost (assumes all tasks have 4 answer choices)
+            "n_instances": total_instances,
+            "total_cost": total_instances,
+            "total_cost_div_4": total_instances / 4 # Hacky way to estimate BPB vs. RC cost (assumes all tasks have 4 answer choices)
         })
     except Exception as e:
         print('Failed to calculate compute cost:', e)
@@ -776,8 +785,6 @@ def compute_instance_analysis(
                 })
 
     return results
-
-
 
 
 def compute_metaproperties(df_benchmarks, df_instances, selected_tasks, run_irt=False, run_instance_analysis=False, quiet=False):

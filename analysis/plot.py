@@ -6,7 +6,6 @@ from typing import List, Tuple
 import math
 from dataloader import get_slice
 from utils import get_title_from_task
-from utils import PLOT_DIR
 
 # Global dictionary to store colors for labels
 LABEL_COLOR_MAP = {}
