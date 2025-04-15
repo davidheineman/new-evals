@@ -174,8 +174,6 @@ def get_task_correlations(df_benchmarks, selected_tasks, pred_metric='logits_per
     # Get model names from df_benchmarks
     models = sorted(list(df_benchmarks['model'].unique()))
     ladder_models = [model for model in models if "peteish-moreeval" in model]
-    ladder_models = sort_experiment_names(ladder_models)
-    llama_3_models = [model for model in models if "Llama-3" in model]
     external_models = sorted([
         model for model in models 
         if model not in
@@ -219,14 +217,10 @@ def get_task_correlations(df_benchmarks, selected_tasks, pred_metric='logits_per
             pred_scores_dict[task] = pred_scores
             target_scores_dict[task] = target_scores
 
-    # Get task names for display
+    # Calculate correlations
     task_names = [get_title_from_task(task) if isinstance(task, list) else task for task in selected_tasks]
     n_tasks = len(selected_tasks)
-
-    # Initialize correlation matrix
     corr_matrix = np.zeros((n_tasks, n_tasks))
-
-    # Calculate correlations
     for i in tqdm(range(n_tasks)):
         task1 = selected_tasks[i]
         task1_name = task_names[i]
@@ -262,7 +256,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
     results = {}
 
     # Observational noise
-    observational_models = eval_ladder_models+DDOS_MODEL_NAMES
+    observational_models = external_ladder_models+eval_ladder_models+DDOS_MODEL_NAMES
     _slice = get_slice(df, task=task, model=observational_models)
     numerical_cols     = [col for col in _slice.select_dtypes(include='number').columns if col != 'extracted_size']
     non_numerical_cols = _slice.select_dtypes(exclude='number').columns.tolist() + ['extracted_size']
@@ -277,14 +271,19 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             'weight_range': (12_000_000_000, 14_000_000_000)
         }
     ]
-    observational_metrics = ['primary_score', 'logits_per_char_corr']
+    observational_metrics = ['primary_score', 'logits_per_char_corr', 'logits_per_byte_corr']
     for observational_metric in observational_metrics:
         for weight_class in weight_classes:
             size_label = weight_class['label']
             weight_min, weight_max = weight_class['weight_range']
 
-            _slice['extracted_size'] = pd.to_numeric(_slice['extracted_size'], errors='coerce').fillna(_slice['extracted_size']).astype('Int64')
-            _weight_class_scores = _slice[(_slice['extracted_size'] >= weight_min) & (_slice['extracted_size'] <= weight_max)][observational_metric]
+            # _slice['extracted_size'] = pd.to_numeric(_slice['extracted_size'], errors='coerce').fillna(_slice['extracted_size']).astype('Int64')
+            _weight_class_scores = _slice[
+                (weight_min >= _slice['extracted_size']) & \
+                (_slice['extracted_size'] <= weight_max)
+            ][observational_metric]
+
+            assert len(_weight_class_scores) > 0, f'Found no external models for weight class: {weight_class}'
 
             results.update({
                 f'mean:{observational_metric}:{size_label}': _weight_class_scores.mean(),
@@ -492,20 +491,33 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
         })
 
         # Additional metric calculations
-        additional_metrics = ['primary_score', 'logits_per_char_corr']
+        additional_metrics = ['primary_score', 'logits_per_char_corr', 'logits_per_byte_corr']
         if run_irt: 
             additional_metrics += ['theta_bpb', 'theta_primary_score']
         for additional_metric in additional_metrics:
             try:
+                # TODO: Compute a step_std and step_rel_std of last 20% and last 10 ckpts
+                
                 tv, _ = compute_total_variation(
                     df, models=[model], metric=additional_metric, tasks=[task]
                 )
                 tv_result = tv[task]['total_variation'] if not isinstance(task, list) else tv.loc['total_variation']['aggregate']
+                tv_result_no_norm = tv[task]['total_variation:no_norm'] if not isinstance(task, list) else tv.loc['total_variation:no_norm']['aggregate']
+                step_std_20 = tv[task]['step_std:perc20'] if not isinstance(task, list) else tv.loc['step_std:perc20']['aggregate']
+                step_rel_std_20 = tv[task]['step_rel_std:perc20'] if not isinstance(task, list) else tv.loc['step_rel_std:perc20']['aggregate']
+                step_std_10 = tv[task]['step_std:last10'] if not isinstance(task, list) else tv.loc['step_std:last10']['aggregate']
+                step_rel_std_10 = tv[task]['step_rel_std:last10'] if not isinstance(task, list) else tv.loc['step_rel_std:last10']['aggregate']
+                
                 results.update({
-                    f'tv:{additional_metric}:{model_name}': tv_result
+                    f'tv:{additional_metric}:{model_name}': tv_result,
+                    f'tv_no_norm:{additional_metric}:{model_name}': tv_result_no_norm,
+                    f'step_std:perc20:{additional_metric}:{model_name}': step_std_20,
+                    f'step_rel_std:perc20:{additional_metric}:{model_name}': step_rel_std_20,
+                    f'step_std:last10:{additional_metric}:{model_name}': step_std_10,
+                    f'step_rel_std:last10:{additional_metric}:{model_name}': step_rel_std_10
                 })
             except Exception as e:
-                print(task, f'failed to compute decision accuracy for {additional_metric}', e)
+                print(task, f'failed to compute total variation for {additional_metric}', e)
 
     # Decision accuracy
     try:
@@ -608,12 +620,24 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
                 ax.remove()
 
     # SNR
-    for size in DDOS_SIZES + ['1B', '7B', '13B']:
-        if f'std_dev:{metric}:{size}' in results and \
-            f'mean:{metric}:{size}' in results and \
-            f'tv:{metric}:{size}' in results:
-            results[f'rel_std:{metric}:{size}'] = results[f'std_dev:{metric}:{size}'] / results[f'mean:{metric}:{size}']
-            results[f'snr:{metric}:{size}'] = results[f'rel_std:{metric}:{size}'] / results[f'tv:{metric}:{size}']
+    snr_metrics = ['primary_score', 'logits_per_char_corr', 'logits_per_byte_corr']
+    for snr_metric in snr_metrics:
+        for size in DDOS_SIZES + ['1B', '7B', '13B']:
+            if f'std_dev:{snr_metric}:{size}' in results and \
+                f'mean:{snr_metric}:{size}' in results and \
+                f'tv:{snr_metric}:{size}' in results:
+
+                # tv_no_norm
+                # step_std:perc20
+                # step_rel_std:perc20
+                # step_std:last10
+                # step_rel_std:last10
+
+                results[f'rel_std:{snr_metric}:{size}'] = \
+                    abs(results[f'std_dev:{snr_metric}:{size}'] / results[f'mean:{snr_metric}:{size}'])
+                results[f'snr:{snr_metric}:{size}'] = \
+                    results[f'rel_std:{snr_metric}:{size}'] / abs(results[f'step_rel_std:last10:{snr_metric}:{size}']) if abs(results[f'step_rel_std:last10:{snr_metric}:{size}']) > 0 else float('-inf')
+                    # results[f'rel_std:{snr_metric}:{size}'] / abs(results[f'tv:{snr_metric}:{size}']) if abs(results[f'tv:{snr_metric}:{size}']) > 0 else float('-inf')
     
     # Total cost of evaluation
     try:

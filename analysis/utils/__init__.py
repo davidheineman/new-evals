@@ -6,6 +6,7 @@ PLOT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.
 
 def get_title_from_task(task):
     if isinstance(task, list):
+        assert len(task) > 0, f'Seeing empty array passed as a task: {task}'
         if len(task) == 1:
             return task[0]
         title_mapping = {
@@ -31,33 +32,46 @@ def get_title_from_task(task):
 def get_pretty_task_name(task):
     """Map task names to prettier display names"""
     mapping = {
+        'arc_challenge:mc': 'ARC Challenge MC',
         'arc_challenge': 'ARC Challenge',
-        'arc_challenge:mc': 'ARC Challenge',
+        'arc_easy:mc': 'ARC Easy MC', 
         'arc_easy': 'ARC Easy', 
+        'autobencher:mc': 'Autobencher MC',
         'autobencher': 'AutoBencher',
+        'boolq:mc': 'BoolQ MC',
         'boolq': 'BoolQ',
         'codex_humaneval': 'HumanEval',
         'codex_humanevalplus': 'HumanEval+',
+        'csqa:mc': 'CommonsenseQA MC',
         'csqa': 'CommonsenseQA',
         'drop': 'DROP',
         'gsm8k': 'GSM8K',
+        'hellaswag:mc': 'HellaSwag MC',
         'hellaswag': 'HellaSwag',
         'jeopardy': 'Jeopardy',
         'mbpp': 'MBPP',
         'mbppplus': 'MBPP+',
         'minerva': 'Minerva',
+        'mmlu_mc': 'MMLU MC',
         'mmlu': 'MMLU',
+        'olmes_core9_mc': 'OLMES Core 9 MC',
         'olmes_core9': 'OLMES Core 9',
         'olmes_gen': 'OLMES Gen',
+        'openbookqa:mc': 'OpenBookQA MC',
         'openbookqa': 'OpenBookQA',
         'paloma_c4_en': 'Paloma C4',
         'paloma_m2d2_s2orc_unsplit': 'Paloma M2D2',
+        'piqa:mc': 'PIQA MC',
         'piqa': 'PIQA',
+        'socialiqa:mc': 'SocialIQA MC',
         'socialiqa': 'SocialIQA', 
         'squad': 'SQuAD',
         'triviaqa': 'TriviaQA',
-        'winogrande': 'WinoGrande'
+        'winogrande:mc': 'WinoGrande MC',
+        'winogrande': 'WinoGrande',
     }
+    if task not in mapping:
+        print(f"Task not in mapping: {task}")
     return mapping.get(task, task)
 
 def weka_to_gcs(model_name):

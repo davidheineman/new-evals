@@ -495,7 +495,11 @@ def compute_agreement(
     return agree_results, all_p_values, None
 
 
-def calculate_and_plot_total_variation(x, y, metric, model_name=None, num_scores=None, title=None, color=None, ax=None, add_text=True):
+def calculate_and_plot_total_variation(
+        x, y, metric, 
+        norm=True, improvement=True,
+        model_name=None, num_scores=None, title=None, color=None, ax=None, add_text=True
+    ):
     # Sort by x
     x, y = np.array(x), np.array(y)
     sorted_indices = np.argsort(x)
@@ -607,6 +611,37 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
                 ax=axes[i] if axes is not None else None,
                 add_text=add_text
             )
+
+            tv_results.loc['total_variation:no_norm', task_name] = calculate_and_plot_total_variation(
+                x=step,
+                y=acc,
+                metric=metric,
+                norm=False
+            )
+
+            # Compute std
+            sorted_indices = np.argsort(step)
+            step = step[sorted_indices]
+            acc = acc[sorted_indices]
+
+            # Get last 20% and last 10 checkpoints
+            n_20_percent = int(len(step) * 0.2)
+            n_10 = min(10, len(step))  # Take last 10 checkpoints or all if less than 10
+
+            # Calculate std and relative std for last 20%
+            last_20_std = np.std(acc[-n_20_percent:])
+            last_20_mean = np.mean(acc[-n_20_percent:])
+            last_20_rel_std = last_20_std / abs(last_20_mean) if last_20_mean != 0 else np.nan
+
+            # Calculate std and relative std for last 10 checkpoints
+            last_10_std = np.std(acc[-n_10:])
+            last_10_mean = np.mean(acc[-n_10:])
+            last_10_rel_std = last_10_std / abs(last_10_mean) if last_10_mean != 0 else np.nan
+
+            tv_results.loc['step_std:perc20', task_name] = last_20_std
+            tv_results.loc['step_rel_std:perc20', task_name] = last_20_rel_std
+            tv_results.loc['step_std:last10', task_name] = last_10_std
+            tv_results.loc['step_rel_std:last10', task_name] = last_10_rel_std
         
         if axes is not None and axes[i].get_legend_handles_labels()[1]:
             axes[i].legend(fontsize=8)

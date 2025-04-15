@@ -5,7 +5,7 @@ import pandas as pd
 from typing import List, Tuple
 import math
 from dataloader import get_slice
-from utils import get_title_from_task
+from utils import get_title_from_task, get_pretty_task_name
 
 # Global dictionary to store colors for labels
 LABEL_COLOR_MAP = {}
@@ -329,7 +329,7 @@ def plot_task_scatter(
         ylim = ax.get_ylim()
         if ((xlim[0] <= x <= xlim[1]) if not ax.xaxis_inverted() else (xlim[1] <= x <= xlim[0])) and \
            ((ylim[0] <= y <= ylim[1]) if not ax.yaxis_inverted() else (ylim[1] <= y <= ylim[0])):
-            texts += [ax.text(x, y, get_title_from_task(task), fontsize=5, clip_on=True)]
+            texts += [ax.text(x, y, get_pretty_task_name(get_title_from_task(task)), fontsize=7, clip_on=True)] # fontsize=5
         
     adjustText(ax, texts)
 
