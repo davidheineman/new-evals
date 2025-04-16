@@ -1,3 +1,4 @@
+from matplotlib import pyplot as plt
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 
@@ -116,7 +117,7 @@ def get_slice(df, model, task):
     return df
 
 
-def plot_task_accuracy(ax, two_class_results, task, sizes, show_legend=False, size_colors=SIZE_COLORS):
+def plot_task_accuracy(ax: plt.Axes, two_class_results, task, sizes, show_legend=False, size_colors=SIZE_COLORS):
     # First plot all scatter points
     all_x = []
     all_y = []
@@ -168,11 +169,11 @@ def plot_task_accuracy(ax, two_class_results, task, sizes, show_legend=False, si
     if show_legend: ax.legend(loc='lower right', fontsize=10, ncols=2)
 
     # Add vertical lines at specific FLOPS values with matching colors and accuracies
-    # for flops, size in zip(sizes, ['150M', '300M', '530M', '750M', '1B']):
-    for flops, size in zip(sizes, list(size_colors.keys())):
+    for size in list(size_colors.keys()):
         if size not in two_class_results.index.tolist():
             continue
         try:
+            flops = two_class_results.loc[size].dropna().index[0]
             acc = two_class_results.loc[size].get(np.float64(flops), np.nan)
             if not np.isnan(acc) and not np.isneginf(acc):
                 ax.axvline(x=flops, color=size_colors[size], linestyle=':', alpha=0.7)
@@ -180,6 +181,7 @@ def plot_task_accuracy(ax, two_class_results, task, sizes, show_legend=False, si
                     flops, 0.98, ' ' + ('1.' if acc == 1 else f'{acc:.2f}').lstrip('0'), 
                     rotation=0, color=size_colors[size], ha='left', va='bottom', fontsize=8)
             else:
+                # raise FileNotFoundError(f'Not all results found for task={task}, size={size}')
                 raise FileNotFoundError(f'Not all results found for task={task}, size={size}')
         except Exception as e:
             # raise RuntimeError(f'Cant graph cheap decisions lines: {e}')

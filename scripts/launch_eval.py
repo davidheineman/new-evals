@@ -7,7 +7,6 @@ sys.path.append(str(parent_dir))
 from analysis.utils import weka_to_gcs
 
 from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_MIXES_FINAL, MODEL_LIST_MIXES_FINAL_EXTENDED, MODEL_LIST_INTERMEDIATE, MODEL_LIST_INTERMEDIATE_13B, MODEL_LIST_MIXES, OE_EVAL_BASE_MODELS, OE_EVAL_INSTRUCT_MODELS, OE_EVAL_ALL_MODELS, OE_EVAL_BASE_MODELS_EXTENDED, OE_EVAL_BASE_MODELS_EXTENDED_2, MODEL_LIST_INTERMEDIATE_7B, MODEL_LIST_INTERMEDIATE_32B
-from analysis.utils.constants_final_6_ckpts import MODEL_LIST_FINAL_SIX_CKPTS
 from analysis.utils.constants_models import WEKA_CLUSTERS, GCP_CLUSTERS
 from analysis.utils.constants_tasks import MC_TASKS_COPY_COLORS, MISSING_EVALS
 
