@@ -16,8 +16,16 @@ def convert_csv_to_parquet(csv_file_path):
     # Remove fake added index
     df = df.drop(columns=["Unnamed: 0"], errors='ignore')
 
-    # Remove erroneous columns
-    df = df[[col for col in df.columns if '_bits_per_byte' not in col and '_ppl_byte' not in col and '_ppl_word' not in col and '_ppl_char' not in col and '_ppl_token' not in col and '_sub_' not in col]]
+    # Remove erroneous columns (mostly document-level results for perplexity)
+    exclude_patterns = [
+        '_bits_per_byte',
+        '_ppl_byte',
+        '_ppl_word', 
+        '_ppl_char',
+        '_ppl_token',
+        '_sub_'
+    ]
+    df = df[[col for col in df.columns if not any(pattern in col for pattern in exclude_patterns)]]
     
     df.to_parquet(parquet_file_path, index=False)
     return parquet_file_path
@@ -89,53 +97,6 @@ def pull_predictions_from_hf(repo_id, split_name, local_path=DATA_DIR):
 
 
 def main():
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/olmo2_soups_predictions.parquet',
-    #     hf_dataset_name='allenai/olmo2-soups-evals',
-    #     overwrite=True
-    # )
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/olmo2_anneals_predictions.parquet',
-    #     hf_dataset_name='allenai/olmo2-anneals-evals',
-    #     split_name='main',
-    #     overwrite=True
-    # )
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/olmo2_anneals_with_pdf_predictions.parquet',
-    #     hf_dataset_name='allenai/olmo2-anneals-evals',
-    #     split_name='with_pdfs',
-    #     overwrite=True
-    # )
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/olmo2_microanneals_predictions.parquet',
-    #     hf_dataset_name='allenai/olmo2-microanneals-evals',
-    #     overwrite=True
-    # )
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/reddit_metrics.parquet',
-    #     hf_dataset_name='allenai/reddit-anneal-evals',
-    #     split_name='benchmarks',
-    #     overwrite=True
-    # )
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/reddit_predictions.parquet',
-    #     hf_dataset_name='allenai/reddit-anneal-evals',
-    #     split_name='instances',
-    #     overwrite=True
-    # )
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/peteish32_metrics.parquet',
-    #     hf_dataset_name='allenai/peteish32-evals',
-    #     split_name='benchmarks',
-    #     overwrite=True
-    # )
-    # push_parquet_to_hf(
-    #     parquet_file_path='analysis/data/peteish32_predictions.parquet',
-    #     hf_dataset_name='allenai/peteish32-evals',
-    #     split_name='instances',
-    #     overwrite=True
-    # )
-
     push_parquet_to_hf(
         parquet_file_path='analysis/data/aws_metrics.parquet',
         hf_dataset_name='allenai/ladder-evals',

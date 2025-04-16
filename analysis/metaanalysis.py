@@ -20,7 +20,7 @@ from table import display_task_variants
 from ladder_ian import compute_2_class, get_compute, plot_task_accuracy
 from utils import get_title_from_task, extract_size
 from utils.constants_models import DDOS_MODEL_NAMES
-from download.utils_cheap_decisions import PRIMARY_METRICS_OLMES
+from download.constants_olmes import PRIMARY_METRICS_OLMES
 
 from ladder_wrapper import sort_experiment_names
 from download.preprocess import is_excluded_from_lite
@@ -281,9 +281,11 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
             _weight_class_scores = _slice[
                 (weight_min >= _slice['extracted_size']) & \
                 (_slice['extracted_size'] <= weight_max)
-            ][observational_metric]
+            ]
 
             assert len(_weight_class_scores) > 0, f'Found no external models for weight class: {weight_class}'
+
+            _weight_class_scores = _weight_class_scores[observational_metric]
 
             results.update({
                 f'mean:{observational_metric}:{size_label}': _weight_class_scores.mean(),

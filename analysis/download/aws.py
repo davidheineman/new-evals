@@ -26,9 +26,6 @@ def download_file(s3_client, bucket_name, key, local_dir, excluded_file_names):
     if any(f in key.split('/')[-1] for f in excluded_file_names):
         return # Skip download if there are any str matches with EXCLUDED_FILE_NAMES
     
-    # if os.path.exists(local_path):
-    #     return  # Skip download if the file already exists
-    
     if os.path.exists(local_path):
         s3_head = s3_client.head_object(Bucket=bucket_name, Key=key)
         s3_file_size = s3_head['ContentLength']
@@ -36,66 +33,9 @@ def download_file(s3_client, bucket_name, key, local_dir, excluded_file_names):
         if s3_file_size == local_file_size:
             return  # Skip download if the file already exists and has the same size
 
-    # Manual override for Ian's eval setup
-    local_path.replace('all_olmes_rc_tasks/', '')
-    local_path.replace('all_olmes_paraphrase_tasks/', '')
-
     # Fix GCS path setup
     local_path = local_path.replace('gs://ai2-llm/checkpoints/davidh', '')
     local_path = local_path.replace('step928646-hf-vllm-2', 'step928646-hf') # naming issue for peteish7
-
-    # Manual override for Matt J's eval setup
-    if 'olmo2_microanneals' in local_path:
-        # 1) Seperate checkpoint: [MODEL_NAME]_step2693-hf => [MODEL_NAME]/step2693-hf
-        local_path = re.sub(r'([a-zA-Z0-9_-]+)_step(\d+)-hf', r'\1/step\2-hf', local_path)
-
-        # 2) Delete the OLMo 1 evals (__olmo1)
-        if '__olmo1' in local_path: return
-
-        # 3) Remove any subfolders after checkpoint: [MODEL_NAME]/step2693-hf/gsm8k__olmes/result.json => step2693-hf/result.json
-        local_path = re.sub(r'(step\d+-hf)(/.*)?/([^/]+)$', r'\1/\3', local_path)
-
-        # 4) Get human-readable name from model description
-        #    OLMo-medium_peteish7-microanneals_peteish7-weka-microanneal-from928646_automathtext => automathtext
-        def get_short(p):
-            try:
-                # Match "fromXXXXXX_" and extract the part after it
-                return re.search(r'from\d+_(.*)', p).group(1)
-            except Exception:
-                return p
-        
-        def process_path(input_path):
-            """ Perform a substitution on one folder in the path """
-            parts = input_path.split('/')
-            parts[-3] = get_short(parts[-3])
-            final_path = '/'.join(parts)
-            return final_path
-
-        local_path = process_path(local_path)
-
-    # Manual override for Luca's eval setup
-    if 'olmo2_anneals' in local_path or 'olmo2_soups' in local_path:
-        # 1) Remove any subfolders after checkpoint: [MODEL_NAME]/step2693-hf/gsm8k__olmes/result.json => step2693-hf/result.json
-        local_path = re.sub(r'([^/]+)/[^/]+/([^/]+)$', r'\1/\2', local_path)
-
-        # 2) Add fake model step: [MODEL_NAME]/result.json => [MODEL_NAME]/step0-hf/result.json
-        dir_path, file_name = os.path.split(local_path)
-        local_path = os.path.join(dir_path, "step0-hf", file_name)
-
-    # Manual override for Kyle's eval setup
-    if 'reddit' in local_path:
-        # 1) Seperate checkpoint: [MODEL_NAME]_step2693-hf => [MODEL_NAME]/step2693-hf
-        local_path = re.sub(r'([a-zA-Z0-9_-]+)_step(\d+)-hf', r'\1/step\2-hf', local_path)
-
-        # 2) Remove any subfolders after checkpoint: [MODEL_NAME]/step2693-hf/gsm8k__olmes/result.json => step2693-hf/result.json
-        local_path = re.sub(r'(step\d+-hf)(/.*)?/([^/]+)$', r'\1/\3', local_path)
-
-    if 'peteish32' in local_path:
-        # Separate checkpoint: [MODEL_NAME]_stepXXXX??? => [MODEL_NAME]/stepXXXX???
-        local_path = re.sub(r'([a-zA-Z0-9_-]+)_step(\d+)(-[^/]*)?', r'\1/step\2\3', local_path)
-
-        # Remove any subfolders after checkpoint: [MODEL_NAME]/stepXXXX???/.../... => stepXXXX???/file
-        local_path = re.sub(r'(step\d+[^/]*)/.*?/([^/]+)$', r'\1/\2', local_path)
 
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
     s3_client.download_file(bucket_name, key, local_path)
@@ -178,15 +118,6 @@ def main():
     Mirror AWS bucket to a local folder
     https://us-east-1.console.aws.amazon.com/s3/buckets/ai2-llm?prefix=eval-results/downstream/metaeval/OLMo-ladder/&region=us-east-1&bucketType=general
     """
-    # # #### GET REQUESTS FROM IAN'S PROJECT FOR BPB CALCULATION ####
-    # # '/oe-eval-default/davidh/metaeval/analysis/data/consistent_ranking/eval-results/downstream/eval-for-consistent-ranking/baseline-150M-5xC-2/step38157-unsharded-hf'
-    # bucket_name = 'ai2-llm'
-    # s3_prefix = 'eval-results/downstream/eval-for-consistent-ranking/baseline-150M-5xC-2/step38157-unsharded-hf/'
-    # folder_name = 'consistent_ranking'
-    # local_dir = f'{DATA_DIR}/{folder_name}'
-    # mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100, excluded_file_names=[])
-    # # #############################################################
-
     # # #### GET REQUESTS FROM METAEVAL PROJECT FOR QUESTION TEXT ####
     # bucket_name = 'ai2-llm'
     # s3_prefix = 'eval-results/downstream/metaeval/OLMo-ladder/peteish-moreeval-rerun-1B-1xC/step16279-unsharded-hf/'
@@ -195,53 +126,13 @@ def main():
     # mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100, excluded_file_names=[])
     # # #############################################################
 
-    # bucket_name = 'ai2-llm'
-    # s3_prefix = 'evaluation/microanneal-peteish-7b-postmortem/'
-    # folder_name = 'olmo2_microanneals'
-
-    # bucket_name = "ai2-lucas-archival"
-    # s3_prefix = "evaluations/2024-09"
-    # folder_name = 'olmo2_anneals'
-
-    # bucket_name = "ai2-llm"
-    # s3_prefix = ["evaluation/anneal-peteish-7b", "evaluation/peteish7-pdfs"]
-    # folder_name = 'olmo2_anneals_with_pdf'
-
-    # bucket_name = "ai2-llm"
-    # s3_prefix = "evaluation/peteish7-soup"
-    # folder_name = 'olmo2_soups'
-
     bucket_name = 'ai2-llm'
     s3_prefix = 'eval-results/downstream/metaeval/'
     folder_name = 'aws'
 
-    # bucket_name = 'ai2-llm'
-    # s3_prefix = 'evaluation/olmo-reddit/'
-    # folder_name = 'reddit'
-
-    # bucket_name = 'ai2-llm'
-    # s3_prefix = 'evaluation/peteish32/'
-    # folder_name = 'peteish32'
-
-    # bucket_name = 'ai2-llm'
-    # s3_prefix = 'eval-results/downstream/eval-for-consistent-ranking-preemption-fixed/'
-    # folder_name = 'consistent_ranking'
-
-    # bucket_name = 'ai2-llm'
-    # s3_prefix_list = 'analysis/data/cheap_decisions_paths.txt'
-    # folder_name = 'consistent_ranking'
-
-    # bucket_name = 'ai2-llm' # pull from this consistent ranking folder instead
-    # s3_prefix = [
-    #     'eval-results/downstream/eval-for-consistent-ranking/', 
-    #     'eval-results/downstream/eval-for-consistent-ranking-small/', 
-    #     'eval-results/downstream/eval-for-consistent-ranking-small-seeds-extra/']
-    # folder_name = 'consistent_ranking'
-
     local_dir = f'{DATA_DIR}/{folder_name}'
 
     mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100)
-    # mirror_s3_to_local(bucket_name, None, local_dir, max_threads=100, s3_prefix_list=s3_prefix_list)
 
     # Launch preprocessing job!
     from preprocess import main

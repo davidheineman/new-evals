@@ -19,7 +19,6 @@ sys.path.append(str(parent_dir))
 
 from utils import DATA_DIR, weka_to_gcs, fix_model_path
 from utils.constants_tasks import RC_TASKS_OLMES, MC_TASKS_OLMES, GEN_TASKS_OLMES, MINERVA_COT
-from utils_cheap_decisions import process_predictions_cheap_decisions, process_prediction_path, clean_data_and_compute_averages, expand_df
 
 # Metrics to use when converting to table:
 METRICS_TO_KEEP = [
@@ -230,7 +229,7 @@ def process_predictions(file_path):
             entry['exact_match'] = float(entry['exact_match'])
 
         # If primary_score does not exist, add it
-        from utils_cheap_decisions import PRIMARY_METRICS_OLMES
+        from constants_olmes import PRIMARY_METRICS_OLMES
         primary_metric_key = PRIMARY_METRICS_OLMES.get(task_name, None)
         if primary_metric_key is None: 
             primary_metric_key = 'acc_per_char'
@@ -260,11 +259,6 @@ def process_predictions(file_path):
             else:
                 print(f'Incorrect correct_choice indexer: {entry["correct_choice"]}, {file_path}')
                 entry["logits_per_byte_corr"] = 0
-
-        if 'consistent_ranking' in str(file_path):
-            cheap_decisions_metrics = process_predictions_cheap_decisions(pred)
-            # entry.update(cheap_decisions_metrics)
-            entry = cheap_decisions_metrics
 
         # Use both names
         if 'bits_per_byte_corr' in entry and entry['bits_per_byte_corr'] is not None:
@@ -461,21 +455,15 @@ def load_file(file_data, _type, load_lite_tasks=None):
             # For the small instance dataset, only include a small set of tasks
             return []
 
-    if 'predictions' in _type or 'consistent_ranking' in str(root):
+    if 'predictions' in _type:
         # Load predictions
         if 'predictions.jsonl' not in file_path: 
-            return []
-        if 'consistent_ranking' in str(root) and ':para' in file_path:
             return []
         results = process_predictions(file_path)
     elif _type == 'metrics':
         if 'metrics.json' not in file_path:
             return []
         if 'verbose-metrics.json' in file_path:
-            return []
-        if file == 'metrics.json' and 'consistent_ranking' in str(root):
-            raise RuntimeError('For consistent rankings, we only process predictions.jsonl -> metrics file')
-        if 'consistent_ranking' in str(root) and ':para' in file_path:
             return []
         metrics = process_metrics(file_path)
 
@@ -592,22 +580,6 @@ def load_file(file_data, _type, load_lite_tasks=None):
             's3_path': file_path,
         })
 
-    if 'consistent_ranking' in str(root):
-        # Use Tai's code to compute aggregate metrics for each prediction file
-        metrics = process_prediction_path(file_path, results)
-
-        # Add S3 path and other metrics data (if exists)
-        metrics_path = file_path.replace('predictions.jsonl', 'metrics.json')
-        if os.path.exists(metrics_path):
-            with open(metrics_path, 'r') as f:
-                orig_metrics = json.load(f)
-            metrics['num_instances']   = int(orig_metrics['num_instances'])
-            metrics['processing_time'] = int(orig_metrics['processing_time'])
-            metrics['num_shots']       = int(orig_metrics['task_config']['num_shots'])
-            metrics['s3_path']         = str(orig_metrics['model_config']['model_path'])
-            metrics['primary_metric_name'] = str(orig_metrics['task_config']['primary_metric'])
-        results = [metrics]
-    
     return results
 
 
@@ -704,18 +676,7 @@ def scan_dir(data_input):
 
 
 def recursive_pull(data_dir, file_type, load_lite_tasks=None):
-    # # for testing
-    # data_dir = Path('/root/ai2/metaeval/analysis/data/consistent_ranking/eval-results/downstream/eval-for-consistent-ranking/baseline-1B-5xC-2')
-    
     all_files = scan_dir(data_dir)
-
-    # all_files = all_files[:10_000] # for testing
-    
-    if 'consistent_ranking' in str(data_dir):
-        all_files = [f for f in all_files if ':para' not in f]
-
-    # if 'consistent_ranking' in str(data_dir):
-    #     all_files = filter_model_seeds(all_files) # This will filter out all but some of the seed runs
 
     # all_files = all_files[:10_000] # for testing
     # all_files = all_files[:1_000_000] # for testing
@@ -939,13 +900,7 @@ def main(folder_name, file_type='predictions'):
     print(f"Converted to pandas in: {time.time() - start_time:.4f} seconds")
     # verify_df(df)
 
-    if file_type == 'metrics' or folder_name == 'consistent_ranking':
-        if folder_name == 'consistent_ranking':
-            df.to_parquet(str(metrics_path).replace('.parquet', '_dirty.parquet')) # save in case
-            df = expand_df(df, quiet=False)
-            df.to_parquet(str(metrics_path).replace('.parquet', '_dirty.parquet')) # save before cleaning
-            # Use Ian's script to clean up the df
-            df = clean_data_and_compute_averages(df, quiet=False)
+    if file_type == 'metrics':
         df = cleanup_metrics_df(df)
 
         print(df.columns)
@@ -969,8 +924,7 @@ def main(folder_name, file_type='predictions'):
 
 
 if __name__ == '__main__': 
-    folder_name = "aws" # 1hr
-    # folder_name = "consistent_ranking" # 8hr
+    folder_name = "aws"
 
     sanity_check(folder_name)
 
@@ -979,14 +933,4 @@ if __name__ == '__main__':
     # main(folder_name, file_type='medium_predictions')
     # main(folder_name, file_type='lite_predictions')
     # main(folder_name, file_type='questions')
-
-    # ### Debug Ian's cleaning script
-    # data_dir = Path(DATA_DIR).resolve()
-    # metrics_path = data_dir / f"{folder_name}_metrics.parquet"
-    # df = pd.read_parquet(data_dir / f"{folder_name}_metrics_dirty.parquet")
-    # print(df)
-    # df = clean_data_and_compute_averages(df, quiet=False)
-    # print(df)
-    # df = cleanup_metrics_df(df)
-    # print(df)
-    # df.to_parquet(metrics_path)
+    
