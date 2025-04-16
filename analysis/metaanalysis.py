@@ -17,14 +17,14 @@ from stats import compute_significance, compute_total_variation, kendall_tau_a
 from utils.power import calculate_mde
 from table import display_task_variants
 
-from ladder_ian import compute_2_class, get_compute, plot_task_accuracy
+from datadecide import compute_2_class, get_compute, plot_task_accuracy
 from utils import get_title_from_task, extract_size
 from utils.constants_models import DDOS_MODEL_NAMES
 from download.constants_olmes import PRIMARY_METRICS_OLMES
 
 from ladder_wrapper import sort_experiment_names
 from download.preprocess import is_excluded_from_lite
-from db_duck import connect_db_backend
+from db import connect_db_backend
 
 DEFAULT_LADDER_CONFIG_PATH = f'{ROOT_DIR}/analysis/utils/ladder_config.json'
 
@@ -254,6 +254,9 @@ def get_task_correlations(df_benchmarks, selected_tasks, pred_metric='logits_per
 
 def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_models, metric='primary_score', axes=None, small_fig=False, run_irt=False, ladder_config_path=DEFAULT_LADDER_CONFIG_PATH):
     results = {}
+
+    if 'extraced_size' not in df.columns:
+        df['extracted_size'] = df['model'].apply(extract_size)
 
     # Observational noise
     observational_models = external_ladder_models+eval_ladder_models+DDOS_MODEL_NAMES

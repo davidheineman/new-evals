@@ -1,55 +1,82 @@
 import numpy as np
 import pandas as pd
 import warnings
-import clickhouse_connect
+import duckdb
 
 def load_db_backend(local_path):
-    try:
-        client = clickhouse_connect.get_client(host='localhost', port=8123)
-        client.query('SELECT 1')
-    except Exception:
-        raise RuntimeError("clickhouse is not running, please make sure it is installed and has a backend running (`clickhouse server --daemon`)")
-    client = clickhouse_connect.get_client(host='localhost', port=8123)
-    # Create table from parquet file
-    client.command(f"""
-        CREATE TABLE IF NOT EXISTS instances
-        ENGINE = MergeTree()
-        ORDER BY tuple()
-        AS SELECT * FROM file('{local_path}', Parquet)
+    local_path_db = local_path.replace('.parquet', '.db')
+
+    con = duckdb.connect(local_path_db)
+
+    # WEKA optimizations
+    con.execute("PRAGMA threads=200")
+    con.execute("PRAGMA enable_object_cache=true")
+    # con.execute("PRAGMA enable_profiling='json'")
+    con.execute("PRAGMA memory_limit='1.5TB'")
+    con.execute("PRAGMA threads=200").fetchall()
+
+    # Use PARALLEL to enable multi-threaded reading
+    con.execute(f"""
+    CREATE TABLE instances AS 
+    SELECT * FROM read_parquet('{local_path}')
     """)
-    return client
+    # ORDER BY task, model, step, mix
+
+    # Create index for commonly used query
+    con.execute(f"""
+    CREATE INDEX idx_task_model ON instances (task, model);
+    """)
+    return con
+
+
+def connect_db_backend(db_path):
+    conn = duckdb.connect(db_path, read_only=True)
+    return conn
+
 
 def get_slice_db(db, mix=None, model=None, task=None, step=None):
     """ Index to return a df of some (data mix, model, task, step) """
     # Build SQL query conditions
     conditions = []
-    if mix:
-        mixes = [mix] if isinstance(mix, str) else mix
-        conditions.append("mix IN " + (str(tuple(mixes)) if len(mixes) > 1 else f"('{mixes[0]}')"))
-    if model:
-        models = [model] if isinstance(model, str) else model
-        conditions.append("model IN " + (str(tuple(models)) if len(models) > 1 else f"('{models[0]}')"))
     if task:
         tasks = [task] if isinstance(task, str) else task
-        conditions.append("task IN " + (str(tuple(tasks)) if len(tasks) > 1 else f"('{tasks[0]}')"))
+        if len(tasks) == 1:
+            conditions.append(f"task = '{tasks[0]}'")
+        else:
+            conditions.append("task IN " + str(tuple(tasks)))
+    if model:
+        models = [model] if isinstance(model, str) else model
+        if len(models) == 1:
+            conditions.append(f"model = '{models[0]}'")
+        else:
+            conditions.append("model IN " + str(tuple(models)))
     if step is not None:
         steps = [step] if isinstance(step, int) else step
-        conditions.append("step IN " + (str(tuple(steps)) if len(steps) > 1 else f"({steps[0]})"))
+        if len(steps) == 1:
+            conditions.append(f"step = {steps[0]}")
+        else:
+            conditions.append("step IN " + str(tuple(steps)))
+    if mix:
+        mixes = [mix] if isinstance(mix, str) else mix
+        if len(mixes) == 1:
+            conditions.append(f"mix = '{mixes[0]}'")
+        else:
+            conditions.append("mix IN " + str(tuple(mixes)))
 
     # Build and execute query
-    query = "SELECT * FROM instances"
+    # query = "SELECT * FROM instances"
+    query = "SELECT task, model, step, mix, primary_score, logits_per_byte_corr, native_id from instances"
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
+    # if 'step' in db.execute("SELECT * FROM instances LIMIT 1").df().columns:
+    #     query += " ORDER BY step"
+
+    # df = db.execute(query).df() # convert result to df
+    df = db.execute(query)
+    df = df.arrow().to_pandas() # convert result to df
     
-    # Check if step column exists
-    has_step = db.query("SELECT name FROM system.columns WHERE table='instances' AND name='step'").result_rows
-    if has_step:
-        query += " ORDER BY step"
-
-    df = pd.DataFrame(db.query(query).result_rows, columns=db.query(query).column_names)
-
     # Re-arrange first cols
-    first_cols = ['task', 'model', 'step', 'mix', 'primary_score', 'logits_per_byte_corr']
+    first_cols = ['task', 'model', 'step', 'mix', 'primary_score', 'logits_per_byte_corr'] 
     df = df[first_cols + [c for c in df.columns if c not in first_cols]]
 
     return df
@@ -61,12 +88,10 @@ def get_instance_db(db, instance_id):
     query = "SELECT * FROM instances WHERE instance_id IN "
     query += str(tuple(instance_ids)) if len(instance_ids) > 1 else f"('{instance_ids[0]}')"
     
-    # Check if step column exists
-    has_step = db.query("SELECT name FROM system.columns WHERE table='instances' AND name='step'").result_rows
-    if has_step:
+    if 'step' in db.execute("SELECT * FROM instances LIMIT 1").df().columns:
         query += " ORDER BY step"
 
-    df = pd.DataFrame(db.query(query).result_rows, columns=db.query(query).column_names)
+    df = db.execute(query).df()
     return df
 
 def get_max_k_step_db(_slice, k=1):
@@ -75,6 +100,7 @@ def get_max_k_step_db(_slice, k=1):
     step_filter = _slice['step'].isin(top_steps)
     _slice = _slice[step_filter]
     return _slice
+
 
 def get_nd_array_db(db, col, metric, mix=None, model=None, task=None, step=None, sorted=False, return_index=False):
     """ Get an nd array of (COL, instances), sorted by overall performance """
