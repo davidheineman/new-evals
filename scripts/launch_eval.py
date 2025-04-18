@@ -10,7 +10,7 @@ from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_MIXES_
 from analysis.utils.constants_models import WEKA_CLUSTERS, GCP_CLUSTERS
 from analysis.utils.constants_tasks import MC_TASKS_COPY_COLORS, MISSING_EVALS
 
-# OLMES Classic Tasks
+# OLMES Core Tasks
 from analysis.utils.constants_tasks import RC_TASKS_OLMES, MC_TASKS_OLMES, PARA_TASKS_OLMES, ENLARGE_TASKS_OLMES, DISTRACTORS_TASKS_OLMES
 
 # OLMES Gen Tasks
@@ -34,9 +34,9 @@ MODEL_LIST_ALL = []
 # MODEL_LIST_ALL += MODEL_LIST_MIXES_FINAL # ian's new mixes
 # MODEL_LIST_ALL += MODEL_LIST_MIXES_FINAL_EXTENDED # extended set of data mixes
 # MODEL_LIST_ALL += OE_EVAL_BASE_MODELS_EXTENDED # OLL 2 leaderboard models
-# MODEL_LIST_ALL += OE_EVAL_BASE_MODELS_EXTENDED_2 # Additional external models
-MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_7B # 7B Final 30 ckpts (1000 steps apart)
-MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_32B # 32B Final 30 ckpts (1000 steps apart)
+MODEL_LIST_ALL += OE_EVAL_BASE_MODELS_EXTENDED_2 # Additional external models
+# MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_7B # 7B Final 30 ckpts (1000 steps apart)
+# MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_32B # 32B Final 30 ckpts (1000 steps apart)
 
 # MODEL_LIST_ALL += MODEL_LIST_MIXES # not used for now
 # MODEL_LIST_ALL += OE_EVAL_INSTRUCT_MODELS # not used for now
@@ -44,24 +44,24 @@ MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_32B # 32B Final 30 ckpts (1000 steps a
 
 TASK_LIST_ALL = []
 
-TASK_LIST_ALL += RC_TASKS_OLMES
-TASK_LIST_ALL += PARA_TASKS_OLMES 
-TASK_LIST_ALL += ENLARGE_TASKS_OLMES
-TASK_LIST_ALL += DISTRACTORS_TASKS_OLMES
-TASK_LIST_ALL += MC_TASKS_OLMES
+# TASK_LIST_ALL += RC_TASKS_OLMES
+# TASK_LIST_ALL += PARA_TASKS_OLMES 
+# TASK_LIST_ALL += ENLARGE_TASKS_OLMES
+# TASK_LIST_ALL += DISTRACTORS_TASKS_OLMES
+# TASK_LIST_ALL += MC_TASKS_OLMES
 
-TASK_LIST_ALL += MC_TASKS_COPY_COLORS
-TASK_LIST_ALL += GEN_TASKS_OLMES
-TASK_LIST_ALL += AGI_EVAL_MC + MMLU_PRO_MC # + MINERVA_MC
-TASK_LIST_ALL += AGI_EVAL_COT # + MMLU_PRO_COT
-TASK_LIST_ALL += BBH_MC # BPB verison of BBH
-TASK_LIST_ALL += BBH_COT
+# TASK_LIST_ALL += MC_TASKS_COPY_COLORS
+# TASK_LIST_ALL += GEN_TASKS_OLMES
+# TASK_LIST_ALL += AGI_EVAL_MC + MMLU_PRO_MC # + MINERVA_MC
+# TASK_LIST_ALL += AGI_EVAL_COT # + MMLU_PRO_COT
+# TASK_LIST_ALL += BBH_MC # BPB verison of BBH
+# TASK_LIST_ALL += BBH_COT
 
-TASK_LIST_ALL += MMLU_PRO_RC + AGI_EVAL_RC
-TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
-TASK_LIST_ALL += PERTURB_COT_TASKS
+# TASK_LIST_ALL += MMLU_PRO_RC + AGI_EVAL_RC
+# TASK_LIST_ALL += GEN_TASKS_OLMES_PERTURB_RC
+# TASK_LIST_ALL += PERTURB_COT_TASKS
 
-TASK_LIST_ALL += ['autobencher::none', 'autobencher:mc::none']
+# TASK_LIST_ALL += ['autobencher::none', 'autobencher:mc::none']
 
 TASK_LIST_ALL += [
     # GSM CoT
@@ -81,21 +81,21 @@ TASK_LIST_ALL += [
     "codex_humanevalplus::ladder", 
 ]
 
-TASK_LIST_ALL += [
-    'deepmind_math_large::none',
-    'medmcqa:rc::none',
-    'medmcqa:mc::none',
-    'gsm_plus::none',
-    'gsm_symbolic::none',
-    'gsm_symbolic_p1::none',
-    'gsm_symbolic_p2::none',
-    'gpqa::none',
-    'minerva_math_500::none', 
-]
+# TASK_LIST_ALL += [
+#     'deepmind_math_large::none',
+#     'medmcqa:rc::none',
+#     'medmcqa:mc::none',
+#     'gsm_plus::none',
+#     'gsm_symbolic::none',
+#     'gsm_symbolic_p1::none',
+#     'gsm_symbolic_p2::none',
+#     # 'gpqa::none', # requires HF token
+#     'minerva_math_500::none', 
+# ]
 
-TASK_LIST_ALL += [
-    'aime::none',
-]
+# TASK_LIST_ALL += [
+#     'aime::none',
+# ]
 
 # TASK_LIST_ALL += PALOMA
 # TASK_LIST_ALL += LLM_COMPRESSION
@@ -103,15 +103,18 @@ TASK_LIST_ALL += [
 
 # # FOR TESTING
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' not in task] # exclude MMLU (long arg lists may crash beaker! https://github.com/allenai/beaker/issues/5530)
-MODEL_LIST_ALL = MODEL_LIST_ALL
-TASK_LIST_ALL = TASK_LIST_ALL
+
+MODEL_LIST_ALL = [
+    # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step720000",
+    # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step705000",
+    # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step701000",
+    # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step696000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/step919000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/step917000"
+]
 
 
-# MODEL_LIST_ALL = ["pythia-14m"]
-TASK_LIST_ALL = ["mmlu_high_school_european_history:rc::olmes:full"]
-
-
-def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_size=None, save_requests=True):
+def run_eval(model_list, task_list, model_type='hf', gpus=1, gpu_memory_utilization=0.7, limit=None, batch_size=None, save_requests=True):
     if isinstance(task_list, list): 
         task_list = ' '.join([f'"{task}"' for task in task_list])
     if not isinstance(model_list, list): 
@@ -129,11 +132,11 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_s
     if len(model_list) == 1: # convert back list -> str
         model_list = model_list[0]
 
-    WORKSPACE = "ai2/ladder-evals"
-    PRIORITY = "normal"
+    # WORKSPACE = "ai2/ladder-evals"
+    # PRIORITY = "normal"
 
-    # WORKSPACE = "ai2/lm-eval"
-    # PRIORITY = "high"
+    WORKSPACE = "ai2/lm-eval"
+    PRIORITY = "high" # high
 
     command = f"""
     oe-eval \
@@ -146,10 +149,11 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, limit=None, batch_s
         --beaker-image davidh/oe-eval-metaeval \
         --gantry-secret-aws-access-key-id AWS_ACCESS_KEY_ID \
         --gantry-secret-aws-secret-access AWS_SECRET_ACCESS_KEY \
-        --gantry-secret-hf-read-only HF_TOKEN \
+        --gantry-secret-hf-read-only davidh_HF_TOKEN \
         --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
         --recompute-metrics \
         --gantry-args '{{"env": "VLLM_USE_V1=0"}}' \
+        --model-args gpu_memory_utilization={gpu_memory_utilization} \
         --beaker-priority {PRIORITY}
     """
     # --gantry-secret-hf-read-only lucas_HUGGING_FACE_HUB_TOKEN \
@@ -193,6 +197,7 @@ def main():
 
         batch_size = None
         save_requests = True
+        gpu_memory_utilization = 0.7
 
         # batch_size = 4 # TMP OVERRIDE FOR LADDER MODELS
 
@@ -200,11 +205,24 @@ def main():
             # From my testing, looks like anything less than 4 GPUs on 13B+ models (or Gemma 7B+) breaks
             # Also 70B model do not work on neptune (L40s)
             model_type = 'vllm'
-            if model in ['gemma-7b', 'gemma2-9b', "gemma2-2b-instruct", "gemma2-9b-instruct", "gemma2-9b-instruct-SimPO", "llama2-13b", "llama3-70b", "llama3.1-70b", "qwen2.5-14b", "qwen2.5-32b", "qwen2.5-72b", "llama3.1-70b-instruct", "qwen2.5-14b-instruct"] or '32B' in model or '72B' in model or '22B' in model or '15b' in model or '40b' in model or '110B' in model or '70B' in model or model in OE_EVAL_BASE_MODELS_EXTENDED_2:
+            if 'smol' in model:
+                gpus = 1
+            elif 'stablelm' in model:
+                model_type = 'hf'
+            elif 'qwen-' in model or 'llama-2' in model or model == 'nemotron-3-8b-base-4k':
+                # Qwen 1 models are broken in vLLM, we use hf instead
+                model_type = 'hf'
+                gpus = 4
+            elif '110b' in model.lower() or '405b' in model.lower() or '8x22b' in model.lower() or ('gemma-3-' in model and '1b' not in model):
+                gpus = 8
+            elif model in ['gemma-7b', 'gemma2-9b', "gemma2-2b-instruct", "gemma2-9b-instruct", "gemma2-9b-instruct-SimPO", "llama2-13b", "llama3-70b", "llama3.1-70b", "qwen2.5-14b", "qwen2.5-32b", "qwen2.5-72b", "llama3.1-70b-instruct", "qwen2.5-14b-instruct"] or '32B' in model or '72B' in model or '22B' in model or '15b' in model or '40b' in model or '70B' in model or model in OE_EVAL_BASE_MODELS_EXTENDED_2:
                 gpus = 4
             else:
                 gpus = 1 # don't need many GPUs for small models
-        elif 'peteish13' in model or 'peteish7' in model:
+
+            if 'gemma-3-' in model:
+                gpu_memory_utilization = 0.3
+        elif 'peteish32' in model or 'peteish13' in model or 'peteish7' in model:
             model_type = 'vllm'
             gpus = 4
         elif model in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED or ('-3B-' in model) or model in [weka_to_gcs(m) for m in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED]:
@@ -229,7 +247,8 @@ def main():
             gpus=gpus,
             # limit=10_000,
             batch_size=batch_size,
-            save_requests=save_requests
+            save_requests=save_requests,
+            gpu_memory_utilization=gpu_memory_utilization
         )
 
 
