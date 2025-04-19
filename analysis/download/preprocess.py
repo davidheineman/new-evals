@@ -61,10 +61,16 @@ CHINHILLA_MULT = [
 
 def is_excluded_from_lite(m):
     BROKEN_MODELS = [
-        "gemma-2b", 
-        "gemma-7b", 
-        "gemma-2-2b", 
-        "gemma-2-9b"
+        # "gemma-2b", 
+        # "gemma-7b", 
+        # "gemma-2-2b", 
+        # "gemma-2-9b",
+        # 'gemma-3-1b-pt',
+        # 'gemma-3-4b-pt',
+        # 'gemma-3-12b-pt',
+        # 'Llama-3.1-70B',
+        # 'Llama-3.1-8B',
+        # 'OLMo-2-0325-32B'
     ]
 
     OLL2_INSTRUCT_MODELS = [
@@ -113,7 +119,8 @@ def is_excluded_from_lite(m):
         'Codestral-22B-v0.1' in m or \
         'RYS-Medium' in m or \
         'falcon-mamba-7b' in m or \
-        'Qwen1.5-0.5B' in m:
+        'Qwen1.5-0.5B' in m or \
+        'Falcon3-7B-Base' in m:
         return True
     
     if any(name.lower() in m.lower() for name in OLL2_INSTRUCT_MODELS) or \

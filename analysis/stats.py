@@ -120,7 +120,7 @@ def compute_irt(irt_params, test_instance_names, test_scores, metric):
 
     # Sort train instances by the test IRT param ordering
     id_to_idx_map = {instance_id: idx for idx, instance_id in enumerate(test_instance_names)}
-    reorder_idx = [id_to_idx_map[train_id] for train_id in train_instance_names]
+    reorder_idx = [id_to_idx_map[train_id] for train_id in train_instance_names if train_id in id_to_idx_map]
 
     # # Different sort implementation
     # name_to_index = {name: i for i, name in enumerate(train_instance_names)}
