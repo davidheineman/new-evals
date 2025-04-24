@@ -84,10 +84,11 @@ def get_pretty_task_name(task):
         'gsm_symbolic_p2': 'GSM Symbolic P2', 
         'medmcqa': 'MedMCQA',
         'minerva_math_500': 'Minerva MATH 500',
-        'mmlu_pro': 'MMLU Pro'
+        'mmlu_pro': 'MMLU Pro',
+        'olmes_10_macro_avg': 'OLMES 10 Avg.'
     }
     if task not in mapping:
-        print(f"Task not in mapping: {task}")
+        print(f"Task does not have pretty name: {task}")
     return mapping.get(task, task)
 
 def weka_to_gcs(model_name):

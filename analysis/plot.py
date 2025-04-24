@@ -751,20 +751,26 @@ def plot_single_run(ax: plt.Axes, metric_data: pd.DataFrame, task_label: str):
     run_data = metric_data[metric_data['run_name'] == first_run]
     
     # Main plot
-    ax.plot(run_data['step'], run_data['value'], linewidth=0.8)
+    ax.plot(run_data['step'], run_data['value'], linewidth=0.5)
     
     # Inset
     ax_inset = ax.inset_axes([0.5, 0.1, 0.45, 0.45])
-    ax_inset.plot(run_data['step'], run_data['value'], linewidth=0.8)
+    ax_inset.plot(run_data['step'], run_data['value'], linewidth=0.5)
     
     # Set inset zoom region
     x_range = run_data['step'].max() - run_data['step'].min()
-    x_min_zoom = run_data['step'].max() - 0.2 * x_range
+    x_min_zoom = run_data['step'].max() - 0.04 * x_range
+    x_max_zoom = run_data['step'].max()*1.017
     y_range = run_data['value'].max() - run_data['value'].min() 
-    y_min_zoom = run_data['value'].max() - 0.15 * y_range
+
+    last_30_values = run_data['value'].iloc[-30:]
+    y_mean_last_30 = last_30_values.mean()
+
+    y_min_zoom = y_mean_last_30 - 0.1 * y_range
+    y_max_zoom = y_mean_last_30 + 0.1 * y_range
     
-    ax_inset.set_xlim(x_min_zoom, run_data['step'].max()*1.07)
-    ax_inset.set_ylim(y_min_zoom, run_data['value'].max()*1.02)
+    ax_inset.set_xlim(x_min_zoom, x_max_zoom)
+    ax_inset.set_ylim(y_min_zoom, y_max_zoom)
     ax_inset.set_xticklabels([])
     
     # Add bracket showing step noise
@@ -846,8 +852,8 @@ def plot_datasets(ax: plt.Axes, plotted_task: str, metric: str, mixes: List[str]
 def add_bracket(ax: plt.Axes, data: pd.DataFrame, label: str, values=None, inset=False):
     """Add a bracket with label to show variation"""
     if values is None:
-        y_min = data['value'].iloc[-20:].min()
-        y_max = data['value'].iloc[-20:].max()
+        y_min = data['value'].iloc[-50:].min()
+        y_max = data['value'].iloc[-50:].max()
     else:
         y_min = min(values)
         y_max = max(values)
@@ -855,8 +861,8 @@ def add_bracket(ax: plt.Axes, data: pd.DataFrame, label: str, values=None, inset
     y_mid = (y_min + y_max) / 2
 
     if inset:
-        x_pos = data['step'].max() * 1.005
-        bracket_width = x_pos * 0.002
+        x_pos = data['step'].max() * 1.002
+        bracket_width = x_pos * 0.001
     else:
         x_pos = data['step'].max() * 1.02
         bracket_width = x_pos * 0.01

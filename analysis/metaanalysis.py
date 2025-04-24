@@ -525,6 +525,8 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
                 step_rel_std_20 = tv[task]['step_rel_std:perc20'] if not isinstance(task, list) else tv.loc['step_rel_std:perc20']['aggregate']
                 step_std_10 = tv[task]['step_std:last10'] if not isinstance(task, list) else tv.loc['step_std:last10']['aggregate']
                 step_rel_std_10 = tv[task]['step_rel_std:last10'] if not isinstance(task, list) else tv.loc['step_rel_std:last10']['aggregate']
+                step_std_30 = tv[task]['step_std:last30'] if not isinstance(task, list) else tv.loc['step_std:last30']['aggregate']
+                step_rel_std_30 = tv[task]['step_rel_std:last30'] if not isinstance(task, list) else tv.loc['step_rel_std:last30']['aggregate']
                 
                 results.update({
                     f'tv:{additional_metric}:{model_name}': tv_result,
@@ -532,7 +534,9 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
                     f'step_std:perc20:{additional_metric}:{model_name}': step_std_20,
                     f'step_rel_std:perc20:{additional_metric}:{model_name}': step_rel_std_20,
                     f'step_std:last10:{additional_metric}:{model_name}': step_std_10,
-                    f'step_rel_std:last10:{additional_metric}:{model_name}': step_rel_std_10
+                    f'step_rel_std:last10:{additional_metric}:{model_name}': step_rel_std_10,
+                    f'step_std:last30:{additional_metric}:{model_name}': step_std_30,
+                    f'step_rel_std:last30:{additional_metric}:{model_name}': step_rel_std_30
                 })
             except Exception as e:
                 print(task, f'failed to compute total variation for {additional_metric}', e)
@@ -654,7 +658,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
                 results[f'rel_std:{snr_metric}:{size}'] = \
                     abs(results[f'std_dev:{snr_metric}:{size}'] / results[f'mean:{snr_metric}:{size}'])
                 results[f'snr:{snr_metric}:{size}'] = \
-                    results[f'rel_std:{snr_metric}:{size}'] / abs(results[f'step_rel_std:last10:{snr_metric}:{size}']) if abs(results[f'step_rel_std:last10:{snr_metric}:{size}']) > 0 else float('-inf')
+                    results[f'rel_std:{snr_metric}:{size}'] / abs(results[f'step_rel_std:last30:{snr_metric}:{size}']) if abs(results[f'step_rel_std:last30:{snr_metric}:{size}']) > 0 else float('-inf')
                     # results[f'rel_std:{snr_metric}:{size}'] / abs(results[f'tv:{snr_metric}:{size}']) if abs(results[f'tv:{snr_metric}:{size}']) > 0 else float('-inf')
     
     # Total cost of evaluation
