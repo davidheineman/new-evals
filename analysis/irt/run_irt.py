@@ -33,7 +33,10 @@ def train_irt_model(train_instance_names, train_model_names, train_scores):
         instance_names=train_instance_names,
         priors="hierarchical", # vague, hierarchical
         epochs=1000,
-        hidden=30,
+        # hidden=30,
+        # hidden=500,
+        hidden=2000,
+        # hidden=5000,
         lr=0.05,
         lr_decay=0.999,
         device='cpu', # cpu, cuda, mps

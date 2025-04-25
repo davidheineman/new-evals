@@ -120,7 +120,7 @@ def compute_irt(irt_params, test_instance_names, test_scores, metric):
 
     # Sort train instances by the test IRT param ordering
     id_to_idx_map = {instance_id: idx for idx, instance_id in enumerate(test_instance_names)}
-    reorder_idx = [id_to_idx_map[train_id] for train_id in train_instance_names]
+    reorder_idx = [id_to_idx_map[train_id] for train_id in train_instance_names if train_id in id_to_idx_map]
 
     # # Different sort implementation
     # name_to_index = {name: i for i, name in enumerate(train_instance_names)}
@@ -638,10 +638,18 @@ def compute_total_variation(df, tasks, models, metric='acc_per_char', axes=None,
             last_10_mean = np.mean(acc[-n_10:])
             last_10_rel_std = last_10_std / abs(last_10_mean) if last_10_mean != 0 else np.nan
 
+            # Calculate std and relative std for last 30 checkpoints
+            n_30 = min(30, len(step))  # Take last 30 checkpoints or all if less than 30
+            last_30_std = np.std(acc[-n_30:])
+            last_30_mean = np.mean(acc[-n_30:])
+            last_30_rel_std = last_30_std / abs(last_30_mean) if last_30_mean != 0 else np.nan
+
             tv_results.loc['step_std:perc20', task_name] = last_20_std
             tv_results.loc['step_rel_std:perc20', task_name] = last_20_rel_std
             tv_results.loc['step_std:last10', task_name] = last_10_std
             tv_results.loc['step_rel_std:last10', task_name] = last_10_rel_std
+            tv_results.loc['step_std:last30', task_name] = last_30_std
+            tv_results.loc['step_rel_std:last30', task_name] = last_30_rel_std
         
         if axes is not None and axes[i].get_legend_handles_labels()[1]:
             axes[i].legend(fontsize=8)

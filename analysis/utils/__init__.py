@@ -1,8 +1,13 @@
 import os
+import json
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'analysis', 'data')
 PLOT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'img')
+
+# Load observational model sizes data
+with open(os.path.join(ROOT_DIR, 'analysis/utils/model_sizes.json')) as f:
+    MODEL_SIZES = json.load(f)
 
 def get_title_from_task(task):
     if isinstance(task, list):
@@ -31,6 +36,7 @@ def get_title_from_task(task):
 
 def get_pretty_task_name(task):
     """Map task names to prettier display names"""
+    task = get_title_from_task(task)
     mapping = {
         'arc_challenge:mc': 'ARC Challenge MC',
         'arc_challenge': 'ARC Challenge',
@@ -51,7 +57,7 @@ def get_pretty_task_name(task):
         'jeopardy': 'Jeopardy',
         'mbpp': 'MBPP',
         'mbppplus': 'MBPP+',
-        'minerva': 'Minerva',
+        'minerva': 'Minerva MATH',
         'mmlu_mc': 'MMLU MC',
         'mmlu': 'MMLU',
         'olmes_core9_mc': 'OLMES Core 9 MC',
@@ -69,9 +75,20 @@ def get_pretty_task_name(task):
         'triviaqa': 'TriviaQA',
         'winogrande:mc': 'WinoGrande MC',
         'winogrande': 'WinoGrande',
+        'agi_eval': 'AGI Eval',
+        'aime': 'AIME',
+        'bbh': 'BBH',
+        'gsm_plus': 'GSM+',
+        'gsm_symbolic_main': 'GSM Symbolic',
+        'gsm_symbolic_p1': 'GSM Symbolic P1',
+        'gsm_symbolic_p2': 'GSM Symbolic P2', 
+        'medmcqa': 'MedMCQA',
+        'minerva_math_500': 'Minerva MATH 500',
+        'mmlu_pro': 'MMLU Pro',
+        'olmes_10_macro_avg': 'OLMES 10 Avg.'
     }
     if task not in mapping:
-        print(f"Task not in mapping: {task}")
+        print(f"Task does not have pretty name: {task}")
     return mapping.get(task, task)
 
 def weka_to_gcs(model_name):
@@ -106,3 +123,27 @@ def extract_size(model_name):
             except ValueError as e:
                 continue
     return None
+
+
+# Observational models excluded for low performance / broken evals
+EXCLUDED_OBS_MODELS = [
+    'pythia',
+    'phi-1',
+    'olmo-1b-0724-hf',
+    'stablelm-base-alpha-7b',
+    'gemma-2-27b',
+    'gemma-2',
+    'gemma-7b'
+]
+
+def extract_flops(model_alias):
+    if model_alias not in MODEL_SIZES:
+        return None, False
+    
+    is_excluded_observational = any(excluded_alias in model_alias.lower() for excluded_alias in EXCLUDED_OBS_MODELS)
+    if is_excluded_observational:
+        return None, False
+    
+    active_params = MODEL_SIZES[model_alias]["active_params_B"] * 1e9  # Convert B to raw number
+    tokens = MODEL_SIZES[model_alias]["toks_T"] * 1e12 if MODEL_SIZES[model_alias]["toks_T"] else 0  # Convert T to raw number
+    return 6 * active_params * tokens, True  # 6ND calculation and observational status

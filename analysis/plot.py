@@ -739,11 +739,10 @@ def plot_simulation_results(results: dict, ax: plt.Axes, f1_only: bool=False, f1
     return ax
 
 
-def setup_plot_grid(metric_names: List[str], plotted_tasks: List[str]) -> Tuple[plt.Figure, np.ndarray]:
+def setup_plot_grid(metric_names: List[str], plotted_tasks: List[str], num_rows: int) -> Tuple[plt.Figure, np.ndarray]:
     """Create and setup the plot grid"""
-    num_metrics = len(metric_names) + len(plotted_tasks)
-    num_rows = math.ceil(num_metrics/3) + 1  # Add 1 row for single seed plots
-    fig, axes = plt.subplots(num_rows, 3, figsize=(13.5, 2.5*num_rows))
+    num_cols = len(plotted_tasks)
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=(4.5*num_cols, 2.5*num_rows))
     return fig, axes.flatten()
 
 def plot_single_run(ax: plt.Axes, metric_data: pd.DataFrame, task_label: str):
@@ -752,30 +751,35 @@ def plot_single_run(ax: plt.Axes, metric_data: pd.DataFrame, task_label: str):
     run_data = metric_data[metric_data['run_name'] == first_run]
     
     # Main plot
-    ax.plot(run_data['step'], run_data['value'], linewidth=0.8)
-    ax.set_title(task_label)
+    ax.plot(run_data['step'], run_data['value'], linewidth=0.5)
     
     # Inset
     ax_inset = ax.inset_axes([0.5, 0.1, 0.45, 0.45])
-    ax_inset.plot(run_data['step'], run_data['value'], linewidth=0.8)
+    ax_inset.plot(run_data['step'], run_data['value'], linewidth=0.5)
     
     # Set inset zoom region
     x_range = run_data['step'].max() - run_data['step'].min()
-    x_min_zoom = run_data['step'].max() - 0.2 * x_range
+    x_min_zoom = run_data['step'].max() - 0.04 * x_range
+    x_max_zoom = run_data['step'].max()*1.017
     y_range = run_data['value'].max() - run_data['value'].min() 
-    y_min_zoom = run_data['value'].max() - 0.15 * y_range
+
+    last_30_values = run_data['value'].iloc[-30:]
+    y_mean_last_30 = last_30_values.mean()
+
+    y_min_zoom = y_mean_last_30 - 0.1 * y_range
+    y_max_zoom = y_mean_last_30 + 0.1 * y_range
     
-    ax_inset.set_xlim(x_min_zoom, run_data['step'].max()*1.07)
-    ax_inset.set_ylim(y_min_zoom, run_data['value'].max()*1.02)
+    ax_inset.set_xlim(x_min_zoom, x_max_zoom)
+    ax_inset.set_ylim(y_min_zoom, y_max_zoom)
     ax_inset.set_xticklabels([])
     
     # Add bracket showing step noise
-    add_bracket(ax_inset, run_data, 'step\nnoise')
+    add_bracket(ax_inset, run_data, 'step\nnoise', inset=True)
     
     ax.indicate_inset_zoom(ax_inset, edgecolor="black")
     ax.legend([ax.plot([], [], color='grey')[0]], ['1B Run'], loc='upper left', fontsize=8)
 
-def plot_random_seeds(ax: plt.Axes, metric_data: pd.DataFrame):
+def plot_random_seeds(ax: plt.Axes, metric_data: pd.DataFrame, label: str):
     """Plot multiple random seeds with inset showing seed noise"""
     num_runs = len(metric_data['run_name'].unique())
     blues = plt.cm.Blues(np.linspace(0.3, 0.9, num_runs))
@@ -791,13 +795,13 @@ def plot_random_seeds(ax: plt.Axes, metric_data: pd.DataFrame):
 
     # Add inset
     ax_inset = ax.inset_axes([0.5, 0.1, 0.45, 0.45])
-    plot_inset_seeds(ax_inset, metric_data, blues)
+    plot_inset_seeds(ax_inset, metric_data, blues, label=label)
     
     ax.indicate_inset_zoom(ax_inset, edgecolor="black")
     ax.grid(True, alpha=0.3)
-    ax.legend([ax.plot([], [], color='grey')[0]], ['1B Run (varying seed)'], loc='upper left', fontsize=8)
+    ax.legend([ax.plot([], [], color='grey')[0]], [f'1B Run (varying {label})'], loc='upper left', fontsize=8)
 
-def plot_inset_seeds(ax_inset: plt.Axes, metric_data: pd.DataFrame, colors):
+def plot_inset_seeds(ax_inset: plt.Axes, metric_data: pd.DataFrame, colors, label):
     """Plot the inset for random seeds visualization"""
     final_values = []
     for idx, run_name in enumerate(metric_data['run_name'].unique()):
@@ -809,15 +813,24 @@ def plot_inset_seeds(ax_inset: plt.Axes, metric_data: pd.DataFrame, colors):
     
     # Set zoom region
     x_range = run_data['step'].max() - run_data['step'].min()
-    x_min_zoom = run_data['step'].max() - 0.1 * x_range
     y_range = run_data['value'].max() - run_data['value'].min() 
-    y_min_zoom = run_data['value'].max() - 0.15 * y_range
+
+    if 'data' in label:
+        x_min_zoom = run_data['step'].max() - 0.08 * x_range
+        y_min_zoom = run_data['value'].max() - 0.25 * y_range
+    elif 'seed' in label:
+        x_min_zoom = run_data['step'].max() - 0.08 * x_range
+        y_min_zoom = run_data['value'].max() - 0.15 * y_range
+    else:
+        raise ValueError()
     
     ax_inset.set_xlim(x_min_zoom, run_data['step'].max()*1.04)
     ax_inset.set_ylim(y_min_zoom, run_data['value'].max()*1.02)
     ax_inset.set_xticklabels([])
+
+    bracket_label = f'{label} noise'.replace(' ', '\n')
     
-    add_bracket(ax_inset, run_data, 'seed\nnoise', final_values)
+    add_bracket(ax_inset, run_data, bracket_label, final_values, inset=True)
 
 def plot_datasets(ax: plt.Axes, plotted_task: str, metric: str, mixes: List[str], seed: int, df: pd.DataFrame):
     """Plot different datasets"""
@@ -836,18 +849,23 @@ def plot_datasets(ax: plt.Axes, plotted_task: str, metric: str, mixes: List[str]
     current_xlim = ax.get_xlim()
     ax.set_xlim(current_xlim[0], current_xlim[1] * 1.11)
 
-def add_bracket(ax: plt.Axes, data: pd.DataFrame, label: str, values=None):
+def add_bracket(ax: plt.Axes, data: pd.DataFrame, label: str, values=None, inset=False):
     """Add a bracket with label to show variation"""
     if values is None:
-        y_min = data['value'].iloc[-20:].min()
-        y_max = data['value'].iloc[-20:].max()
+        y_min = data['value'].iloc[-50:].min()
+        y_max = data['value'].iloc[-50:].max()
     else:
         y_min = min(values)
         y_max = max(values)
         
     y_mid = (y_min + y_max) / 2
-    x_pos = data['step'].max() * 1.005
-    bracket_width = x_pos * 0.002
+
+    if inset:
+        x_pos = data['step'].max() * 1.002
+        bracket_width = x_pos * 0.001
+    else:
+        x_pos = data['step'].max() * 1.02
+        bracket_width = x_pos * 0.01
 
     ax.plot([x_pos, x_pos], [y_min, y_max], color='black', linewidth=1)
     ax.plot([x_pos, x_pos - bracket_width], [y_min, y_min], color='black', linewidth=1)
@@ -868,7 +886,3 @@ def format_axes(axes: np.ndarray):
         if ax in axes[-3:]:
             ax.set_xlabel('Training Step')
         ax.grid(True, alpha=0.3)
-    
-    axes[0].set_ylabel('Accuracy')
-    axes[3].set_ylabel('Accuracy') 
-    axes[6].set_ylabel('Accuracy')
