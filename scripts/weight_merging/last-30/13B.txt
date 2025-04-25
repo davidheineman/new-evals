@@ -1,4 +1,3 @@
-weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step567000
 weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step568000
 weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step569000
 weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step570000

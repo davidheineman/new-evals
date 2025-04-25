@@ -21,7 +21,6 @@ weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step712000
 weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step713000
 weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step714000
 weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step715000
-weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step716000
 weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step717000
 weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step718000
 weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step719000

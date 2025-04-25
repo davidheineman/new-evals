@@ -3,38 +3,21 @@ import os
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-WEKA_PATH = "/data/input/"
+WEKA_PATH = "/oe-eval-default/"
 
 def load_model_paths(file_path):
-    """
-    Load model paths from a file.
-
-    Args:
-        file_path (str): Path to the file containing model paths.
-
-    Returns:
-        list: List of model paths.
-    """
+    """Load model paths from a file."""
     with open(file_path, "r") as f:
         return [line.strip().replace("weka://oe-eval-default/", WEKA_PATH) for line in f if line.strip()]
 
 
 def weightspace_average_model(model_paths, model_class, device_map="auto"):
-    """
-    Perform weightspace averaging of models.
-
-    Args:
-        model_paths (list): List of model paths.
-        model_class: The class of the model to load (e.g., `AutoModelForCausalLM`).
-        device_map (str): Device map for loading models.
-
-    Returns:
-        Averaged model.
-    """
+    """Perform weightspace averaging of models."""
     averaged_weights = None
     num_models = len(model_paths)
 
-    for path in model_paths:
+    for i, path in enumerate(model_paths):
+        print(f'({i}/{len(model_paths)}) Loading model at: {path}')
         model = model_class.from_pretrained(path, device_map=device_map)
         model_weights = model.state_dict()
 
@@ -57,12 +40,17 @@ def weightspace_average_model(model_paths, model_class, device_map="auto"):
 
 def main(args):
     model_paths = load_model_paths(args.model_list_file)
-    tokenizer = AutoTokenizer.from_pretrained(model_paths[-1], device_map="auto")
+
+    print(f'Running merging for models: {model_paths}')
+
+    device = 'cpu' # we're not running the models, so we can load on CPU
+
+    tokenizer = AutoTokenizer.from_pretrained(model_paths[-1], device_map=device)
 
     merged_model = weightspace_average_model(
         model_paths,
         AutoModelForCausalLM,
-        device_map="auto"
+        device_map=device
     )
 
     output_path = os.path.dirname(model_paths[0])

@@ -37,7 +37,16 @@ MODEL_LIST_ALL = []
 # MODEL_LIST_ALL += OE_EVAL_BASE_MODELS_EXTENDED_2 # Additional external models
 # MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_7B # 7B Final 30 ckpts (1000 steps apart)
 # MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_32B # 32B Final 30 ckpts (1000 steps apart)
-MODEL_LIST_ALL += MODEL_LIST_FINAL_30_13B # 13B Final 30 ckpts (1000 steps apart)
+
+# MODEL_LIST_ALL += MODEL_LIST_FINAL_30_13B # 13B Final 30 ckpts (1000 steps apart)
+MODEL_LIST_ALL += [
+    'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/last-5-model-merged',
+    'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/last-30-model-merged',
+    'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/last-5-model-merged',
+    'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/last-30-model-merged',
+    'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/last-5-model-merged',
+    'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/last-29-model-merged',
+] # merged models
 
 # MODEL_LIST_ALL += MODEL_LIST_MIXES # not used for now
 # MODEL_LIST_ALL += OE_EVAL_INSTRUCT_MODELS # not used for now

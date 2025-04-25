@@ -12,11 +12,11 @@ S3_CHECKPOINTS = [f's3://ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step{s
 # REPO_ID = "allenai/OLMo-2-1124-7B"
 # SAVE_DIR = "OLMo-medium/peteish7"
 
-REPO_ID = "allenai/OLMo-2-1124-13B"
-SAVE_DIR = "OLMo-medium/peteish13-highlr"
+# REPO_ID = "allenai/OLMo-2-1124-13B"
+# SAVE_DIR = "OLMo-medium/peteish13-highlr"
 
-# REPO_ID = "allenai/OLMo-2-0325-32B"
-# SAVE_DIR = "OLMo-large/peteish32"
+REPO_ID = "allenai/OLMo-2-0325-32B"
+SAVE_DIR = "OLMo-large/peteish32"
 
 def get_olmo_branches(num_checkpoints):
     api = HfApi()
