@@ -334,11 +334,45 @@ MODEL_LIST_CUSTOM=(
     "/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-90M-5xC/step29901-unsharded"
 )
 
+MODEL_LIST_1B=(
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1610000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1620000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1630000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1640000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1650000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1660000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1670000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1680000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1690000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1700000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1710000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1720000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1730000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1740000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1750000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1760000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1770000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1780000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1790000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1800000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1810000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1820000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1830000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1840000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1850000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1860000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1870000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1880000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1890000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1900000"
+    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1907359"
+)
+
 # Dolma 2 Tokenizer
-# TOKENIZER_PATH=/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/latest/tokenizer.json
+TOKENIZER_PATH=/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/latest/tokenizer.json
 
 # Consistent ranking tokenizer
-TOKENIZER_PATH=/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/gpt-neox-olmo-dolma-v1_5.json
+# TOKENIZER_PATH=/oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/gpt-neox-olmo-dolma-v1_5.json
 
 # We instead need to change oe-training-default -> oe-eval-default
 # /oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr
@@ -448,7 +482,8 @@ process_model_checkpoint() {
 }
 
 # for MODEL in "${MODEL_LIST_LADDER[@]}"; do
-for MODEL in "${MODEL_LIST_CUSTOM[@]}"; do
+# for MODEL in "${MODEL_LIST_CUSTOM[@]}"; do
+for MODEL in "${MODEL_LIST_1B[@]}"; do
     if [[ $MODEL == *"step"* ]]; then
         # Directly process the provided model path
         process_model_checkpoint "$MODEL"

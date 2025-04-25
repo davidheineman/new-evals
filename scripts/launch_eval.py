@@ -6,7 +6,7 @@ sys.path.append(str(parent_dir))
 
 from analysis.utils import weka_to_gcs
 
-from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_MIXES_FINAL, MODEL_LIST_MIXES_FINAL_EXTENDED, MODEL_LIST_INTERMEDIATE, MODEL_LIST_INTERMEDIATE_13B, MODEL_LIST_MIXES, OE_EVAL_BASE_MODELS, OE_EVAL_INSTRUCT_MODELS, OE_EVAL_ALL_MODELS, OE_EVAL_BASE_MODELS_EXTENDED, OE_EVAL_BASE_MODELS_EXTENDED_2, MODEL_LIST_INTERMEDIATE_7B, MODEL_LIST_INTERMEDIATE_32B
+from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_MIXES_FINAL, MODEL_LIST_MIXES_FINAL_EXTENDED, MODEL_LIST_INTERMEDIATE, MODEL_LIST_INTERMEDIATE_13B, MODEL_LIST_MIXES, OE_EVAL_BASE_MODELS, OE_EVAL_INSTRUCT_MODELS, OE_EVAL_ALL_MODELS, OE_EVAL_BASE_MODELS_EXTENDED, OE_EVAL_BASE_MODELS_EXTENDED_2, MODEL_LIST_INTERMEDIATE_7B, MODEL_LIST_FINAL_30_13B, MODEL_LIST_INTERMEDIATE_32B
 from analysis.utils.constants_models import WEKA_CLUSTERS, GCP_CLUSTERS
 from analysis.utils.constants_tasks import MC_TASKS_COPY_COLORS, MISSING_EVALS
 
@@ -34,9 +34,10 @@ MODEL_LIST_ALL = []
 # MODEL_LIST_ALL += MODEL_LIST_MIXES_FINAL # ian's new mixes
 # MODEL_LIST_ALL += MODEL_LIST_MIXES_FINAL_EXTENDED # extended set of data mixes
 # MODEL_LIST_ALL += OE_EVAL_BASE_MODELS_EXTENDED # OLL 2 leaderboard models
-MODEL_LIST_ALL += OE_EVAL_BASE_MODELS_EXTENDED_2 # Additional external models
+# MODEL_LIST_ALL += OE_EVAL_BASE_MODELS_EXTENDED_2 # Additional external models
 # MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_7B # 7B Final 30 ckpts (1000 steps apart)
 # MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_32B # 32B Final 30 ckpts (1000 steps apart)
+MODEL_LIST_ALL += MODEL_LIST_FINAL_30_13B # 13B Final 30 ckpts (1000 steps apart)
 
 # MODEL_LIST_ALL += MODEL_LIST_MIXES # not used for now
 # MODEL_LIST_ALL += OE_EVAL_INSTRUCT_MODELS # not used for now
@@ -63,23 +64,23 @@ TASK_LIST_ALL = []
 
 # TASK_LIST_ALL += ['autobencher::none', 'autobencher:mc::none']
 
-TASK_LIST_ALL += [
-    # GSM CoT
-    "gsm8k::olmes:full",
-    # Minerva CoT (olmes version)
-    "minerva_math_algebra::olmes:full",
-    "minerva_math_counting_and_probability::olmes:full",
-    "minerva_math_geometry::olmes:full",
-    "minerva_math_intermediate_algebra::olmes:full",
-    "minerva_math_number_theory::olmes:full",
-    "minerva_math_prealgebra::olmes:full",
-    "minerva_math_precalculus::olmes:full",
-    # Coding
-    "mbpp::ladder",
-    "mbppplus::ladder",
-    "codex_humaneval:temp0.8",
-    "codex_humanevalplus::ladder", 
-]
+# TASK_LIST_ALL += [
+#     # GSM CoT
+#     "gsm8k::olmes:full",
+#     # Minerva CoT (olmes version)
+#     "minerva_math_algebra::olmes:full",
+#     "minerva_math_counting_and_probability::olmes:full",
+#     "minerva_math_geometry::olmes:full",
+#     "minerva_math_intermediate_algebra::olmes:full",
+#     "minerva_math_number_theory::olmes:full",
+#     "minerva_math_prealgebra::olmes:full",
+#     "minerva_math_precalculus::olmes:full",
+#     # Coding
+#     "mbpp::ladder",
+#     "mbppplus::ladder",
+#     "codex_humaneval:temp0.8",
+#     "codex_humanevalplus::ladder", 
+# ]
 
 # TASK_LIST_ALL += [
 #     'deepmind_math_large::none',
@@ -103,15 +104,18 @@ TASK_LIST_ALL += [
 
 # # FOR TESTING
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' not in task] # exclude MMLU (long arg lists may crash beaker! https://github.com/allenai/beaker/issues/5530)
-
-MODEL_LIST_ALL = [
-    # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step720000",
-    # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step705000",
-    # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step701000",
-    # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step696000",
-    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/step919000",
-    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/step917000"
-]
+# MODEL_LIST_ALL = [
+#     # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step720000",
+#     # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step705000",
+#     # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step701000",
+#     # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step696000",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/step919000",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/step917000"
+# ]
+# MODEL_LIST_ALL = [
+#     "mistral-small-3.1-24b-base-2503",
+#     "gemma-2-2b",
+# ]
 
 
 def run_eval(model_list, task_list, model_type='hf', gpus=1, gpu_memory_utilization=0.7, limit=None, batch_size=None, save_requests=True):
@@ -132,11 +136,11 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, gpu_memory_utilizat
     if len(model_list) == 1: # convert back list -> str
         model_list = model_list[0]
 
-    # WORKSPACE = "ai2/ladder-evals"
-    # PRIORITY = "normal"
+    WORKSPACE = "ai2/ladder-evals"
+    PRIORITY = "low"
 
-    WORKSPACE = "ai2/lm-eval"
-    PRIORITY = "high" # high
+    # WORKSPACE = "ai2/lm-eval"
+    # PRIORITY = "high" # high
 
     command = f"""
     oe-eval \
@@ -152,7 +156,7 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, gpu_memory_utilizat
         --gantry-secret-hf-read-only davidh_HF_TOKEN \
         --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
         --recompute-metrics \
-        --gantry-args '{{"env": "VLLM_USE_V1=0"}}' \
+        --gantry-args '{{"env": "VLLM_USE_V1=0", "HF_HUB_TIMEOUT": "60"}}' \
         --model-args gpu_memory_utilization={gpu_memory_utilization} \
         --beaker-priority {PRIORITY}
     """

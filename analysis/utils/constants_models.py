@@ -401,6 +401,40 @@ MODEL_LIST_INTERMEDIATE_7B = [
     'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/step928646',
 ]
 
+MODEL_LIST_FINAL_30_13B = [
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step567000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step568000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step569000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step570000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step571000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step572000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step573000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step574000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step575000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step576000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step577000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step578000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step579000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step580000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step581000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step582000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step583000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step584000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step585000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step586000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step587000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step588000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step589000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step590000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step591000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step592000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step593000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step594000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step595000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step596000",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step596057"
+]
+
 MODEL_LIST_INTERMEDIATE_32B = [
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step693000",
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step694000",

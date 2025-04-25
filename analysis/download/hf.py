@@ -128,15 +128,15 @@ def main():
         overwrite=True
     )
 
-    for org_name in ['allenai', 'davidheineman']:
-        is_private = (org_name != 'davidheineman') # make everything not davidheineman private
-        push_parquet_to_hf(
-            parquet_file_path='analysis/data/consistent_ranking_metrics.parquet',
-            hf_dataset_name=f'{org_name}/consistent-ranking-evals',
-            split_name='benchmarks',
-            overwrite=True,
-            private=is_private,
-        )
+    # for org_name in ['allenai', 'davidheineman']:
+    #     is_private = (org_name != 'davidheineman') # make everything not davidheineman private
+    #     push_parquet_to_hf(
+    #         parquet_file_path='analysis/data/consistent_ranking_metrics.parquet',
+    #         hf_dataset_name=f'{org_name}/consistent-ranking-evals',
+    #         split_name='benchmarks',
+    #         overwrite=True,
+    #         private=is_private,
+    #     )
 
 
 if __name__ == '__main__': main()
