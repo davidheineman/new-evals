@@ -435,6 +435,40 @@ MODEL_LIST_FINAL_30_13B = [
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/step596057"
 ]
 
+MODEL_LIST_FINAL_30_1B = [
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1610000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1620000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1630000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1640000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1650000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1660000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1670000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1680000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1690000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1700000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1710000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1720000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1730000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1740000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1750000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1760000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1770000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1780000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1790000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1800000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1810000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1820000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1830000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1840000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1850000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1860000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1870000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1880000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1890000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1900000-unsharded-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1907359-unsharded-hf",
+]
+
 MODEL_LIST_INTERMEDIATE_32B = [
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step693000",
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step694000",
@@ -466,6 +500,32 @@ MODEL_LIST_INTERMEDIATE_32B = [
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step720000",
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step721000",
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step721901",
+]
+
+MODEL_LIST_SEED_RUNS = [
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-2435-high-eval-interval-1B-5xC/step81342-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-1029-1B-5xC/step81342-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-01345-1B-5xC/step75000-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-10294-1B-5xC/step17250-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-23095-1B-5xC/step81342-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-39240-1B-5xC/step81342-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-59430-1B-5xC/step81342-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-60439-1B-5xC/step81342-hf",
+    "weka://oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-89632-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-data-seed-28530-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-data-seed-40593-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-data-seed-59602-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-1029-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-1304-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-2435-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-3004-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-3043-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-4921-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-4932-1B-5xC/step51250-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-5093-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-5730-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-5794-1B-5xC/step81342-hf",
+    "weka://oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-9258-1B-5xC/step81342-hf",
 ]
 
 # (Old, see next list) Varying the data mix at 1B 5xC for 20 models

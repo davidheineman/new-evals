@@ -335,37 +335,63 @@ MODEL_LIST_CUSTOM=(
 )
 
 MODEL_LIST_1B=(
-    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1610000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1620000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1630000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1640000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1650000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1660000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1670000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1680000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1690000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1700000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1710000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1720000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1730000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1740000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1750000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1760000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1770000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1780000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1790000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1800000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1810000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1820000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1830000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1840000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1850000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1860000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1870000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1880000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1890000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1900000"
-    # "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1907359"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1610000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1620000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1630000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1640000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1650000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1660000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1670000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1680000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1690000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1700000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1710000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1720000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1730000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1740000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1750000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1760000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1770000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1780000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1790000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1800000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1810000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1820000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1830000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1840000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1850000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1860000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1870000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1880000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1890000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1900000-unsharded"
+    "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1/step1907359-unsharded"
+)
+
+SEED_RUNS=(
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-2435-high-eval-interval-1B-5xC/step81342"
+    "/oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-1029-1B-5xC/step81342"
+    "/oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-01345-1B-5xC/step75000"
+    "/oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-10294-1B-5xC/step17250"
+    "/oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-23095-1B-5xC/step81342"
+    "/oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-39240-1B-5xC/step81342"
+    "/oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-59430-1B-5xC/step81342"
+    "/oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-60439-1B-5xC/step81342"
+    "/oe-eval-default/ai2-llm/checkpoints/davidh/seed/OLMo2-data-seed-89632-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-data-seed-28530-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-data-seed-40593-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-data-seed-59602-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-1029-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-1304-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-2435-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-3004-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-3043-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-4921-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-4932-1B-5xC/step51250"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-5093-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-5730-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-5794-1B-5xC/step81342"
+    "/oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/OLMo2-9258-1B-5xC/step81342"
 )
 
 # Dolma 2 Tokenizer
@@ -455,7 +481,17 @@ TOKENIZER_PATH=/oe-training-default/ai2-llm/checkpoints/OLMo-medium/peteish13-hi
 # done
 
 
+### Move checkpoints
+# /oe-training-default/ai2-llm/checkpoints/davidh/ladder/checkpoints/
+# /oe-eval-default/ai2-llm/checkpoints/davidh/seed/
+
 ### Original processor
+
+# # Unshard a folder of checkpoints
+# python olmo-repos/OLMo/scripts/storage_cleaner.py unshard \
+#     "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1" \
+#     "/oe-eval-default/ai2-llm/checkpoints/OLMo-small/peteish1"
+
 
 process_model_checkpoint() {
     INPUT_DIR=$1
@@ -470,20 +506,29 @@ process_model_checkpoint() {
     echo $INPUT_DIR
     echo $OUTPUT_DIR
 
-    python olmo-repos/OLMo/scripts/convert_olmo_to_hf_new.py \
-        --input_dir "$INPUT_DIR" \
-        --output_dir "$OUTPUT_DIR" \
-        --tokenizer_json_path "$TOKENIZER_PATH"
+    # Unsharded -> HF (OLMo 1.5)
+    # python olmo-repos/OLMo/scripts/convert_olmo_to_hf_new.py \
+    #     --input_dir "$INPUT_DIR" \
+    #     --output_dir "$OUTPUT_DIR" \
+    #     --tokenizer_json_path "$TOKENIZER_PATH"
 
+    # Unsharded -> HF (OLMo 2)
     # python olmo-repos/OLMo/scripts/convert_olmo2_to_hf.py \
     #     --input_dir "$INPUT_DIR" \
     #     --output_dir "$OUTPUT_DIR" \
     #     --tokenizer_json_path "$TOKENIZER_PATH"
+
+    # OLMo core v2
+    olmo-cookbook-eval convert \
+        "$INPUT_DIR" \
+        -t olmo-core-v2 \
+        --huggingface-tokenizer allenai/OLMo-2-1124-7B
 }
 
 # for MODEL in "${MODEL_LIST_LADDER[@]}"; do
 # for MODEL in "${MODEL_LIST_CUSTOM[@]}"; do
-for MODEL in "${MODEL_LIST_1B[@]}"; do
+# for MODEL in "${MODEL_LIST_1B[@]}"; do
+for MODEL in "${SEED_RUNS[@]}"; do
     if [[ $MODEL == *"step"* ]]; then
         # Directly process the provided model path
         process_model_checkpoint "$MODEL"

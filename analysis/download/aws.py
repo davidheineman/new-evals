@@ -138,9 +138,9 @@ def main():
     from preprocess import main
     main(folder_name, file_type='metrics')
     # main(folder_name, file_type='predictions')
-    main(folder_name, file_type='lite_predictions')
-    main(folder_name, file_type='medium_predictions')
-    main(folder_name, file_type='questions')
+    # main(folder_name, file_type='lite_predictions')
+    # main(folder_name, file_type='medium_predictions')
+    # main(folder_name, file_type='questions')
 
     # Push to HF!
     from hf import main

@@ -1,3 +1,4 @@
+import itertools
 import os, time, sys
 from pathlib import Path
 
@@ -6,7 +7,8 @@ sys.path.append(str(parent_dir))
 
 from analysis.utils import weka_to_gcs
 
-from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_MIXES_FINAL, MODEL_LIST_MIXES_FINAL_EXTENDED, MODEL_LIST_INTERMEDIATE, MODEL_LIST_INTERMEDIATE_13B, MODEL_LIST_MIXES, OE_EVAL_BASE_MODELS, OE_EVAL_INSTRUCT_MODELS, OE_EVAL_ALL_MODELS, OE_EVAL_BASE_MODELS_EXTENDED, OE_EVAL_BASE_MODELS_EXTENDED_2, MODEL_LIST_INTERMEDIATE_7B, MODEL_LIST_FINAL_30_13B, MODEL_LIST_INTERMEDIATE_32B
+from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_MIXES_FINAL, MODEL_LIST_MIXES_FINAL_EXTENDED, MODEL_LIST_INTERMEDIATE, MODEL_LIST_INTERMEDIATE_13B, MODEL_LIST_MIXES, OE_EVAL_BASE_MODELS, OE_EVAL_INSTRUCT_MODELS, OE_EVAL_ALL_MODELS, OE_EVAL_BASE_MODELS_EXTENDED, OE_EVAL_BASE_MODELS_EXTENDED_2, MODEL_LIST_INTERMEDIATE_7B, MODEL_LIST_FINAL_30_1B, MODEL_LIST_FINAL_30_13B, MODEL_LIST_INTERMEDIATE_32B, MODEL_LIST_SEED_RUNS
+from analysis.utils.constants_model_ckpts import MODEL_LIST_FINAL_SIX_CKPTS, DATADECIDE_FINAL_FIVE_CKPTS
 from analysis.utils.constants_models import WEKA_CLUSTERS, GCP_CLUSTERS
 from analysis.utils.constants_tasks import MC_TASKS_COPY_COLORS, MISSING_EVALS
 
@@ -39,18 +41,20 @@ MODEL_LIST_ALL = []
 # MODEL_LIST_ALL += MODEL_LIST_INTERMEDIATE_32B # 32B Final 30 ckpts (1000 steps apart)
 
 # MODEL_LIST_ALL += MODEL_LIST_FINAL_30_13B # 13B Final 30 ckpts (1000 steps apart)
-MODEL_LIST_ALL += [
-    'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/last-5-model-merged',
-    'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/last-30-model-merged',
-    'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/last-5-model-merged',
-    'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/last-30-model-merged',
-    'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/last-5-model-merged',
-    'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/last-29-model-merged',
-] # merged models
+# MODEL_LIST_ALL += MODEL_LIST_FINAL_30_1B # 1.5B-4T Final 30 ckpts (1000 steps apart)
+# MODEL_LIST_ALL += [
+#     'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/last-5-model-merged',
+#     'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish7/last-30-model-merged',
+#     'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/last-5-model-merged',
+#     'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-medium/peteish13-highlr/last-30-model-merged',
+#     'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/last-5-model-merged',
+#     'weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/last-29-model-merged',
+# ] # merged models (weka only)
 
-# MODEL_LIST_ALL += MODEL_LIST_MIXES # not used for now
-# MODEL_LIST_ALL += OE_EVAL_INSTRUCT_MODELS # not used for now
-# MODEL_LIST_ALL += MODEL_LIST_FINAL_SIX_CKPTS # not used for now
+# MODEL_LIST_ALL += MODEL_LIST_FINAL_SIX_CKPTS # (200) Model ladder final 6 ckpts
+# MODEL_LIST_ALL += MODEL_LIST_SEED_RUNS # (20) Seed runs (weka only)
+
+MODEL_LIST_ALL += DATADECIDE_FINAL_FIVE_CKPTS # (1125) DataDecide final 5 ckpts
 
 TASK_LIST_ALL = []
 
@@ -111,7 +115,28 @@ TASK_LIST_ALL = []
 # TASK_LIST_ALL += LLM_COMPRESSION
 # TASK_LIST_ALL += CUSTOM_LOSS
 
+TASK_LIST_ALL += [ # Custom suites to prevent gRPC overload on Beaker
+    'rc_basic::custom_suite',
+    'mc_basic::custom_suite',
+    # 'rc_difficult::custom_suite',
+    # 'autobench::custom_suite',
+    # 'gen::custom_suite',
+    # 'gen_difficult::custom_suite',
+]
+
 # # FOR TESTING
+# TASK_LIST_ALL = ["arc_challenge:rc::olmes:full"]
+# MODEL_LIST_ALL = [
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/prox_fineweb_pro-1B-5xC-2/step69369-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/prox_fineweb_pro-750M-5xC-2/step63589-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/prox_fineweb_pro-530M-5xC-2/step57776-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/prox_fineweb_pro-300M-5xC-2/step45787-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/prox_fineweb_pro-150M-5xC-2/step38157-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-90M-5xC/step29901-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-60M-5xC/step29042-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-20M-5xC/step14584-unsharded-hf",
+#     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-4M-5xC/step5735-unsharded-hf",
+# ]
 # TASK_LIST_ALL = [task for task in TASK_LIST_ALL if 'mmlu_' not in task] # exclude MMLU (long arg lists may crash beaker! https://github.com/allenai/beaker/issues/5530)
 # MODEL_LIST_ALL = [
 #     # "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-large/peteish32/step720000",
@@ -125,6 +150,7 @@ TASK_LIST_ALL = []
 #     "mistral-small-3.1-24b-base-2503",
 #     "gemma-2-2b",
 # ]
+MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if '/DCLM-baseline-' not in model] # DCLM only
 
 
 def run_eval(model_list, task_list, model_type='hf', gpus=1, gpu_memory_utilization=0.7, limit=None, batch_size=None, save_requests=True):
@@ -135,7 +161,8 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, gpu_memory_utilizat
 
     # # Use WEKA
     # cluster_list = WEKA_CLUSTERS
-    # model_list = [model.replace('weka://', '/weka-mount/') for model in model_list]
+    # model_list = [model.replace('weka://', '/weka-mount/') for model in model_list] # beaker
+    # # model_list = [model.replace('weka://', '/') for model in model_list] # local
 
     # Use GCP
     cluster_list = GCP_CLUSTERS
@@ -146,10 +173,12 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, gpu_memory_utilizat
         model_list = model_list[0]
 
     WORKSPACE = "ai2/ladder-evals"
-    PRIORITY = "low"
+    PRIORITY = "normal"
 
     # WORKSPACE = "ai2/lm-eval"
     # PRIORITY = "high" # high
+
+    VLLM_MEMORY_USE = f"--model-args gpu_memory_utilization={gpu_memory_utilization}" if model_type == 'vllm' else " "
 
     command = f"""
     oe-eval \
@@ -166,7 +195,7 @@ def run_eval(model_list, task_list, model_type='hf', gpus=1, gpu_memory_utilizat
         --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/ \
         --recompute-metrics \
         --gantry-args '{{"env": "VLLM_USE_V1=0", "HF_HUB_TIMEOUT": "60"}}' \
-        --model-args gpu_memory_utilization={gpu_memory_utilization} \
+        {VLLM_MEMORY_USE} \
         --beaker-priority {PRIORITY}
     """
     # --gantry-secret-hf-read-only lucas_HUGGING_FACE_HUB_TOKEN \
@@ -205,8 +234,12 @@ def main():
     #         continue
     #         # raise
 
-    task_list = TASK_LIST_ALL
-    for model in MODEL_LIST_ALL:
+    # task_list = TASK_LIST_ALL
+    # for model in MODEL_LIST_ALL:
+
+    for task, model in itertools.product(TASK_LIST_ALL, MODEL_LIST_ALL):
+        task_list = [task]
+        time.sleep(1) # prevent hf from timeout
 
         batch_size = None
         save_requests = True
@@ -238,10 +271,32 @@ def main():
         elif 'peteish32' in model or 'peteish13' in model or 'peteish7' in model:
             model_type = 'vllm'
             gpus = 4
-        elif model in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED or ('-3B-' in model) or model in [weka_to_gcs(m) for m in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED]:
+        elif model in \
+            MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED + DATADECIDE_FINAL_FIVE_CKPTS or \
+            ('-3B-' in model) or \
+            model in [weka_to_gcs(m) for m in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED + DATADECIDE_FINAL_FIVE_CKPTS]:
             # Our 3B models have a head size of 208. This is not supported by PagedAttention and will throw errors.
             model_type = 'hf'
             gpus = 1
+
+            # For the DataDecide models, manually set the batch size for single GPU A100/H100 eval
+            CUSTOM_BZ = {
+                '1B': 32,
+                '750M': 32,
+                '530M': 32,
+                '300M': 32,
+                '150M': 32,
+                '90M': 32,
+                '20M': 64,
+                '4M': 64,
+            }
+            for key in CUSTOM_BZ:
+                if key in model:
+                    batch_size = CUSTOM_BZ[key]
+                    if any('mc' in task for task in task_list):
+                        batch_size = int(batch_size / 2)
+                    if any('gen' in task for task in task_list):
+                        batch_size = int(batch_size / 4)
         else:
             # model_type = 'hf'
             model_type = 'vllm'

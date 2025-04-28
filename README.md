@@ -51,6 +51,9 @@ nohup python analysis/download/aws.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 nohup python analysis/download/preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 nohup python analysis/download/hf.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 nohup python scripts/download_checkpoints.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
+
+# Convert checkpoints
+nohup ./scripts/convert_checkpoints_peteish.sh > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 ```
 
 ### Install Custom oe-eval 
@@ -64,6 +67,9 @@ oe-eval --model pythia-160m --task hellaswag:rc::olmes:full --run-local --output
 oe-eval --model pythia-160m --task drop::olmes:full gsm8k::olmes:full jeopardy::olmes:full naturalqs::olmes:full squad::olmes:full triviaqa::olmes:full arc_challenge:rc::olmes:full --run-local --output-dir /Users/dhei/ai2/new-evals/workspace --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing --limit 20
 
 oe-eval --model pythia-160m --task bbh_boolean_expressions:cot::olmes:full --run-local --output-dir /Users/dhei/ai2/new-evals/workspace --remote-output-dir s3://ai2-llm/eval-results/downstream/metaeval/local_testing --limit 20
+
+# custom suites
+oe-eval --model pythia-160m --task rc_basic::custom_suite --run-local --output-dir workspace
 ```
 
 ### Converting OLMo Checkpoints
