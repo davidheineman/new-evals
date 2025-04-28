@@ -252,7 +252,11 @@ def get_task_correlations(df_benchmarks, selected_tasks, pred_metric='logits_per
     return corr_matrix, task_names
 
 
-def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_models, metric='primary_score', axes=None, small_fig=False, run_irt=False, ladder_config_path=DEFAULT_LADDER_CONFIG_PATH):
+def run_analysis(
+        df, task, ladder_models, external_ladder_models, eval_ladder_models, 
+        metric='primary_score', axes=None, small_fig=False, 
+        run_irt=False, ladder_config_path=DEFAULT_LADDER_CONFIG_PATH
+    ):
     results = {}
 
     ### FIXES ###
@@ -291,7 +295,8 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
         'olmo2_32b': {'count': 11, 'flops_range': (6.764705882352941e+23, 1.955e+24)},
         'olmo2_13b': {'count': 9, 'flops_range': (2.2941176470588235e+23, 6.63e+23)},
         'olmo2_7b': {'count': 14, 'flops_range': (9.88235294117647e+22, 2.8559999999999996e+23)},
-        'olmo_1b': {'count': 10, 'flops_range': (1.376470588235294e+22, 3.978e+22)}
+        # 'olmo_1b': {'count': 10, 'flops_range': (1.376470588235294e+22, 3.978e+22)}
+        'olmo2_1b': {'count': 8, 'flops_range': (2.1176470588235293e+22, 6.12e+22)}
     }
     observational_metrics = ['primary_score', 'logits_per_char_corr', 'logits_per_byte_corr']
     for observational_metric in observational_metrics:
@@ -458,7 +463,7 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
         # raise RuntimeError(task, 'failed on ladder fits', e)
 
     # Step-to-step noise
-    intermediate_models = ['peteish-moreeval-1B-5xC', 'peteish7', 'peteish13-highlr', 'peteish32']
+    intermediate_models = ['peteish1', 'peteish7', 'peteish13-highlr', 'peteish32'] # peteish-moreeval-1B-5xC
     intermediate_model_names = ['1B', '7B', '13B', '32B']
     for j, model in enumerate(intermediate_models):
         model_name = intermediate_model_names[j]
@@ -645,9 +650,9 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
     snr_metrics = ['primary_score', 'logits_per_char_corr', 'logits_per_byte_corr']
     for snr_metric in snr_metrics:
         for size in DDOS_SIZES + ['1B', '7B', '13B', '32B']:
-            if f'std_dev:{snr_metric}:{size}' in results and \
-                f'mean:{snr_metric}:{size}' in results and \
-                f'tv:{snr_metric}:{size}' in results:
+            if f'mean:{snr_metric}:{size}' in results and \
+                f'std_dev:{snr_metric}:{size}' in results and \
+                f'step_rel_std:last30:{snr_metric}:{size}' in results:
 
                 # tv_no_norm
                 # step_std:perc20
@@ -655,11 +660,15 @@ def run_analysis(df, task, ladder_models, external_ladder_models, eval_ladder_mo
                 # step_std:last10
                 # step_rel_std:last10
 
-                results[f'rel_std:{snr_metric}:{size}'] = \
-                    abs(results[f'std_dev:{snr_metric}:{size}'] / results[f'mean:{snr_metric}:{size}'])
-                results[f'snr:{snr_metric}:{size}'] = \
-                    results[f'rel_std:{snr_metric}:{size}'] / abs(results[f'step_rel_std:last30:{snr_metric}:{size}']) if abs(results[f'step_rel_std:last30:{snr_metric}:{size}']) > 0 else float('-inf')
-                    # results[f'rel_std:{snr_metric}:{size}'] / abs(results[f'tv:{snr_metric}:{size}']) if abs(results[f'tv:{snr_metric}:{size}']) > 0 else float('-inf')
+                mean = results[f'mean:{snr_metric}:{size}']
+                data_std_dev = results[f'std_dev:{snr_metric}:{size}']
+                step_rel_std = results[f'step_rel_std:last30:{snr_metric}:{size}']
+                
+                data_rel_std = abs(data_std_dev / mean) if abs(mean) > 0 else 0
+                snr = data_rel_std / abs(step_rel_std) if abs(step_rel_std) > 0 else float('-inf')
+                
+                results[f'rel_std:{snr_metric}:{size}'] = data_rel_std
+                results[f'snr:{snr_metric}:{size}'] = snr
     
     # Total cost of evaluation
     try:
@@ -833,7 +842,11 @@ def compute_instance_analysis(
     return results
 
 
-def compute_metaproperties(df_benchmarks, df_instances, selected_tasks, run_irt=False, run_instance_analysis=False, quiet=False):
+def compute_metaproperties(
+        df_benchmarks, df_instances, selected_tasks, 
+        run_irt=False, run_instance_analysis=False, 
+        use_parallel=True, quiet=False
+    ):
     ALPHA=1e-4
 
     task_names = [get_title_from_task(task) for task in selected_tasks]
@@ -870,16 +883,21 @@ def compute_metaproperties(df_benchmarks, df_instances, selected_tasks, run_irt=
             'run_irt': run_irt
         })
     
-    with ProcessPoolExecutor() as executor:
-        futures = []
-        for kwargs in benchmark_args:
-            futures.append(executor.submit(run_analysis, **kwargs))
-        
-        benchmark_results = list(tqdm(
-            (f.result() for f in futures),
-            total=len(benchmark_args),
-            desc="Computing benchmark properties"
-        ))
+    if not use_parallel:
+        benchmark_results = []
+        for kwargs in tqdm(benchmark_args, desc="Computing benchmark properties"):
+            benchmark_results.append(run_analysis(**kwargs))
+    else:
+        with ProcessPoolExecutor() as executor:
+            futures = []
+            for kwargs in benchmark_args:
+                futures.append(executor.submit(run_analysis, **kwargs))
+            
+            benchmark_results = list(tqdm(
+                (f.result() for f in futures),
+                total=len(benchmark_args),
+                desc="Computing benchmark properties"
+            ))
 
     # Run instance analysis
     if run_instance_analysis:
@@ -919,3 +937,18 @@ def compute_metaproperties(df_benchmarks, df_instances, selected_tasks, run_irt=
         df_results = df_results[~df_results.index.duplicated()]
 
     return df_results
+
+def run_single_ladder(df, task, train_models, eval_models, ladder_config_path, ax):
+    _, _, stacked_error = run_ladder(
+        df,
+        task,
+        train_models=train_models,
+        eval_models=eval_models,
+        config_path=ladder_config_path,
+        plot_compute=True,
+        run_step1=False, run_step2=False,
+        axes=[ax],
+        
+        last_n=6, last_n_method='sample'
+    )
+    return stacked_error

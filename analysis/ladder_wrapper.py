@@ -1,4 +1,5 @@
 import os, copy
+import random
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -169,7 +170,11 @@ def get_ladder_size(model_name):
     return size
 
 
-def get_ladder_data(df, task_name, train_models, eval_models, step='max', intermediate_feature="logits_per_byte_corr", downstream_feature="primary_score"):
+def get_ladder_data(
+        df, task_name, train_models, eval_models, step='max', 
+        last_n=None, last_n_method=None, # e.g., (6, 'avg')
+        intermediate_feature="logits_per_byte_corr", downstream_feature="primary_score"
+    ):
     """ Get slices of df and convert to ladder prediction format """
     data_by_name = defaultdict(dict)
 
@@ -210,7 +215,15 @@ def get_ladder_data(df, task_name, train_models, eval_models, step='max', interm
             
             scores_dict = {metric: np.array([]) for metric in metric_names}
             for metric in metric_names:
-                _, scores_dict[metric] = get_nd_array(df, ['model', 'step', 'mix'], metric, model=model, task=task_name, step=step)
+                columns, scores = get_nd_array(df, ['model', 'step', 'mix'], metric, model=model, task=task_name, step=step)
+
+                # Sort by the step number
+                numeric_cols = np.array([float(col[0]) for col in columns])
+                sort_indices = np.argsort(numeric_cols)
+                numeric_cols = numeric_cols[sort_indices]
+                scores = scores[sort_indices]
+
+                scores_dict[metric] = scores
         
         # Default to empty np array if it does not exist
         corr        = scores_dict.get("correct_choice", np.array([]))
@@ -272,6 +285,24 @@ def get_ladder_data(df, task_name, train_models, eval_models, step='max', interm
             acc = acc.item()
         else:
             acc = acc.squeeze().tolist()
+
+        def aggregate_list(scores, mode, last_n_method, last_n):
+            if mode == 'train':
+                if last_n_method == 'avg':
+                    scores = np.mean(scores[-last_n:])
+                elif last_n_method == 'sample':
+                    scores = random.sample(scores[-last_n:], k=1)[0]
+                else:
+                    raise ValueError(last_n_method)
+            elif mode == 'eval':
+                scores = scores[-1] # just take final ckpt for eval model
+            return scores
+
+        # This will average the last-n checkpoints for models
+        if isinstance(correct_bpb, list): 
+            correct_bpb = aggregate_list(correct_bpb, mode, last_n_method, last_n)
+        if isinstance(acc, list): 
+            acc = aggregate_list(acc, mode, last_n_method, last_n)
         
         data_by_name[size]['xs'] += [correct_bpb]
         data_by_name[size]['ys'] += [acc]
@@ -318,6 +349,7 @@ def run_ladder(
         df, task_name, train_models, eval_models, config_path, 
         downstream_feature='primary_score', intermediate_feature='bpb', intermediate_task_name=None, y_metric='rc_bpb',  # "y_metric" is the metric type
         use_flops=False,
+        last_n=None, last_n_method=None, # sample/avg last n checkpoints
         run_step1=True, run_step2=True, run_stacked=True,
         axes=None, add_texts=False, plot_compute=False,
         return_preds=False, return_reals=False, return_fit_error=False):
@@ -331,9 +363,17 @@ def run_ladder(
 
     if run_step1 or run_stacked:
         # Load data
-        data_by_name = get_ladder_data(df, task_name, train_models, eval_models, downstream_feature=downstream_feature)
+        data_by_name = get_ladder_data(
+            df, task_name, train_models, eval_models, 
+            downstream_feature=downstream_feature, 
+            step=('all' if last_n_method is not None else 'max'), last_n=last_n, last_n_method=last_n_method
+        )
         if intermediate_feature != 'bpb':
-            data_by_name_intermedaite = get_ladder_data(df, intermediate_task_name, train_models, eval_models, intermediate_feature=intermediate_feature, downstream_feature=downstream_feature)
+            data_by_name_intermedaite = get_ladder_data(
+                df, intermediate_task_name, train_models, eval_models, 
+                intermediate_feature=intermediate_feature, downstream_feature=downstream_feature, 
+                step=('all' if last_n_method is not None else 'max'), last_n=last_n, last_n_method=last_n_method
+            )
             data_by_name = merge_dicts(data_by_name, data_by_name_intermedaite, overwrite_xs=True, overwrite_ds_ns_ls=False)
         
         # Add token data -- this removes models without token data (like Llama for step 2 fitting)
@@ -387,9 +427,17 @@ def run_ladder(
 
     if run_step2 or run_stacked:
         # Reload data: this breaks stuff (lets us fit external models for step 2)
-        data_by_name_step_2 = get_ladder_data(df, task_name, train_models, eval_models, downstream_feature=downstream_feature)
+        data_by_name_step_2 = get_ladder_data(
+            df, task_name, train_models, eval_models, 
+            downstream_feature=downstream_feature, 
+            step=('all' if last_n_method is not None else 'max'), last_n=last_n, last_n_method=last_n_method
+        )
         if intermediate_feature != 'bpb':
-            data_by_name_intermedaite = get_ladder_data(df, intermediate_task_name, train_models, eval_models, intermediate_feature=intermediate_feature, downstream_feature=downstream_feature)
+            data_by_name_intermedaite = get_ladder_data(
+                df, intermediate_task_name, train_models, eval_models, 
+                intermediate_feature=intermediate_feature, downstream_feature=downstream_feature, 
+                step=('all' if last_n_method is not None else 'max'), last_n=last_n, last_n_method=last_n_method
+            )
             data_by_name_step_2 = merge_dicts(data_by_name_step_2, data_by_name_intermedaite, overwrite_xs=True, overwrite_ds_ns_ls=False)
 
         task_key, configs = create_ladder_config(config_path, task_name, train_models, eval_models)

@@ -20,6 +20,10 @@ def calc_total_variation(arr, norm=False, improvement=False):
     arr = np.array(arr)
 
     tv = np.mean(np.abs(np.diff(arr)))
+
+    if tv == 0:
+        return tv
+
     if norm: tv /= (max(arr) - min(arr))
     if improvement: tv -= calc_improvement(arr)
 

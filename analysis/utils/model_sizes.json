@@ -528,5 +528,10 @@
     "toks_T": 4.0,
     "active_params_B": 7.0,
     "total_params_B": 7.0
+  },
+  "allenai/OLMo-2-0425-1B": {
+    "toks_T": 4.0,
+    "active_params_B": 1.5,
+    "total_params_B": 1.5
   }
 }
