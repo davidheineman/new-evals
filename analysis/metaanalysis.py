@@ -151,7 +151,7 @@ def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_
                 target_scale_array = [target_steps_per_mix[mix] for mix in mixes]
                 
                 # For each trial, sample one value per mix and compute decision accuracy
-                n_trials = 10_000
+                n_trials = 1000
                 trial_accuracies = []
                 
                 for _ in tqdm(range(n_trials), desc=f'Sampling for size={size}, task={get_title_from_task(task)}, metric={metric}'):
