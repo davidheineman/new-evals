@@ -27,6 +27,7 @@ def download_file(s3_client, bucket_name, key, local_dir, excluded_file_names):
         return # Skip download if there are any str matches with EXCLUDED_FILE_NAMES
     
     if os.path.exists(local_path):
+        return # skip for speed
         s3_head = s3_client.head_object(Bucket=bucket_name, Key=key)
         s3_file_size = s3_head['ContentLength']
         local_file_size = os.path.getsize(local_path)
@@ -72,7 +73,7 @@ def mirror_s3_to_local(bucket_name, s3_prefix, local_dir, max_threads=100, exclu
     print(f'Searching through S3 prefixes: {s3_prefixes}')
 
     # with ProcessPoolExecutor() as executor:
-    with ThreadPoolExecutor(max_workers=100) as executor:
+    with ThreadPoolExecutor(max_workers=max_threads) as executor:
         # TODO: Combine both if branches into one set of results
         if s3_prefix_list is not None or len(s3_prefix) > 1:
             future_to_prefix = {}

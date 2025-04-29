@@ -1,3 +1,4 @@
+from concurrent.futures import ProcessPoolExecutor
 import os, copy
 import random
 import numpy as np
@@ -172,7 +173,6 @@ def get_ladder_size(model_name):
 
 def get_ladder_data(
         df, task_name, train_models, eval_models, step='max', 
-        last_n=None, last_n_method=None, # e.g., (6, 'avg')
         intermediate_feature="logits_per_byte_corr", downstream_feature="primary_score"
     ):
     """ Get slices of df and convert to ladder prediction format """
@@ -285,24 +285,6 @@ def get_ladder_data(
             acc = acc.item()
         else:
             acc = acc.squeeze().tolist()
-
-        def aggregate_list(scores, mode, last_n_method, last_n):
-            if mode == 'train':
-                if last_n_method == 'avg':
-                    scores = np.mean(scores[-last_n:])
-                elif last_n_method == 'sample':
-                    scores = random.sample(scores[-last_n:], k=1)[0]
-                else:
-                    raise ValueError(last_n_method)
-            elif mode == 'eval':
-                scores = scores[-1] # just take final ckpt for eval model
-            return scores
-
-        # This will average the last-n checkpoints for models
-        if isinstance(correct_bpb, list): 
-            correct_bpb = aggregate_list(correct_bpb, mode, last_n_method, last_n)
-        if isinstance(acc, list): 
-            acc = aggregate_list(acc, mode, last_n_method, last_n)
         
         data_by_name[size]['xs'] += [correct_bpb]
         data_by_name[size]['ys'] += [acc]
@@ -345,34 +327,66 @@ def create_ladder_config(config_path, task_name, train_models, eval_models):
     return task_key, configs
 
 
+def aggregate_list(data_by_name, last_n_method_train, last_n_method_eval, last_n):
+    """ For xs or ys that have multiple points (e.g., last n points) aggregate them """
+    for model_size, model_results in data_by_name.items():
+        mode = model_results['mode']
+
+        for datapoint_name, scores_2d in model_results.items(): # xs, ys
+            for idx, scores in enumerate(scores_2d):
+                if isinstance(scores, list): # if the value is a list of lists
+                    if mode == 'train':
+                        # For train models:
+                        if last_n_method_train == 'avg':
+                            score = np.mean(scores[-last_n:])
+                        elif last_n_method_train == 'sample':
+                            score = random.sample(scores[-last_n:], k=1)[0]
+                        elif last_n_method_train == 'final':
+                            score = scores[-1]
+                        else:
+                            raise ValueError(last_n_method_train)
+                    elif mode == 'eval':
+                        # For eval models:
+                        if last_n_method_eval == 'avg':
+                            score = np.mean(scores[-last_n:])
+                        elif last_n_method_eval == 'sample':
+                            score = random.sample(scores[-last_n:], k=1)[0]
+                        elif last_n_method_eval == 'final':
+                            score = scores[-1]
+                    
+                    data_by_name[model_size][datapoint_name][idx] = score
+    return data_by_name
+
+
 def run_ladder(
-        df, task_name, train_models, eval_models, config_path, 
-        downstream_feature='primary_score', intermediate_feature='bpb', intermediate_task_name=None, y_metric='rc_bpb',  # "y_metric" is the metric type
-        use_flops=False,
-        last_n=None, last_n_method=None, # sample/avg last n checkpoints
-        run_step1=True, run_step2=True, run_stacked=True,
-        axes=None, add_texts=False, plot_compute=False,
-        return_preds=False, return_reals=False, return_fit_error=False):
+    df, task_name, train_models, eval_models, config_path, 
+    downstream_feature='primary_score', intermediate_feature='bpb', intermediate_task_name=None, y_metric='rc_bpb',  # "y_metric" is the metric type
+    use_flops=False,
+    last_n=None, last_n_method_train=None, last_n_method_eval=None, last_n_resample=None, # sample/avg last n checkpoints
+    run_step1=True, run_step2=True, run_stacked=True,
+    axes=None, add_texts=False, plot_compute=False,
+    return_preds=False, return_reals=False, return_fit_error=False):
     if isinstance(axes, list) and axes[0] is None: axes = None
     
     data_by_name_tokens = DATA_BY_NAME_LADDER
-    ax_i = 0
 
     # Get config
     configs = get_final_configs(config_path)
+
+    include_last_n = (last_n_method_train is not None) or (last_n_method_eval is not None)
 
     if run_step1 or run_stacked:
         # Load data
         data_by_name = get_ladder_data(
             df, task_name, train_models, eval_models, 
             downstream_feature=downstream_feature, 
-            step=('all' if last_n_method is not None else 'max'), last_n=last_n, last_n_method=last_n_method
+            step=('all' if include_last_n else 'max'),
         )
         if intermediate_feature != 'bpb':
             data_by_name_intermedaite = get_ladder_data(
                 df, intermediate_task_name, train_models, eval_models, 
                 intermediate_feature=intermediate_feature, downstream_feature=downstream_feature, 
-                step=('all' if last_n_method is not None else 'max'), last_n=last_n, last_n_method=last_n_method
+                step=('all' if include_last_n else 'max'),
             )
             data_by_name = merge_dicts(data_by_name, data_by_name_intermedaite, overwrite_xs=True, overwrite_ds_ns_ls=False)
         
@@ -385,8 +399,134 @@ def run_ladder(
         if '1.3B' in data_by_name_tokens: del data_by_name_tokens['1.3B']
         if '1.3B' in data_by_name: del data_by_name['1.3B']
         
-        data_by_name = merge_dicts(data_by_name, data_by_name_tokens, overwrite_xs=(y_metric == 'c4')) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
+        data_by_name_step_1 = merge_dicts(data_by_name, data_by_name_tokens, overwrite_xs=(y_metric == 'c4')) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
 
+    if run_step2 or run_stacked:
+        # Reload data: this breaks stuff (lets us fit external models for step 2)
+        data_by_name_step_2 = get_ladder_data(
+            df, task_name, train_models, eval_models, 
+            downstream_feature=downstream_feature, 
+            step=('all' if include_last_n else 'max'),
+        )
+        if intermediate_feature != 'bpb':
+            data_by_name_intermedaite = get_ladder_data(
+                df, intermediate_task_name, train_models, eval_models, 
+                intermediate_feature=intermediate_feature, downstream_feature=downstream_feature, 
+                step=('all' if include_last_n else 'max'),
+            )
+            data_by_name_step_2 = merge_dicts(data_by_name_step_2, data_by_name_intermedaite, overwrite_xs=True, overwrite_ds_ns_ls=False)
+
+        task_key, configs = create_ladder_config(config_path, task_name, train_models, eval_models)
+
+    data_by_name_stacked = copy.deepcopy(data_by_name_step_1) # used to fit two-step prediction
+
+    def _fit_ladder(_data_by_name_step_1, _data_by_name_step_2, _data_by_name_stacked):
+        return fit_ladder(
+            task_name, eval_models,
+            configs,
+            _data_by_name_step_1,  _data_by_name_step_2, _data_by_name_stacked, 
+            task_key,
+            y_metric=y_metric, use_flops=use_flops,
+            run_step1=run_step1, run_step2=run_step2, run_stacked=run_stacked,
+            axes=axes, add_texts=add_texts, plot_compute=plot_compute,
+        )
+
+    if last_n_method_train == 'sample' or last_n_method_eval == 'sample':
+        # Resample and fit multiple model ladders
+        rel_errors_step_1, rel_errors_step_2, rel_errors_stacked = [], [], []
+        step_1_ys, step_2_ys, stacked_ys = [], [], []
+        step_1_y_preds, step_2_y_preds, stacked_y_preds = [], [], []
+        fit_errors = []
+
+        # First generate all resampled data
+        resampled_data = []
+        for _ in range(last_n_resample):
+            _data_by_name_step_1 = copy.deepcopy(data_by_name_step_1)
+            _data_by_name_step_2 = copy.deepcopy(data_by_name_step_2)
+            _data_by_name_stacked = copy.deepcopy(data_by_name_stacked)
+
+            _data_by_name_step_1 = aggregate_list(_data_by_name_step_1, last_n_method_train, last_n_method_eval, last_n)
+            _data_by_name_step_2 = aggregate_list(_data_by_name_step_2, last_n_method_train, last_n_method_eval, last_n)
+            _data_by_name_stacked = aggregate_list(_data_by_name_stacked, last_n_method_train, last_n_method_eval, last_n)
+            
+            resampled_data.append((_data_by_name_step_1, _data_by_name_step_2, _data_by_name_stacked))
+
+        # Run ladder fits in parallel
+        with ProcessPoolExecutor() as executor:
+            futures = []
+            for data_tuple in resampled_data:
+                futures.append(executor.submit(fit_ladder, 
+                    task_name, eval_models, configs, data_tuple[0], data_tuple[1], data_tuple[2], task_key,
+                    y_metric, use_flops, run_step1, run_step2, run_stacked, axes, add_texts, plot_compute,
+                ))
+            
+            results = list(tqdm(
+                (f.result() for f in futures), 
+                total=len(futures),
+                desc='Computing ladder fits'
+            ))
+
+        # Unpack results
+        for result in results:
+            (rel_error_step_1, rel_error_step_2, _rel_errors_stacked), \
+            (step_1_y, step_2_y, stacked_y), \
+            (step_1_y_pred, step_2_y_pred, stacked_y_pred), \
+            fit_error = result
+
+            rel_errors_step_1.append(rel_error_step_1)
+            rel_errors_step_2.append(rel_error_step_2)
+            rel_errors_stacked.append(_rel_errors_stacked) 
+            step_1_ys.append(step_1_y)
+            step_2_ys.append(step_2_y)
+            stacked_ys.append(stacked_y)
+            step_1_y_preds.append(step_1_y_pred)
+            step_2_y_preds.append(step_2_y_pred)
+            stacked_y_preds.append(stacked_y_pred)
+            fit_errors.append(fit_error)
+        rel_error_step_1, rel_error_step_2, rel_errors_stacked = (rel_errors_step_1, rel_errors_step_2, rel_errors_stacked)
+        step_1_y, step_2_y, stacked_y = (step_1_ys, step_2_ys, stacked_ys)
+        step_1_y_pred, step_2_y_pred, stacked_y_pred = (step_1_y_preds, step_2_y_preds, stacked_y_preds)
+        fit_error = fit_errors
+
+    elif last_n_method_train == 'avg' or last_n_method_eval == 'avg':
+        data_by_name_step_1 = aggregate_list(data_by_name_step_1, last_n_method_train, last_n_method_eval, last_n)
+        data_by_name_step_2 = aggregate_list(data_by_name_step_2, last_n_method_train, last_n_method_eval, last_n)
+        data_by_name_stacked = aggregate_list(data_by_name_stacked, last_n_method_train, last_n_method_eval, last_n)
+
+        # Only fit a single ladder
+        (rel_error_step_1, rel_error_step_2, rel_errors_stacked), \
+        (step_1_y, step_2_y, stacked_y), \
+        (step_1_y_pred, step_2_y_pred, stacked_y_pred), \
+        fit_error = _fit_ladder(data_by_name_step_1, data_by_name_step_2, data_by_name_stacked)
+
+    else:
+        # Only fit a single ladder
+        (rel_error_step_1, rel_error_step_2, rel_errors_stacked), \
+        (step_1_y, step_2_y, stacked_y), \
+        (step_1_y_pred, step_2_y_pred, stacked_y_pred), \
+        fit_error = _fit_ladder(data_by_name_step_1, data_by_name_step_2, data_by_name_stacked)
+    
+    if return_reals:
+        return (rel_error_step_1, rel_error_step_2, rel_errors_stacked), (step_1_y, step_2_y, stacked_y), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
+    if return_preds:
+        return (rel_error_step_1, rel_error_step_2, rel_errors_stacked), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
+    if return_fit_error:
+        return (rel_error_step_1, rel_error_step_2, rel_errors_stacked), fit_error
+    return rel_error_step_1, rel_error_step_2, rel_errors_stacked
+
+
+
+def fit_ladder(
+        task_name, eval_models,
+        configs, data_by_name,  data_by_name_step_2, data_by_name_stacked, task_key,
+        y_metric='rc_bpb',  # "y_metric" is the metric type
+        use_flops=False,
+        run_step1=True, run_step2=True, run_stacked=True,
+        axes=None, add_texts=False, plot_compute=False,
+    ):
+    ax_i = 0
+
+    if run_step1 or run_stacked:
         # Fit step 1
         if use_flops:
             step1_coefficients, cov = fit_step1_flops(data_by_name, y_metric)
@@ -426,22 +566,6 @@ def run_ladder(
                 )
 
     if run_step2 or run_stacked:
-        # Reload data: this breaks stuff (lets us fit external models for step 2)
-        data_by_name_step_2 = get_ladder_data(
-            df, task_name, train_models, eval_models, 
-            downstream_feature=downstream_feature, 
-            step=('all' if last_n_method is not None else 'max'), last_n=last_n, last_n_method=last_n_method
-        )
-        if intermediate_feature != 'bpb':
-            data_by_name_intermedaite = get_ladder_data(
-                df, intermediate_task_name, train_models, eval_models, 
-                intermediate_feature=intermediate_feature, downstream_feature=downstream_feature, 
-                step=('all' if last_n_method is not None else 'max'), last_n=last_n, last_n_method=last_n_method
-            )
-            data_by_name_step_2 = merge_dicts(data_by_name_step_2, data_by_name_intermedaite, overwrite_xs=True, overwrite_ds_ns_ls=False)
-
-        task_key, configs = create_ladder_config(config_path, task_name, train_models, eval_models)
-
         _min, _max = None, None
         if task_key is None:
             _min, _max = 0, 1 # TODO: Use utils.constants_task to get correct values
@@ -486,8 +610,6 @@ def run_ladder(
             raise RuntimeError(f'Step 2 failed to fit: {e}')
 
     if run_stacked:
-        data_by_name_stacked = copy.deepcopy(data_by_name)
-
         # Predict stacked
         if use_flops:
             (
@@ -597,13 +719,11 @@ def run_ladder(
     rel_error_step_2 = simplify_list(rel_error_step_2)
     rel_errors_stacked = simplify_list(rel_errors_stacked)
     
-    if return_reals:
-        return (rel_error_step_1, rel_error_step_2, rel_errors_stacked), (step_1_y, step_2_y, stacked_y), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
-    if return_preds:
-        return (rel_error_step_1, rel_error_step_2, rel_errors_stacked), (step_1_y_pred, step_2_y_pred, stacked_y_pred)
-    if return_fit_error:
-        return (rel_error_step_1, rel_error_step_2, rel_errors_stacked), fit_error
-    return rel_error_step_1, rel_error_step_2, rel_errors_stacked
+    return \
+        (rel_error_step_1, rel_error_step_2, rel_errors_stacked), \
+        (step_1_y, step_2_y, stacked_y), \
+        (step_1_y_pred, step_2_y_pred, stacked_y_pred), \
+        fit_error
 
 
 def run_variance_analysis(df, tasks, eval_models, config_path, last_n_points=10, ax=None):

@@ -35,20 +35,41 @@ REVERSED_METRICS = ['margin_per_byte', 'norm_correct_prob_per_byte', 'correct_pr
 DDOS_SIZES = ['4M', '20M', '60M', '90M', '150M', '300M', '530M', '750M', '1B']
 DDOS_COMPUTE_SIZES = tuple(get_compute(size) for size in DDOS_SIZES)
 
-def get_perf_size(df, size, task, metric):
+def get_perf_size(df, size, task, metric, agg_method='max_n'):
     """ Get performance of all models at a specific size """
     _slice: pd.DataFrame = get_slice(df, task=task)
     _slice = _slice[((_slice['size'] == size)) & (_slice['model'].isin(DDOS_MODEL_NAMES))]
     if isinstance(task, str):
         _slice = _slice[_slice['task'] == task]
     elif isinstance(task, list):
-        _slice = _slice[_slice['task'].isin(task)]
+        _slice = _slice[_slice['task'].isin(task)] 
 
     # Only aggregate numerical columns
     numerical_cols = _slice.select_dtypes(include='number').columns.tolist()
     non_numerical_cols = _slice.select_dtypes(exclude='number').columns.tolist()
-    _slice = _slice.groupby('model', as_index=False).agg({col: 'mean' for col in numerical_cols} | {col: 'first' for col in non_numerical_cols})
-    _slice['task_name'] = 'aggregate'
+    _slice = _slice.sort_values('step')
+
+    def agg_func(group):
+        """For numerical columns, handle different aggregation methods"""
+        num_aggs = {}
+        for col in numerical_cols:
+            if agg_method == 'mean': # take the mean of final steps
+                num_aggs[col] = group[col].mean()
+            elif agg_method == 'max_n': # take the final step
+                num_aggs[col] = group[col].iloc[-1]
+            elif agg_method == 'sample': # sample from last n steps
+                num_aggs[col] = group[col].sample(n=1).iloc[0]
+            else:
+                raise ValueError(agg_method)
+    
+        # For non-numerical columns, take first value
+        non_num_aggs = {col: group[col].iloc[0] for col in non_numerical_cols}
+        
+        return pd.Series({**num_aggs, **non_num_aggs})
+
+    if agg_method is not None:
+        _slice = _slice.groupby('model', as_index=False).apply(agg_func)
+        _slice['task_name'] = 'aggregate'
 
     _slice = _slice.reset_index().sort_values('step')[['model', 'mix', 'step', 'size', metric]]
     _slice['compute'] = _slice['size'].apply(lambda x: get_compute(x) if '-' in x else x)
@@ -91,7 +112,7 @@ def assert_same_models(df_instances: pd.MultiIndex, df_benchmarks: pd.DataFrame)
     assert len(instances_set - benchmarks_set) == 0, f"Found models in INSTANCES but not in BENCHMARKS: {instances_set - benchmarks_set}"
 
 
-def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_metric='primary_metric', model_sizes=DDOS_SIZES):
+def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_metric='primary_metric', model_sizes=DDOS_SIZES, agg_method='max_n'):
     """
     Compute 2-class accuracy. We are predicting primary_metric at 1B using the metric at a smaller scale
 
@@ -110,23 +131,51 @@ def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_
             raise RuntimeError(f"Empty slice for metric={metric}, size={size}, task={task}")
         steps = [sorted(_slice['step'].unique())[-1]]
         for step in steps:
+            _agg_method = agg_method
+            if agg_method == 'sample':
+                _agg_method = None # disable aggregation within get_perf_size
+
             # get data at the small scale
-            small_scale = get_perf_size(df, size, task, metric)['mix']
+            small_scale = get_perf_size(df, size, task, metric, agg_method=_agg_method)
 
             # predict at the target scale (1B) 
-            target_scale = get_perf_size(df, '1B', task, target_metric)['mix']
+            target_scale = get_perf_size(df, '1B', task, target_metric, agg_method=_agg_method)
 
-            # display(_slice)
-            # # display(target_scale)
-            # if size == '150M':
-            #     raise RuntimeError()
-            
-            if metric in REVERSED_METRICS and target_metric not in REVERSED_METRICS: small_scale = reversed(small_scale)
-            try:
-                accuracy = compute_2_class(small_scale, target_scale)
-            except Exception as e:
-                print((metric, size, task), e)
-                accuracy = float('-inf')
+            if agg_method == 'sample':
+                # Convert small_scale into 2d array: (# models, # steps) ndarrays
+                mixes = sorted(small_scale['mix'].unique())
+                steps_per_mix = small_scale.groupby('mix').apply(lambda x: list(x.sort_values('step')[metric]))
+                small_scale_array = [steps_per_mix[mix] for mix in mixes]
+                
+                target_steps_per_mix = target_scale.groupby('mix').apply(lambda x: list(x.sort_values('step')[metric]))
+                target_scale_array = [target_steps_per_mix[mix] for mix in mixes]
+                
+                # For each trial, sample one value per mix and compute decision accuracy
+                n_trials = 10_000
+                trial_accuracies = []
+                
+                for _ in tqdm(range(n_trials), desc=f'Sampling for size={size}, task={get_title_from_task(task)}, metric={metric}'):
+                    # Sample one value per mix for both sizes
+                    sampled_scores_small = np.array([np.random.choice(values) for values in small_scale_array])
+                    sampled_scores_1b = np.array([np.random.choice(values) for values in target_scale_array])
+
+                    if metric in REVERSED_METRICS and target_metric not in REVERSED_METRICS: sampled_scores_small = -sampled_scores_small # (this might be wrong?)
+                    
+                    # Compute decision accuracy between sampled values
+                    from datadecide import decision_acc_fast
+                    acc = decision_acc_fast(sampled_scores_small, sampled_scores_1b)
+                    trial_accuracies.append(acc)
+
+                accuracy = trial_accuracies
+            else:
+                small_scale = small_scale['mix']
+                target_scale = target_scale['mix']
+                if metric in REVERSED_METRICS and target_metric not in REVERSED_METRICS: small_scale = reversed(small_scale)
+                try:
+                    accuracy = compute_2_class(small_scale, target_scale)
+                except Exception as e:
+                    print((metric, size, task), e)
+                    accuracy = float('-inf')
 
             # Get tokens/compute of small scale
             step_slice = _slice[_slice['step'] == float(step)]
@@ -160,7 +209,8 @@ def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_
     metric_pivot = best_metric_df.pivot(index='task', columns=['size', 'compute'], values='metric')[model_sizes]
 
     # Add average row
-    acc_pivot.loc['average'] = acc_pivot.mean()
+    if agg_method != 'sample':
+        acc_pivot.loc['average'] = acc_pivot.mean()
 
     return two_class, acc_pivot, metric_pivot
 
@@ -938,7 +988,7 @@ def compute_metaproperties(
 
     return df_results
 
-def run_single_ladder(df, task, train_models, eval_models, ladder_config_path, ax):
+def run_single_ladder(df, task, train_models, eval_models, ladder_config_path):
     _, _, stacked_error = run_ladder(
         df,
         task,
@@ -947,7 +997,6 @@ def run_single_ladder(df, task, train_models, eval_models, ladder_config_path, a
         config_path=ladder_config_path,
         plot_compute=True,
         run_step1=False, run_step2=False,
-        axes=[ax],
         
         last_n=6, last_n_method='sample'
     )

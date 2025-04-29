@@ -108,6 +108,16 @@ def compute_2_class(ranking_a, ranking_b):
     return same_order_count / total_pairs if total_pairs > 0 else 0.0
 
 
+def decision_acc_fast(scores_small, scores_target):
+    scores_small = np.array(scores_small)
+    scores_target = np.array(scores_target)
+    small_diffs = scores_small[:, np.newaxis] > scores_small[np.newaxis, :]
+    target_diffs = scores_target[:, np.newaxis] > scores_target[np.newaxis, :]
+    mask = np.triu(np.ones_like(small_diffs), k=1).astype(bool)
+    agreements = (small_diffs == target_diffs)[mask]
+    return np.mean(agreements)
+
+
 def get_slice(df, model, task):
     try:
         df = df.loc[(task, model)]
