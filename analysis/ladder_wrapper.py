@@ -206,7 +206,7 @@ def get_ladder_data(
             # Efficient querying for only final model step
             _, scores = get_nd_array(df, "model", metric_names, model=model, task=task_name, step="max")
             if len(scores) == 0:
-                raise RuntimeError(f'No scores found for model={model}. Seeing: {scores}')
+                raise RuntimeError(f'No scores found for model={model}, metric={metric_names}, task={task_name}. Seeing: {scores}')
             scores_dict = {name: scores[i] if i < len(scores) else np.array([]) for i, name in enumerate(metric_names)}
         else:
             # Allow querying all steps
@@ -705,7 +705,12 @@ def fit_ladder(
                 process_step(data_by_name_stacked, predicted_data_by_name_stacked, target_name, 'ys', stacked_y, stacked_y_pred, rel_errors_stacked)
 
     process_model(eval_models, 'peteish7', '7B-4T')
+    process_model(eval_models, 'peteish7-last-5-model-merged', '7B-4T')
+    process_model(eval_models, 'peteish7-last-30-model-merged', '13B-5T')
+
     process_model(eval_models, 'peteish13-highlr', '13B-5T')
+    process_model(eval_models, 'peteish13-highlr-last-5-model-merged', '13B-5T')
+    process_model(eval_models, 'peteish13-highlr-last-30-model-merged', '13B-5T')
 
     def simplify_list(lst):
         return lst[0] if len(lst) == 1 else lst

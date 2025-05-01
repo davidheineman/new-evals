@@ -35,10 +35,16 @@ REVERSED_METRICS = ['margin_per_byte', 'norm_correct_prob_per_byte', 'correct_pr
 DDOS_SIZES = ['4M', '20M', '60M', '90M', '150M', '300M', '530M', '750M', '1B']
 DDOS_COMPUTE_SIZES = tuple(get_compute(size) for size in DDOS_SIZES)
 
-def get_perf_size(df, size, task, metric, agg_method='max_n'):
+def get_perf_size(df, size, task, metric, models=DDOS_MODEL_NAMES, agg_method='max_n'):
     """ Get performance of all models at a specific size """
     _slice: pd.DataFrame = get_slice(df, task=task)
-    _slice = _slice[((_slice['size'] == size)) & (_slice['model'].isin(DDOS_MODEL_NAMES))]
+    # display(_slice)
+    _slice = _slice[(_slice['model'].isin(models))]
+    # display(_slice)
+    _slice = _slice[((_slice['size'] == size))]
+    # display(_slice)
+    if len(_slice) == 0:
+        raise AssertionError(f"Slice is empty for models: {models}")
     if isinstance(task, str):
         _slice = _slice[_slice['task'] == task]
     elif isinstance(task, list):
@@ -112,12 +118,15 @@ def assert_same_models(df_instances: pd.MultiIndex, df_benchmarks: pd.DataFrame)
     assert len(instances_set - benchmarks_set) == 0, f"Found models in INSTANCES but not in BENCHMARKS: {instances_set - benchmarks_set}"
 
 
-def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_metric='primary_metric', model_sizes=DDOS_SIZES, agg_method='max_n'):
-    """
-    Compute 2-class accuracy. We are predicting primary_metric at 1B using the metric at a smaller scale
-
-    There is a TODO to merge with Ian's implmenetation
-    """
+def construct_2class_table(
+        df, selected_tasks, 
+        small_metric=ALL_METRICS, target_metric='primary_metric', 
+        model_sizes=DDOS_SIZES, 
+        agg_method='max_n',
+        merge_small_alias=None,
+        merge_target_alias=None
+    ):
+    """ Compute 2-class accuracy. We are predicting primary_metric at 1B using the metric at a smaller scale """
     if not isinstance(small_metric, list): small_metric = [small_metric]
 
     combinations = list(itertools.product(small_metric, model_sizes, selected_tasks))
@@ -125,21 +134,27 @@ def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_
 
     for metric, size, task in tqdm(combinations, desc='Computing two class accuracy', disable=(len(combinations) < 50)):
         _slice = get_slice(df, task=task)
-        # _slice = _slice[((_slice['size'] == size)) & (_slice['task'] == task) & (_slice['model'].isin(DDOS_MODEL_NAMES))] # get data for small scale
         _slice = _slice[((_slice['size'] == size)) & (_slice['model'].isin(DDOS_MODEL_NAMES))] # get data for small scale
         if _slice.empty:
             raise RuntimeError(f"Empty slice for metric={metric}, size={size}, task={task}")
         steps = [sorted(_slice['step'].unique())[-1]]
+        
         for step in steps:
             _agg_method = agg_method
             if agg_method == 'sample':
                 _agg_method = None # disable aggregation within get_perf_size
 
             # get data at the small scale
-            small_scale = get_perf_size(df, size, task, metric, agg_method=_agg_method)
+            small_models = DDOS_MODEL_NAMES
+            if merge_small_alias is not None:
+                small_models = [f'{model}-{merge_small_alias}' for model in small_models]
+            small_scale = get_perf_size(df, size, task, metric, agg_method=_agg_method, models=small_models)
 
             # predict at the target scale (1B) 
-            target_scale = get_perf_size(df, '1B', task, target_metric, agg_method=_agg_method)
+            target_models = DDOS_MODEL_NAMES
+            if merge_target_alias is not None:
+                target_models = [f'{model}-{merge_target_alias}' for model in target_models]
+            target_scale = get_perf_size(df, '1B', task, target_metric, agg_method=_agg_method, models=target_models)
 
             if agg_method == 'sample':
                 # Convert small_scale into 2d array: (# models, # steps) ndarrays
@@ -152,6 +167,7 @@ def construct_2class_table(df, selected_tasks, small_metric=ALL_METRICS, target_
                 
                 # For each trial, sample one value per mix and compute decision accuracy
                 n_trials = 1000
+                # n_trials = 10_000
                 trial_accuracies = []
                 
                 for _ in tqdm(range(n_trials), desc=f'Sampling for size={size}, task={get_title_from_task(task)}, metric={metric}'):

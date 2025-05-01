@@ -47,5 +47,5 @@ def configure_axis(ax, x_vals, y_vals, texts, xlabel, plot_fit=False, log_scale=
     ax.set_xlabel(xlabel, fontsize=12)
     ax.set_ylabel('Decision Accuracy', fontsize=12) 
     ax.grid(True, linestyle='--', alpha=0.3, which='both')
-    adjustText(ax, texts)
+    # adjustText(ax, texts)
     
