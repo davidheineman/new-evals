@@ -122,7 +122,8 @@ def construct_2class_table(
         df, selected_tasks, 
         small_metric=ALL_METRICS, target_metric='primary_metric', 
         model_sizes=DDOS_SIZES, 
-        agg_method='max_n',
+        agg_method_pred='max_n',
+        agg_method_target='max_n',
         merge_small_alias=None,
         merge_target_alias=None
     ):
@@ -140,23 +141,26 @@ def construct_2class_table(
         steps = [sorted(_slice['step'].unique())[-1]]
         
         for step in steps:
-            _agg_method = agg_method
-            if agg_method == 'sample':
-                _agg_method = None # disable aggregation within get_perf_size
+            _agg_method_pred = agg_method_pred
+            if agg_method_pred == 'sample':
+                _agg_method_pred = None # disable aggregation within get_perf_size
+            _agg_method_target = agg_method_target
+            if agg_method_target == 'sample':
+                _agg_method_target = None # disable aggregation within get_perf_size
 
             # get data at the small scale
             small_models = DDOS_MODEL_NAMES
             if merge_small_alias is not None:
                 small_models = [f'{model}-{merge_small_alias}' for model in small_models]
-            small_scale = get_perf_size(df, size, task, metric, agg_method=_agg_method, models=small_models)
+            small_scale = get_perf_size(df, size, task, metric, agg_method=_agg_method_pred, models=small_models)
 
             # predict at the target scale (1B) 
             target_models = DDOS_MODEL_NAMES
             if merge_target_alias is not None:
                 target_models = [f'{model}-{merge_target_alias}' for model in target_models]
-            target_scale = get_perf_size(df, '1B', task, target_metric, agg_method=_agg_method, models=target_models)
+            target_scale = get_perf_size(df, '1B', task, target_metric, agg_method=_agg_method_target, models=target_models)
 
-            if agg_method == 'sample':
+            if _agg_method_pred == 'sample' or _agg_method_target == 'sample':
                 # Convert small_scale into 2d array: (# models, # steps) ndarrays
                 mixes = sorted(small_scale['mix'].unique())
                 steps_per_mix = small_scale.groupby('mix').apply(lambda x: list(x.sort_values('step')[metric]))
@@ -225,7 +229,7 @@ def construct_2class_table(
     metric_pivot = best_metric_df.pivot(index='task', columns=['size', 'compute'], values='metric')[model_sizes]
 
     # Add average row
-    if agg_method != 'sample':
+    if agg_method_pred == 'sample' or agg_method_target == 'sample':
         acc_pivot.loc['average'] = acc_pivot.mean()
 
     return two_class, acc_pivot, metric_pivot
@@ -385,6 +389,28 @@ def run_analysis(
     # Scaling laws
     primary_score_name = PRIMARY_METRICS_OLMES[task] if isinstance(task, str) and task in PRIMARY_METRICS_OLMES else 'primary_score'
     try:
+        # Standard error around the ladder prediction
+        _, _, rel_errors_stacked = run_ladder(
+            df,
+            task,
+            train_models=ladder_models,
+            eval_models=["peteish13-highlr"], # "peteish7",
+            downstream_feature=metric,
+            config_path=ladder_config_path,
+            run_step1=False, run_step2=False,
+            last_n_method_train='final', last_n_method_eval='all', last_n=30
+        )
+
+        # Calculate margin-of-error using the set of ladder errors
+        confidence_level = 0.95
+        data = np.array(rel_errors_stacked)
+        n = len(data)
+        std_error = np.std(data, ddof=1) / np.sqrt(n)
+        margin_of_error = std_error * stats.t.ppf((1 + confidence_level) / 2, n - 1)
+        results.update({
+            "scaling_margin_of_error:stacked:13B:bpb_to_primary": margin_of_error, 
+        })
+
         # Step 1 ladder prediction (base models)
         ax = None
         if not small_fig:
@@ -457,7 +483,7 @@ def run_analysis(
                 fontsize=8
             )
             ax.set_title('Perplexity -> Task Metric')
-
+        
         # Stacked ladder prediction
         ax: plt.Axes = axes[3, 0] if axes is not None else None
         _, _, rel_error_stacked = run_ladder(
@@ -479,7 +505,7 @@ def run_analysis(
             ax.set_ylabel(metric)
             ax.legend(fontsize=6)
             ax.set_title('Scaling Law Prediction')
-        
+
         # fig, ax = plt.subplots(figsize=(10, 6))
         # plt.savefig(os.path.join(PLOT_DIR, f'debug:{task}:{metric}.pdf'))
         # plt.close()
@@ -488,7 +514,7 @@ def run_analysis(
         rel_error_step_1, _, rel_error_stacked = run_ladder(
             df,
             task,
-            train_models=ladder_models,
+            train_models=[model for model in ladder_models if 'peteish-moreeval-1B-1xC' not in model],
             eval_models=["peteish7", "peteish13-highlr"],
             # Use C4 loss for intermediate feature!
             intermediate_task_name="paloma_c4_en",
@@ -919,15 +945,17 @@ def compute_metaproperties(
 
     # Get model names from df_benchmarks
     models = sorted(list(df_benchmarks['model'].unique()))
-    ladder_models = [model for model in models if "peteish-moreeval" in model]
+    ladder_models = [model for model in models if "peteish-moreeval" in model and '-model-merged' not in model]
     ladder_models = sort_experiment_names(ladder_models)
+    merged_models = [model for model in models if '-model-merged' in model]
     llama_3_models = [model for model in models if "Llama-3" in model]
     external_models = sorted([
         model for model in models 
         if model not in
             DDOS_MODEL_NAMES + # exclude 1B-5xC models
             ladder_models + # exclude ladder models
-            ['peteish13-highlr'] # exclude intermediate checkpoints from 13B
+            ['peteish13-highlr'] + # exclude intermediate checkpoints from 13B
+            merged_models # exclude merged models
         and not is_excluded_from_lite(model)
     ])
 

@@ -120,7 +120,13 @@ def is_excluded_from_lite(m):
         'RYS-Medium' in m or \
         'falcon-mamba-7b' in m or \
         'Qwen1.5-0.5B' in m or \
-        'Falcon3-7B-Base' in m:
+        'Falcon3-7B-Base' in m or \
+        'OLMo-2-0325-32B' in m or \
+        'gemma-2-27b' in m or \
+        'gemma-3-12b-pt' in m or \
+        'gemma-3-1b-pt' in m or \
+        'gemma-3-4b-pt' in m or \
+        'stablelm-base-alpha-7b' in m:
         return True
     
     if any(name.lower() in m.lower() for name in OLL2_INSTRUCT_MODELS) or \

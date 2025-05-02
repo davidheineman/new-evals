@@ -353,6 +353,10 @@ def aggregate_list(data_by_name, last_n_method_train, last_n_method_eval, last_n
                             score = random.sample(scores[-last_n:], k=1)[0]
                         elif last_n_method_eval == 'final':
                             score = scores[-1]
+                        elif last_n_method_eval == 'all':
+                            score = scores[-last_n]
+                        else:
+                            raise ValueError(last_n_method_eval)
                     
                     data_by_name[model_size][datapoint_name][idx] = score
     return data_by_name
@@ -375,6 +379,7 @@ def run_ladder(
 
     include_last_n = (last_n_method_train is not None) or (last_n_method_eval is not None)
 
+    data_by_name_step_1 = None
     if run_step1 or run_stacked:
         # Load data
         data_by_name = get_ladder_data(
@@ -401,6 +406,8 @@ def run_ladder(
         
         data_by_name_step_1 = merge_dicts(data_by_name, data_by_name_tokens, overwrite_xs=(y_metric == 'c4')) # merge the 'ns', 'ds', 'ls', 'fs' keys into the step 2 data
 
+    task_key = None
+    data_by_name_step_2 = None
     if run_step2 or run_stacked:
         # Reload data: this breaks stuff (lets us fit external models for step 2)
         data_by_name_step_2 = get_ladder_data(
@@ -499,6 +506,45 @@ def run_ladder(
         (step_1_y_pred, step_2_y_pred, stacked_y_pred), \
         fit_error = _fit_ladder(data_by_name_step_1, data_by_name_step_2, data_by_name_stacked)
 
+    elif last_n_method_train == 'all' or last_n_method_eval == 'all':
+        rel_errors_step_1, rel_errors_step_2, rel_errors_stacked = [], [], []
+        step_1_ys, step_2_ys, stacked_ys = [], [], []
+        step_1_y_preds, step_2_y_preds, stacked_y_preds = [], [], []
+        fit_errors = []
+        for n in range(1, last_n):
+            # Copy the data
+            _data_by_name_step_1 = copy.deepcopy(data_by_name_step_1)
+            _data_by_name_step_2 = copy.deepcopy(data_by_name_step_2)
+            _data_by_name_stacked = copy.deepcopy(data_by_name_stacked)
+
+            # Get only one of n results
+            _data_by_name_step_1 = aggregate_list(_data_by_name_step_1, last_n_method_train, last_n_method_eval, n)
+            _data_by_name_step_2 = aggregate_list(_data_by_name_step_2, last_n_method_train, last_n_method_eval, n)
+            _data_by_name_stacked = aggregate_list(_data_by_name_stacked, last_n_method_train, last_n_method_eval, n)
+
+            # Only fit a single ladder
+            (rel_error_step_1, rel_error_step_2, _rel_errors_stacked), \
+            (step_1_y, step_2_y, stacked_y), \
+            (step_1_y_pred, step_2_y_pred, stacked_y_pred), \
+            fit_error = _fit_ladder(_data_by_name_step_1, _data_by_name_step_2, _data_by_name_stacked)
+
+            # print(rel_errors_stacked)
+            # print(stacked_y)rel_errors_step_1.append(rel_error_step_1)
+
+            rel_errors_step_2.append(rel_error_step_2)
+            rel_errors_stacked.append(_rel_errors_stacked) 
+            step_1_ys.append(step_1_y)
+            step_2_ys.append(step_2_y)
+            stacked_ys.append(stacked_y)
+            step_1_y_preds.append(step_1_y_pred)
+            step_2_y_preds.append(step_2_y_pred)
+            stacked_y_preds.append(stacked_y_pred)
+            fit_errors.append(fit_error)
+        rel_error_step_1, rel_error_step_2, rel_errors_stacked = (rel_errors_step_1, rel_errors_step_2, rel_errors_stacked)
+        step_1_y, step_2_y, stacked_y = (step_1_ys, step_2_ys, stacked_ys)
+        step_1_y_pred, step_2_y_pred, stacked_y_pred = (step_1_y_preds, step_2_y_preds, stacked_y_preds)
+        fit_error = fit_errors
+
     else:
         # Only fit a single ladder
         (rel_error_step_1, rel_error_step_2, rel_errors_stacked), \
@@ -565,6 +611,7 @@ def fit_ladder(
                     step1_coefficients, cov, ax,
                 )
 
+    fit_error = None
     if run_step2 or run_stacked:
         _min, _max = None, None
         if task_key is None:

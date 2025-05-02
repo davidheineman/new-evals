@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 from ladder_wrapper import run_ladder
 from datadecide import decision_acc_fast
@@ -44,6 +45,7 @@ def compute_pred_error(
         eval_bpb, 
         train_models, # ladder models
         eval_models, # ladder models
+        eval_steps, # steps of eval model
         mask=None,
         ladder_config_path=f'{ROOT_DIR}/analysis/utils/ladder_config.json'
     ):
@@ -68,18 +70,24 @@ def compute_pred_error(
         })
         new_rows.append(new_row)
 
-    for model, bpb, score in zip(eval_models, avg_bpb_eval, avg_score_eval):
+    # Workaround to support intermediate steps in eval model
+    if len(eval_models) != len(eval_steps):
+        eval_model_names = [eval_models[0] for _ in range(len(eval_steps))]
+
+    for step, model, bpb, score in zip(eval_steps, eval_model_names, avg_bpb_eval, avg_score_eval):
         new_row = pd.Series({
             'task': 'custom',
             'model': model,
             'logits_per_byte_corr': bpb,
             'primary_score': score,
-            'step': 0
+            'mix': None,
+            'step': step
         })
         new_rows.append(new_row)
 
     df_custom = pd.DataFrame(new_rows)
 
+    # Calculate resampled prediction error
     _, (_, _, stacked_y), (_, _, stacked_y_pred) = run_ladder(
         df_custom,
         'custom',
@@ -94,4 +102,24 @@ def compute_pred_error(
 
     rel_error = np.abs((stacked_y_pred - stacked_y) / stacked_y)
     abs_error = np.abs(stacked_y_pred - stacked_y)
-    return np.mean(rel_error)
+    rel_error = np.mean(rel_error)
+
+    # Calculate margin of error
+    _, _, rel_errors_stacked = run_ladder(
+        df_custom,
+        'custom',
+        train_models=train_models,
+        eval_models=eval_models,
+        config_path=ladder_config_path,
+        run_step1=False, run_step2=False,
+        last_n_method_train='final', last_n_method_eval='all', last_n=30
+    )
+
+    # Calculate margin-of-error using the set of ladder errors
+    confidence_level = 0.95
+    data = np.array(rel_errors_stacked)
+    n = len(data)
+    std_error = np.std(data, ddof=1) / np.sqrt(n)
+    margin_of_error = std_error * stats.t.ppf((1 + confidence_level) / 2, n - 1)
+
+    return rel_error, margin_of_error
