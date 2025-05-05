@@ -1,12 +1,18 @@
 """ Compute decision acc / prediction error by masking instances """
 
+import warnings
 import numpy as np
 import pandas as pd
 from scipy import stats
+from tqdm import tqdm
 
+from dataloader import get_nd_array
 from ladder_wrapper import run_ladder
 from datadecide import decision_acc_fast
 from utils import ROOT_DIR
+from utils.constants_models import DDOS_MODEL_NAMES
+from concurrent.futures import ProcessPoolExecutor
+import functools
 
 
 def compute_snr(step_scores, datadecide_scores, step_mask, dd_mask):
@@ -54,9 +60,11 @@ def compute_pred_error(
         mask = np.ones(train_scores.shape[1], dtype=bool) # use all scores!
 
     avg_scores_train = np.nanmean(train_scores[:, mask], axis=1)
-    avg_score_eval = np.nanmean(eval_scores[:, mask], axis=1)
-    avg_bpb_train = np.nanmean(train_bpb[:, mask], axis=1)
-    avg_bpb_eval = np.nanmean(eval_bpb[:, mask], axis=1)
+    avg_bpb_train    = np.nanmean(train_bpb[:, mask], axis=1)
+    
+    with np.errstate(invalid='ignore'): # disable warning (some early ckpt 13B model BPB results are missing)
+        avg_score_eval = np.nanmean(eval_scores[:, mask], axis=1)
+        avg_bpb_eval = np.nanmean(eval_bpb[:, mask], axis=1)
 
     # Create new rows for each model and its average score
     new_rows = []
@@ -123,3 +131,104 @@ def compute_pred_error(
     margin_of_error = std_error * stats.t.ppf((1 + confidence_level) / 2, n - 1)
 
     return rel_error, margin_of_error
+
+
+def process_sample(
+        size, 
+        step_scores, datadecide_scores, datadecide_small_scores, 
+        train_scores, eval_scores, train_bpb, eval_bpb, train_models, eval_models
+    ):
+    dd_mask = np.random.choice(datadecide_scores.shape[1], size=size, replace=False)
+    step_mask = np.random.choice(step_scores.shape[1], size=size, replace=False)
+    
+    # Compute SNR using helper function
+    snr, _, _ = compute_snr(step_scores, datadecide_scores, step_mask, dd_mask)
+    
+    # Compute decision accuracy 
+    decision_acc = compute_decision_acc(datadecide_scores, datadecide_small_scores, dd_mask)
+    
+    # Compute prediction error
+    _, margin_of_error = compute_pred_error(
+        train_scores, eval_scores,
+        train_bpb, eval_bpb,
+        train_models, ["peteish13-highlr"], 
+        eval_models,
+        dd_mask
+    )
+    
+    return snr, decision_acc, margin_of_error
+
+
+def call_process_fn(process_fn):
+    return process_fn()
+
+
+def compute_error_by_subset(df_instances, task, metric, ladder_train, n_samples=10, n_points=10):
+    datadecide_1b = [model for model in DDOS_MODEL_NAMES if '1B' in model]
+    datadecide_150m = [model for model in DDOS_MODEL_NAMES if '150M' in model]
+
+    # Step-to-step noise data
+    step_instances, steps, step_scores = \
+        get_nd_array(df_instances, 'step', metric, model='peteish-moreeval-1B-5xC', task=task, return_index=True)
+
+    # Decision error data
+    datadecide_instances, datadecide_1b_models, datadecide_scores = \
+        get_nd_array(df_instances, 'model', metric, model=datadecide_1b, task=task, return_index=True)
+    datadecide_small_instances, datadecide_small_models, datadecide_small_scores = \
+        get_nd_array(df_instances, 'model', metric, model=datadecide_150m, task=task, return_index=True)
+
+    # Ladder data
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning) # disable some warnings for numpy resizing logic
+
+        train_instances, train_models, train_scores = \
+            get_nd_array(df_instances, 'model', metric, model=ladder_train, task=task, return_index=True)
+        train_bpb_instances, train_bpb_models, train_bpb = \
+            get_nd_array(df_instances, 'model', 'logits_per_byte_corr', model=ladder_train, task=task, return_index=True)
+        
+    eval_instances, eval_models, eval_scores = \
+        get_nd_array(df_instances, 'step', metric, model=["peteish13-highlr"], task=task, return_index=True)
+    eval_bpb_instances, eval_bpb_models, eval_bpb = \
+        get_nd_array(df_instances, 'step', 'logits_per_byte_corr', model=["peteish13-highlr"], task=task, return_index=True)
+
+    assert not np.any(np.isnan(eval_scores)), f"Ladder eval model has NaN scores: {eval_scores}"
+    assert train_bpb_instances == train_instances
+    assert eval_bpb_instances == eval_instances
+    assert train_models == train_bpb_models
+    assert eval_models == eval_bpb_models
+
+    subset_sizes = np.logspace(np.log10(30), np.log10(datadecide_scores.shape[1]), n_points, dtype=int)
+
+    all_snrs = []
+    all_accs = []
+    all_errrors = []
+    
+    for size in tqdm(subset_sizes):
+        sample_snrs = []
+        sample_accs = [] 
+        sample_errrors = []
+        
+        process_fn = functools.partial(
+            process_sample,
+            size,
+            step_scores,
+            datadecide_scores, 
+            datadecide_small_scores,
+            train_scores,
+            eval_scores,
+            train_bpb,
+            eval_bpb,
+            train_models,
+            eval_models
+        )
+        
+        with ProcessPoolExecutor() as executor:
+            results = list(executor.map(call_process_fn, [process_fn]*n_samples))
+            
+        sample_snrs, sample_accs, sample_errrors = zip(*results)
+        
+        all_snrs.append(np.mean(sample_snrs))
+        all_accs.append(np.mean(sample_accs))
+        all_errrors.append(np.mean(sample_errrors))
+
+    return subset_sizes, all_snrs, all_accs, all_errrors
