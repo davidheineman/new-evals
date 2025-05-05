@@ -555,8 +555,8 @@ def run_analysis(
         # raise RuntimeError(task, 'failed on ladder fits', e)
 
     # Step-to-step noise
-    intermediate_models = ['peteish1', 'peteish7', 'peteish13-highlr', 'peteish32'] # peteish-moreeval-1B-5xC
-    intermediate_model_names = ['1B', '7B', '13B', '32B']
+    intermediate_models = ['peteish-moreeval-1B-5xC', 'peteish1', 'peteish7', 'peteish13-highlr', 'peteish32'] # peteish-moreeval-1B-5xC
+    intermediate_model_names = ['1B-100B', '1B', '7B', '13B', '32B']
     for j, model in enumerate(intermediate_models):
         model_name = intermediate_model_names[j]
 

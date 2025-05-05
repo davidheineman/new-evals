@@ -34,6 +34,9 @@ TASK_CATEGORIES = {
     'olmes_gen': 'knowledge',
     'autobencher': 'knowledge',
     'autobencher:mc': 'knowledge',
+    'mmlu_pro': 'knowledge',
+    'agi_eval': 'knowledge',
+    'medmcqa': 'knowledge',
 
     'gsm8k': 'math',
     'minerva': 'math',
@@ -44,11 +47,18 @@ TASK_CATEGORIES = {
     'minerva_math_number_theory': 'math',
     'minerva_math_prealgebra': 'math',
     'minerva_math_precalculus': 'math',
+    'gsm_plus': 'math',
+    'gsm_symbolic_main': 'math',
+    'gsm_symbolic_p1': 'math',
+    'minerva_math_500': 'math',
+    'gsm_symbolic_p2': 'math',
 
     'mbpp': 'code',
     'mbppplus': 'code',
     'codex_humaneval': 'code',
     'codex_humanevalplus': 'code',
+
+    'bbh': 'reasoning',
     
     'paloma_c4_en': 'loss',
     'paloma_m2d2_s2orc_unsplit': 'loss',
@@ -849,15 +859,21 @@ def plot_inset_seeds(ax_inset: plt.Axes, metric_data: pd.DataFrame, colors, labe
 
     if 'data' in label:
         x_min_zoom = run_data['step'].max() - 0.08 * x_range
-        y_min_zoom = run_data['value'].max() - 0.25 * y_range
+        y_min_zoom = run_data['value'].max() - 0.15 * y_range
     elif 'seed' in label:
         x_min_zoom = run_data['step'].max() - 0.08 * x_range
         y_min_zoom = run_data['value'].max() - 0.15 * y_range
     else:
         raise ValueError()
     
-    x_max_zoom = run_data['step'].max()*1.04
+    x_max_zoom = run_data['step'].max()*1.045
     y_max_zoom = run_data['value'].max()*1.02
+
+    # Center the y-axis around the mean value
+    mean_value = np.mean(final_values)
+    y_range = y_max_zoom - y_min_zoom
+    y_min_zoom = mean_value - y_range/2
+    y_max_zoom = mean_value + y_range/2
     
     ax_inset.set_xlim(x_min_zoom, x_max_zoom)
     ax_inset.set_ylim(y_min_zoom, y_max_zoom)
@@ -896,19 +912,26 @@ def add_bracket(ax: plt.Axes, data: pd.DataFrame, label: str, values=None, inset
     y_mid = (y_min + y_max) / 2
 
     if inset:
-        x_pos = data['step'].max() * 1.002
-        bracket_width = x_pos * 0.001
+        if 'seed' in label or 'data' in label:
+            x_pos = data['step'].max() * 1.005
+            bracket_width = x_pos * 0.003
+            text_spacing = bracket_width / 2
+        else:
+            x_pos = data['step'].max() * 1.002
+            bracket_width = x_pos * 0.001
+            text_spacing = bracket_width
     else:
         x_pos = data['step'].max() * 1.02
         bracket_width = x_pos * 0.01
+        text_spacing = bracket_width
 
     ax.plot([x_pos, x_pos], [y_min, y_max], color='black', linewidth=1)
     ax.plot([x_pos, x_pos - bracket_width], [y_min, y_min], color='black', linewidth=1)
     ax.plot([x_pos, x_pos - bracket_width], [y_max, y_max], color='black', linewidth=1)
     
     ax.annotate(label,
-                xy=(x_pos + bracket_width, y_mid),
-                xytext=(x_pos + bracket_width * 2, y_mid),
+                xy=(x_pos + text_spacing, y_mid),
+                xytext=(x_pos + text_spacing * 2, y_mid),
                 ha='left', va='center')
 
 def format_axes(axes: np.ndarray):
@@ -919,5 +942,5 @@ def format_axes(axes: np.ndarray):
     for ax in axes:
         ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
         if ax in axes[-2:]:
-            ax.set_xlabel('Training Step')
+            ax.set_xlabel('Training Step', fontsize=12)
         ax.grid(True, alpha=0.3)
