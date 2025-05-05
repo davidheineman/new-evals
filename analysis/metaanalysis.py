@@ -362,11 +362,10 @@ def run_analysis(
     non_numerical_cols = _slice.select_dtypes(exclude='number').columns.tolist() + ['extracted_size']
     _slice = _slice.groupby('model', as_index=False).agg({col: 'mean' for col in numerical_cols} | {col: 'first' for col in non_numerical_cols})
     weight_classes = {
-        'olmo2_32b': {'count': 11, 'flops_range': (6.764705882352941e+23, 1.955e+24)},
-        'olmo2_13b': {'count': 9, 'flops_range': (2.2941176470588235e+23, 6.63e+23)},
-        'olmo2_7b': {'count': 14, 'flops_range': (9.88235294117647e+22, 2.8559999999999996e+23)},
-        # 'olmo_1b': {'count': 10, 'flops_range': (1.376470588235294e+22, 3.978e+22)}
-        'olmo2_1b': {'count': 8, 'flops_range': (2.1176470588235293e+22, 6.12e+22)}
+        'olmo2_1b':  {'flops_range': (2.1176470588235293e+22, 6.12e+22)}, # 'count': 8,
+        'olmo2_7b':  {'flops_range': (9.88235294117647e+22, 2.8559999999999996e+23)}, # 'count': 14,
+        'olmo2_13b': {'flops_range': (2.2941176470588235e+23, 6.63e+23)}, # 'count': 9,
+        'olmo2_32b': {'flops_range': (6.764705882352941e+23, 1.955e+24)}, # 'count': 11,
     }
     observational_metrics = ['primary_score', 'logits_per_char_corr', 'logits_per_byte_corr']
     for observational_metric in observational_metrics:
@@ -389,26 +388,32 @@ def run_analysis(
     # Scaling laws
     primary_score_name = PRIMARY_METRICS_OLMES[task] if isinstance(task, str) and task in PRIMARY_METRICS_OLMES else 'primary_score'
     try:
+        import warnings
+        warnings.filterwarnings("ignore", category=RuntimeWarning)  # ignore fitting warnings
+
         # Standard error around the ladder prediction
-        _, _, rel_errors_stacked = run_ladder(
+        rel_errors_step_1, _, rel_errors_stacked = run_ladder(
             df,
             task,
             train_models=ladder_models,
             eval_models=["peteish13-highlr"], # "peteish7",
             downstream_feature=metric,
             config_path=ladder_config_path,
-            run_step1=False, run_step2=False,
+            run_step1=True, run_step2=False,
             last_n_method_train='final', last_n_method_eval='all', last_n=30
         )
 
         # Calculate margin-of-error using the set of ladder errors
-        confidence_level = 0.95
-        data = np.array(rel_errors_stacked)
-        n = len(data)
-        std_error = np.std(data, ddof=1) / np.sqrt(n)
-        margin_of_error = std_error * stats.t.ppf((1 + confidence_level) / 2, n - 1)
+        def calc_margin_of_err(errors, confidence_level = 0.95):
+            errors = np.array(errors)
+            n = len(errors)
+            std_error = np.std(errors, ddof=1) / np.sqrt(n)
+            margin_of_error = std_error * stats.t.ppf((1 + confidence_level) / 2, n - 1)
+            return margin_of_error
+        
         results.update({
-            "scaling_margin_of_error:stacked:13B:bpb_to_primary": margin_of_error, 
+            "scaling_margin_of_error:step_1:13B:bpb_to_primary": calc_margin_of_err(rel_errors_step_1), 
+            "scaling_margin_of_error:stacked:13B:bpb_to_primary": calc_margin_of_err(rel_errors_stacked), 
         })
 
         # Step 1 ladder prediction (base models)
@@ -515,7 +520,8 @@ def run_analysis(
             df,
             task,
             train_models=[model for model in ladder_models if 'peteish-moreeval-1B-1xC' not in model],
-            eval_models=["peteish7", "peteish13-highlr"],
+            # eval_models=["peteish7", "peteish13-highlr"],
+            eval_models=["peteish13-highlr"],
             # Use C4 loss for intermediate feature!
             intermediate_task_name="paloma_c4_en",
             intermediate_feature='logits_per_byte_corr', 
@@ -523,10 +529,13 @@ def run_analysis(
             config_path=ladder_config_path,
         )
         results.update({
-            "rel_error:step_1:7B:c4_to_primary": rel_error_step_1[0], 
-            "rel_error:step_1:13B:c4_to_primary": rel_error_step_1[1], 
-            "rel_error:stacked:7B:c4_to_primary": rel_error_stacked[0], 
-            "rel_error:stacked:13B:c4_to_primary": rel_error_stacked[1], 
+            # "rel_error:step_1:7B:c4_to_primary": rel_error_step_1[0], 
+            # "rel_error:step_1:13B:c4_to_primary": rel_error_step_1[1], 
+            # "rel_error:stacked:7B:c4_to_primary": rel_error_stacked[0], 
+            # "rel_error:stacked:13B:c4_to_primary": rel_error_stacked[1], 
+
+            "rel_error:step_1:13B:c4_to_primary": rel_error_step_1, 
+            "rel_error:stacked:13B:c4_to_primary": rel_error_stacked, 
         })
 
         if run_irt:
@@ -696,7 +705,7 @@ def run_analysis(
             "dec_acc:logits_per_byte_corr:750M": acc_pivot_bpb['750M'].loc[str(task)].item(),
         })
 
-        additional_metrics = ['primary_score', 'logits_per_char_corr']
+        additional_metrics = ['primary_score', 'logits_per_char_corr', 'logits_per_byte_corr']
         if run_irt: 
             additional_metrics += ['theta_bpb', 'theta_primary_score']
         for additional_metric in additional_metrics:
@@ -720,6 +729,8 @@ def run_analysis(
         for additional_metric in additional_metrics:
             for size in DDOS_SIZES:
                 scores = get_perf_size(df, size, task, additional_metric)[additional_metric]
+                if size == '1B':
+                    size = '1B-100B' # rename to not confuse with OLMo 2 1B-4T
                 results.update({
                     f'mean:{additional_metric}:{size}': scores.mean(),
                     f'range:{additional_metric}:{size}': scores.max() - scores.min(),
@@ -741,16 +752,10 @@ def run_analysis(
     # SNR
     snr_metrics = ['primary_score', 'logits_per_char_corr', 'logits_per_byte_corr']
     for snr_metric in snr_metrics:
-        for size in DDOS_SIZES + ['1B', '7B', '13B', '32B']:
+        for size in DDOS_SIZES + ['1B-100B', '1B', '7B', '13B', '32B']:
             if f'mean:{snr_metric}:{size}' in results and \
                 f'std_dev:{snr_metric}:{size}' in results and \
                 f'step_rel_std:last30:{snr_metric}:{size}' in results:
-
-                # tv_no_norm
-                # step_std:perc20
-                # step_rel_std:perc20
-                # step_std:last10
-                # step_rel_std:last10
 
                 mean = results[f'mean:{snr_metric}:{size}']
                 data_std_dev = results[f'std_dev:{snr_metric}:{size}']
@@ -761,6 +766,11 @@ def run_analysis(
                 
                 results[f'rel_std:{snr_metric}:{size}'] = data_rel_std
                 results[f'snr:{snr_metric}:{size}'] = snr
+            # else:
+            #     print(f'Cannot compute snr for size={size}, metric={snr_metric}')
+            #     print(f'mean:{snr_metric}:{size}' in results)
+            #     print(f'std_dev:{snr_metric}:{size}' in results)
+            #     print(f'step_rel_std:last30:{snr_metric}:{size}' in results)
     
     # Total cost of evaluation
     try:
@@ -769,9 +779,16 @@ def run_analysis(
         for subtask in task_as_list:
             task_results = get_slice(df, task=subtask)
             num_instances = task_results['num_instances'].iloc[0]
-            eval_cost = num_instances
+            
+            if 'hellaswag' in task_results['task'].unique():
+                # override for HS
+                task_results.loc[task_results['task'] == 'hellaswag', 'num_instances'] = 10042 
+            if 'squad' in task_results['task'].unique():
+                # override for SQuAD
+                task_results.loc[task_results['task'] == 'squad', 'num_instances'] = 10570 
+            
             assert (task_results['num_instances'] == num_instances).all(), f"num_instances should be constant across task={subtask} for task_as_list={task_as_list}"
-            total_instances += eval_cost
+            total_instances += num_instances
         total_instances = int(total_instances)
         results.update({
             "n_instances": total_instances,

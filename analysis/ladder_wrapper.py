@@ -215,13 +215,34 @@ def get_ladder_data(
             
             scores_dict = {metric: np.array([]) for metric in metric_names}
             for metric in metric_names:
-                columns, scores = get_nd_array(df, ['model', 'step', 'mix'], metric, model=model, task=task_name, step=step)
+                columns, scores = get_nd_array(
+                    df, ['model', 'step', 'mix', 'task'], metric, 
+                    model=model, task=task_name, step=step
+                )
 
                 # Sort by the step number
                 numeric_cols = np.array([float(col[0]) for col in columns])
                 sort_indices = np.argsort(numeric_cols)
                 numeric_cols = numeric_cols[sort_indices]
                 scores = scores[sort_indices]
+
+                # Macro-average: Group by all columns except the last one and average the scores
+                grouped_cols = {}
+                for col in columns:
+                    key = tuple(col[:-1])  # All elements except last
+                    if key not in grouped_cols:
+                        grouped_cols[key] = []
+                    grouped_cols[key].append(col)
+                averaged_columns = []
+                for key, cols in grouped_cols.items():
+                    first_col = cols[0]
+                    if len(cols) > 1:
+                        # Average the scores for duplicate columns
+                        avg_scores = np.mean([scores[columns.index(c)] for c in cols], axis=0)
+                        scores[columns.index(first_col)] = avg_scores  # Store average in first occurrence
+                    first_col = tuple(list(first_col)[:-1]) # get rid of task col
+                    averaged_columns.append(first_col)
+                columns = averaged_columns
 
                 scores_dict[metric] = scores
         
@@ -528,9 +549,7 @@ def run_ladder(
             (step_1_y_pred, step_2_y_pred, stacked_y_pred), \
             fit_error = _fit_ladder(_data_by_name_step_1, _data_by_name_step_2, _data_by_name_stacked)
 
-            # print(rel_errors_stacked)
-            # print(stacked_y)rel_errors_step_1.append(rel_error_step_1)
-
+            rel_errors_step_1.append(rel_error_step_1)
             rel_errors_step_2.append(rel_error_step_2)
             rel_errors_stacked.append(_rel_errors_stacked) 
             step_1_ys.append(step_1_y)
