@@ -8,7 +8,7 @@ sys.path.append(str(parent_dir))
 from analysis.utils import weka_to_gcs
 
 from analysis.utils.constants_models import MODEL_LADDER_LIST, MODEL_LIST_MIXES_FINAL, MODEL_LIST_MIXES_FINAL_EXTENDED, MODEL_LIST_INTERMEDIATE, MODEL_LIST_INTERMEDIATE_13B, MODEL_LIST_MIXES, OE_EVAL_BASE_MODELS, OE_EVAL_INSTRUCT_MODELS, OE_EVAL_ALL_MODELS, OE_EVAL_BASE_MODELS_EXTENDED, OE_EVAL_BASE_MODELS_EXTENDED_2, MODEL_LIST_INTERMEDIATE_7B, MODEL_LIST_FINAL_30_1B, MODEL_LIST_FINAL_30_13B, MODEL_LIST_INTERMEDIATE_32B, MODEL_LIST_SEED_RUNS
-from analysis.utils.constants_model_ckpts import MODEL_LIST_FINAL_SIX_CKPTS, DATADECIDE_FINAL_FIVE_CKPTS, MODEL_MERGED_DATADECIDE_LADDER
+from analysis.utils.constants_model_ckpts import MODEL_LIST_FINAL_SIX_CKPTS, DATADECIDE_FINAL_FIVE_CKPTS, MODEL_MERGED_DATADECIDE, MODEL_MERGED_LADDER
 from analysis.utils.constants_models import WEKA_CLUSTERS, GCP_CLUSTERS
 from analysis.utils.constants_tasks import MC_TASKS_COPY_COLORS, MISSING_EVALS
 
@@ -56,7 +56,8 @@ MODEL_LIST_ALL = []
 
 # MODEL_LIST_ALL += DATADECIDE_FINAL_FIVE_CKPTS # (1125) DataDecide final 5 ckpts (only have rc_basic, rc_difficult, autobench, part of mc_basic)
 
-MODEL_LIST_ALL += MODEL_MERGED_DATADECIDE_LADDER # (252) Merged models
+MODEL_LIST_ALL += MODEL_MERGED_DATADECIDE # (225) Merged DataDecide   -- only have rc basic, rc_difficult
+MODEL_LIST_ALL += MODEL_MERGED_LADDER # (27) Merged ladder (gcs only) -- only have rc basic, rc_difficult
 
 TASK_LIST_ALL = []
 
@@ -120,7 +121,7 @@ TASK_LIST_ALL = []
 TASK_LIST_ALL += [ # Custom suites to prevent gRPC overload on Beaker
     'rc_basic::custom_suite',
     # 'mc_basic::custom_suite',
-    # 'rc_difficult::custom_suite',
+    'rc_difficult::custom_suite',
     # 'autobench::custom_suite',
     # 'gen::custom_suite',
     # 'gen_difficult::custom_suite',
@@ -152,7 +153,8 @@ TASK_LIST_ALL += [ # Custom suites to prevent gRPC overload on Beaker
 #     "mistral-small-3.1-24b-base-2503",
 #     "gemma-2-2b",
 # ]
-MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if '/DCLM-baseline-' not in model] # DCLM only
+# MODEL_LIST_ALL = [model for model in MODEL_LIST_ALL if '/DCLM-baseline-' not in model] # DCLM only
+# MODEL_LIST_ALL = MODEL_MERGED_DATADECIDE[:2] + MODEL_MERGED_LADDER[:2]
 
 
 def run_eval(model_list, task_list, model_type='hf', gpus=1, gpu_memory_utilization=0.7, limit=None, batch_size=None, save_requests=True):
@@ -241,7 +243,6 @@ def main():
 
     for task, model in itertools.product(TASK_LIST_ALL, MODEL_LIST_ALL):
         task_list = [task]
-        time.sleep(1) # prevent hf from timeout
 
         batch_size = None
         save_requests = True
@@ -274,9 +275,9 @@ def main():
             model_type = 'vllm'
             gpus = 4
         elif model in \
-            MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED + DATADECIDE_FINAL_FIVE_CKPTS or \
+            MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED + DATADECIDE_FINAL_FIVE_CKPTS + MODEL_MERGED_DATADECIDE or \
             ('-3B-' in model) or \
-            model in [weka_to_gcs(m) for m in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED + DATADECIDE_FINAL_FIVE_CKPTS]:
+            model in [weka_to_gcs(m) for m in MODEL_LIST_MIXES + MODEL_LIST_MIXES_FINAL + MODEL_LIST_MIXES_FINAL_EXTENDED + DATADECIDE_FINAL_FIVE_CKPTS + MODEL_MERGED_DATADECIDE]:
             # Our 3B models have a head size of 208. This is not supported by PagedAttention and will throw errors.
             model_type = 'hf'
             gpus = 1

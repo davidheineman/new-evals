@@ -1291,7 +1291,7 @@ DATADECIDE_FINAL_FIVE_CKPTS = [
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-90M-5xC/step25000-unsharded-hf",
 ]
 
-MODEL_MERGED_DATADECIDE_LADDER = [
+MODEL_MERGED_DATADECIDE = [
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/baseline-150M-5xC-2/last-5-model-merged",
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/baseline-1B-5xC-2/last-5-model-merged",
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/benb/baseline-300M-5xC-2/last-5-model-merged",
@@ -1517,6 +1517,9 @@ MODEL_MERGED_DATADECIDE_LADDER = [
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-4M-5xC/last-5-model-merged",
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-60M-5xC/last-5-model-merged",
     "weka://oe-eval-default/ai2-llm/checkpoints/OLMo-ladder/davidh/prox_fineweb_pro-90M-5xC/last-5-model-merged",
+]
+
+MODEL_MERGED_LADDER = [
     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-0.5xC/last-6-model-merged",
     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-10xC/last-6-model-merged",
     "weka://oe-training-default/ai2-llm/checkpoints/OLMo-ladder/peteish-moreeval-190M-2xC/last-6-model-merged",

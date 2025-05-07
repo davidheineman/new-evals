@@ -51,7 +51,7 @@ nohup python analysis/download/aws.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 nohup python analysis/download/preprocess.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 nohup python analysis/download/hf.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
 nohup python scripts/download_checkpoints.py > /tmp/out.out 2>&1 & tail -f /tmp/out.out
-nohup python merge.py > /tmp/merge.out 2>&1 & tail -f /tmp/merge.out
+nohup python scripts/weight_merging/merge.py > /tmp/merge.out 2>&1 & tail -f /tmp/merge.out
 
 # Convert checkpoints
 nohup ./scripts/convert_checkpoints_peteish.sh > /tmp/out.out 2>&1 & tail -f /tmp/out.out
