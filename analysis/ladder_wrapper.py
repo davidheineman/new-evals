@@ -207,7 +207,7 @@ def get_ladder_data(
             _, scores = get_nd_array(df, "model", metric_names, model=model, task=task_name, step="max")
             if len(scores) == 0:
                 raise RuntimeError(f'No scores found for model={model}, metric={metric_names}, task={task_name}. Seeing: {scores}')
-            scores_dict = {name: scores[i] if i < len(scores) else np.array([]) for i, name in enumerate(metric_names)}
+            scores_dict = {metric: scores[i] if i < len(scores) else np.array([]) for i, metric in enumerate(metric_names)}
         else:
             # Allow querying all steps
             if step == 'all': 
@@ -220,31 +220,34 @@ def get_ladder_data(
                     model=model, task=task_name, step=step
                 )
 
-                # Sort by the step number
-                numeric_cols = np.array([float(col[0]) for col in columns])
-                sort_indices = np.argsort(numeric_cols)
-                numeric_cols = numeric_cols[sort_indices]
-                scores = scores[sort_indices]
-
-                # Macro-average: Group by all columns except the last one and average the scores
+                # Macro-average: Group by all columns except the last one (the subtask) and average the scores
                 grouped_cols = {}
                 for col in columns:
                     key = tuple(col[:-1])  # All elements except last
                     if key not in grouped_cols:
                         grouped_cols[key] = []
                     grouped_cols[key].append(col)
-                averaged_columns = []
-                for key, cols in grouped_cols.items():
-                    first_col = cols[0]
-                    if len(cols) > 1:
-                        # Average the scores for duplicate columns
-                        avg_scores = np.mean([scores[columns.index(c)] for c in cols], axis=0)
-                        scores[columns.index(first_col)] = avg_scores  # Store average in first occurrence
-                    first_col = tuple(list(first_col)[:-1]) # get rid of task col
-                    averaged_columns.append(first_col)
-                columns = averaged_columns
 
-                scores_dict[metric] = scores
+                # sort by step
+                grouped_cols = dict(sorted(grouped_cols.items(), key=lambda x: float(x[0][0])))
+                
+                averaged_columns = []
+                averaged_scores = []
+                for key, cols in grouped_cols.items():
+                    first_col = tuple(list(cols[0])[:-1]) # get rid of task col. e.g., (3400.0, 'peteish-ladder')
+                    avg_scores = np.mean([scores[columns.index(col)] for col in cols], axis=0).item()
+                    averaged_columns.append(first_col)
+                    averaged_scores.append(avg_scores)
+                columns = averaged_columns
+                scores = np.array(averaged_scores)
+
+                # Remove NaN scores and corresponding columns
+                non_nan_mask = ~np.isnan(scores)
+                scores = scores[non_nan_mask]
+                columns = [col for i, col in enumerate(columns) if non_nan_mask[i]]
+
+                scores_dict[metric] = np.array(scores)[:, np.newaxis]
+
         
         # Default to empty np array if it does not exist
         corr        = scores_dict.get("correct_choice", np.array([]))

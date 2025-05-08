@@ -125,7 +125,8 @@ def construct_2class_table(
         agg_method_pred='max_n',
         agg_method_target='max_n',
         merge_small_alias=None,
-        merge_target_alias=None
+        merge_target_alias=None,
+        n_samples=1000
     ):
     """ Compute 2-class accuracy. We are predicting primary_metric at 1B using the metric at a smaller scale """
     if not isinstance(small_metric, list): small_metric = [small_metric]
@@ -152,15 +153,21 @@ def construct_2class_table(
             small_models = DDOS_MODEL_NAMES
             if merge_small_alias is not None:
                 small_models = [f'{model}-{merge_small_alias}' for model in small_models]
-            small_scale = get_perf_size(df, size, task, metric, agg_method=_agg_method_pred, models=small_models)
+            small_scale = get_perf_size(
+                df, size, task, metric, 
+                agg_method=_agg_method_pred, models=small_models
+            )
 
             # predict at the target scale (1B) 
             target_models = DDOS_MODEL_NAMES
             if merge_target_alias is not None:
                 target_models = [f'{model}-{merge_target_alias}' for model in target_models]
-            target_scale = get_perf_size(df, '1B', task, target_metric, agg_method=_agg_method_target, models=target_models)
+            target_scale = get_perf_size(
+                df, '1B', task, target_metric, 
+                agg_method=_agg_method_target, models=target_models
+            )
 
-            if _agg_method_pred == 'sample' or _agg_method_target == 'sample':
+            if agg_method_pred == 'sample' or agg_method_target == 'sample':
                 # Convert small_scale into 2d array: (# models, # steps) ndarrays
                 mixes = sorted(small_scale['mix'].unique())
                 steps_per_mix = small_scale.groupby('mix').apply(lambda x: list(x.sort_values('step')[metric]))
@@ -170,16 +177,17 @@ def construct_2class_table(
                 target_scale_array = [target_steps_per_mix[mix] for mix in mixes]
                 
                 # For each trial, sample one value per mix and compute decision accuracy
-                n_trials = 1000
-                # n_trials = 10_000
                 trial_accuracies = []
                 
-                for _ in tqdm(range(n_trials), desc=f'Sampling for size={size}, task={get_title_from_task(task)}, metric={metric}'):
+                for _ in tqdm(range(n_samples), desc=f'Sampling for size={size}, task={get_title_from_task(task)}, metric={metric}'):
                     # Sample one value per mix for both sizes
                     sampled_scores_small = np.array([np.random.choice(values) for values in small_scale_array])
                     sampled_scores_1b = np.array([np.random.choice(values) for values in target_scale_array])
 
                     if metric in REVERSED_METRICS and target_metric not in REVERSED_METRICS: sampled_scores_small = -sampled_scores_small # (this might be wrong?)
+
+                    # print(sampled_scores_small)
+                    # print(sampled_scores_1b)
                     
                     # Compute decision accuracy between sampled values
                     from datadecide import decision_acc_fast
@@ -190,6 +198,14 @@ def construct_2class_table(
             else:
                 small_scale = small_scale['mix']
                 target_scale = target_scale['mix']
+
+                # top_10_mixes = target_scale.tail(10)
+                # target_scale = target_scale[target_scale.index.isin(top_10_mixes)]
+                # small_scale = small_scale[small_scale.index.isin(top_10_mixes)]
+                # print(top_10_mixes)
+                # print(target_scale)
+                # print(small_scale)
+
                 if metric in REVERSED_METRICS and target_metric not in REVERSED_METRICS: small_scale = reversed(small_scale)
                 try:
                     accuracy = compute_2_class(small_scale, target_scale)
@@ -228,9 +244,9 @@ def construct_2class_table(
     acc_pivot = best_acc_df.pivot(index='task', columns=['size', 'compute'], values='accuracy')[model_sizes]
     metric_pivot = best_metric_df.pivot(index='task', columns=['size', 'compute'], values='metric')[model_sizes]
 
-    # Add average row
-    if agg_method_pred == 'sample' or agg_method_target == 'sample':
-        acc_pivot.loc['average'] = acc_pivot.mean()
+    # # Add average row
+    # if agg_method_pred == 'sample' or agg_method_target == 'sample':
+    #     acc_pivot.loc['average'] = acc_pivot.mean()
 
     return two_class, acc_pivot, metric_pivot
 
