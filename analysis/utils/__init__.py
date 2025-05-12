@@ -9,12 +9,49 @@ PLOT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.
 with open(os.path.join(ROOT_DIR, 'analysis/utils/model_sizes.json')) as f:
     MODEL_SIZES = json.load(f)
 
+def get_selected_tasks(tasks):
+    mmlu      = [t for t in tasks if 'mmlu' in t and ':' not in t and '_pro_' not in t]
+    minerva   = [t for t in tasks if 'minerva' in t and ':' not in t and 'math_500' not in t and t != 'minerva']
+    mmlu_pro  = [t for t in tasks if '_pro_' in t and ':rc' in t]
+    mmlu_mc   = [t for t in tasks if 'mmlu' in t and ':mc' in t and '_pro_' not in t]
+    olmes     = ['arc_challenge', 'arc_easy', 'boolq', 'csqa', 'hellaswag', 'openbookqa', 'piqa', 'socialiqa', 'winogrande']
+    olmes_mc  = [f'{task}:mc' for task in olmes]
+    olmes_para        = [f'{task}:para' for task in olmes]
+    olmes_distractors = [f'{task}:distractors' for task in olmes]
+    olmes_enlarge     = [f'{task}:enlarge' for task in olmes]
+    olmes_gen = ['drop', 'gsm8k', 'jeopardy', 'squad', 'triviaqa'] # naturalqs
+    agi_eval  = [t for t in tasks if 'agi_eval' in t and ':rc' in t]
+    bbh       = [t for t in tasks if 'bbh' in t and ':' not in t]
+    paloma    = [t for t in tasks if 'paloma' in t]
+    llm_compression = [t for t in tasks if 'llm_compression' in t]
+    custom_loss = [t for t in tasks if 'custom_loss' in t]
+
+    # task suites
+    multitask_math = ["gsm_plus", "gsm_symbolic_main", "gsm_symbolic_p1", "gsm_symbolic_p2", "minerva_math_500", "aime"] # 6
+    multitask_code = ['mbpp', 'mbppplus', 'codex_humaneval', 'codex_humanevalplus'] # 4
+    multitask_knowledge = ["medmcqa", 'autobencher'] + olmes + mmlu + olmes_gen + mmlu_pro + agi_eval # 19
+    multitask = multitask_knowledge + multitask_math + multitask_code + bbh # 30
+    olmes_all = olmes + mmlu + olmes_gen
+
+    selected_tasks = \
+        [olmes, minerva, olmes_gen, mmlu, mmlu_pro, agi_eval, bbh] + \
+        olmes + olmes_gen + \
+        ['mbpp', 'mbppplus', 'codex_humaneval', 'codex_humanevalplus'] + \
+        ['autobencher'] + \
+        ["gsm_plus", "gsm_symbolic_main", "gsm_symbolic_p1", "gsm_symbolic_p2", "medmcqa", "minerva_math_500", "aime"] + \
+        [multitask_math, multitask_code, multitask_knowledge, multitask, olmes_all]
+    
+    return selected_tasks
+
 def get_title_from_task(task):
     if isinstance(task, list):
         assert len(task) > 0, f'Seeing empty array passed as a task: {task}'
         if len(task) == 1:
             return task[0]
         title_mapping = {
+            'gsm_plus': 'multitask_math',
+            'mbpp': 'multitask_code',
+            'medmcqa': 'multitask_knowledge',
             'mmlu_pro_': 'mmlu_pro',
             'mmlu_abstract_algebra:mc': 'mmlu_mc',
             'mmlu': 'mmlu',

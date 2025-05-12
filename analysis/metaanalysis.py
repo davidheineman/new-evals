@@ -26,6 +26,9 @@ from ladder_wrapper import sort_experiment_names
 from download.preprocess import is_excluded_from_lite
 from db import connect_db_backend
 
+# import os
+os.environ["MallocStackLogging"] = "0" # disable malloc logs for macos
+
 DEFAULT_LADDER_CONFIG_PATH = f'{ROOT_DIR}/analysis/utils/ladder_config.json'
 
 ALL_METRICS = ['logits_per_char_corr', 'primary_score']
@@ -55,18 +58,18 @@ def get_perf_size(df, size, task, metric, models=DDOS_MODEL_NAMES, agg_method='m
     non_numerical_cols = _slice.select_dtypes(exclude='number').columns.tolist()
     _slice = _slice.sort_values('step')
 
-    def agg_func(group):
+    def agg_func(group, method=agg_method):
         """For numerical columns, handle different aggregation methods"""
         num_aggs = {}
         for col in numerical_cols:
-            if agg_method == 'mean': # take the mean of final steps
+            if method == 'mean': # take the mean of final steps
                 num_aggs[col] = group[col].mean()
-            elif agg_method == 'max_n': # take the final step
+            elif method == 'max_n': # take the final step
                 num_aggs[col] = group[col].iloc[-1]
-            elif agg_method == 'sample': # sample from last n steps
+            elif method == 'sample': # sample from last n steps
                 num_aggs[col] = group[col].sample(n=1).iloc[0]
             else:
-                raise ValueError(agg_method)
+                raise ValueError(method)
     
         # For non-numerical columns, take first value
         non_num_aggs = {col: group[col].iloc[0] for col in non_numerical_cols}
@@ -74,7 +77,12 @@ def get_perf_size(df, size, task, metric, models=DDOS_MODEL_NAMES, agg_method='m
         return pd.Series({**num_aggs, **non_num_aggs})
 
     if agg_method is not None:
-        _slice = _slice.groupby('model', as_index=False).apply(agg_func)
+        # Aggregate points for different steps
+        _slice = _slice.groupby(['model', 'task'], as_index=False).apply(lambda x: agg_func(x, agg_method))
+        
+    if isinstance(task, list):
+        # Aggregate points for different subtasks
+        _slice = _slice.groupby(['model', 'step'], as_index=False).apply(lambda x: agg_func(x, 'mean'))
         _slice['task_name'] = 'aggregate'
 
     _slice = _slice.reset_index().sort_values('step')[['model', 'mix', 'step', 'size', metric]]
@@ -179,7 +187,8 @@ def construct_2class_table(
                 # For each trial, sample one value per mix and compute decision accuracy
                 trial_accuracies = []
                 
-                for _ in tqdm(range(n_samples), desc=f'Sampling for size={size}, task={get_title_from_task(task)}, metric={metric}'):
+                quiet = True
+                for _ in tqdm(range(n_samples), desc=f'Sampling for size={size}, task={get_title_from_task(task)}, metric={metric}', disable=quiet):
                     # Sample one value per mix for both sizes
                     sampled_scores_small = np.array([np.random.choice(values) for values in small_scale_array])
                     sampled_scores_1b = np.array([np.random.choice(values) for values in target_scale_array])
@@ -427,9 +436,15 @@ def run_analysis(
             margin_of_error = std_error * stats.t.ppf((1 + confidence_level) / 2, n - 1)
             return margin_of_error
         
+        # Calculate std dev
+        def calc_std_dev(errors):
+            return np.std(np.array(errors), ddof=1)
+        
         results.update({
             "scaling_margin_of_error:step_1:13B:bpb_to_primary": calc_margin_of_err(rel_errors_step_1), 
             "scaling_margin_of_error:stacked:13B:bpb_to_primary": calc_margin_of_err(rel_errors_stacked), 
+            "scaling_std_dev:step_1:13B:bpb_to_primary": calc_std_dev(rel_errors_step_1), 
+            "scaling_std_dev:stacked:13B:bpb_to_primary": calc_std_dev(rel_errors_stacked), 
         })
 
         # Step 1 ladder prediction (base models)

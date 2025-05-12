@@ -788,7 +788,7 @@ def plot_single_run(ax: plt.Axes, metric_data: pd.DataFrame, task_label: str):
     ax_inset.set_xticklabels([])
     
     # Add bracket showing step noise
-    add_bracket(ax_inset, run_data, 'step\nnoise', inset=True)
+    add_bracket(ax_inset, run_data, 'noise', inset=True)
     
     ax.indicate_inset_zoom(ax_inset, edgecolor="black")
     ax.legend([ax.plot([], [], color='grey')[0]], ['1B Run'], loc='upper left', fontsize=8)
@@ -939,8 +939,6 @@ def format_axes(axes: np.ndarray):
     def format_func(x, p):
         return f"{int(x/1000)}K"
         
-    for ax in axes:
+    for ax in axes.flatten():
         ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
-        if ax in axes[-2:]:
-            ax.set_xlabel('Training Step', fontsize=12)
         ax.grid(True, alpha=0.3)
