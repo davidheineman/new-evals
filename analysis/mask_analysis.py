@@ -368,8 +368,6 @@ def compute_error_by_subtask(df_instances, task, metric, ladder_train, random_so
         else:
             N_ITER = 1
 
-        print(N_ITER)
-
         with ProcessPoolExecutor() as executor:
             partial_process = functools.partial(
                 _subtask_error,
@@ -392,17 +390,12 @@ def compute_error_by_subtask(df_instances, task, metric, ladder_train, random_so
                 partial_process,
                 [sorted_subtasks.copy() for _ in range(N_ITER)],
             ))
-
-        print(results)
             
         snr, decision_acc, std = zip(*results)
         
         cumulative_snrs.append(list(snr))
         decision_accs.append(list(decision_acc)) 
         all_errors.append(list(std))
-
-        print(snr, decision_acc, std)
-        print(cumulative_snrs, decision_accs, all_errors)
 
 
     return cumulative_snrs, decision_accs, all_errors, sorted_subtasks
