@@ -21,6 +21,7 @@ from fitting.predict import predict_chained, plot_chained, str_chained_fit
 
 from fitting.step1_flops import fit_step1 as fit_step1_flops, predict_step1 as predict_step1_flops, plot_step1 as plot_step1_flops, str_chinchilla_flops_fit
 from fitting.predict_flops import predict_chained_flops, plot_chained as plot_chained_flops, str_chained_fit as str_chained_fit_flops
+from fitting.single_step import fit_single_step, predict_single_step, plot_single_step, str_combined_fit
 
 FONTSIZE = 8
 
@@ -389,7 +390,7 @@ def aggregate_list(data_by_name, last_n_method_train, last_n_method_eval, last_n
 def run_ladder(
     df, task_name, train_models, eval_models, config_path, 
     downstream_feature='primary_score', intermediate_feature='bpb', intermediate_task_name=None, y_metric='rc_bpb',  # "y_metric" is the metric type
-    use_flops=False,
+    use_flops=False, use_single_step=False,
     last_n=None, last_n_method_train=None, last_n_method_eval=None, last_n_resample=None, # sample/avg last n checkpoints
     run_step1=True, run_step2=True, run_stacked=True,
     axes=None, add_texts=False, plot_compute=False,
@@ -412,6 +413,7 @@ def run_ladder(
             step=('all' if include_last_n else 'max'),
         )
         if intermediate_feature != 'bpb':
+            assert intermediate_task_name is not None
             data_by_name_intermedaite = get_ladder_data(
                 df, intermediate_task_name, train_models, eval_models, 
                 intermediate_feature=intermediate_feature, downstream_feature=downstream_feature, 
@@ -457,7 +459,7 @@ def run_ladder(
             configs,
             _data_by_name_step_1,  _data_by_name_step_2, _data_by_name_stacked, 
             task_key,
-            y_metric=y_metric, use_flops=use_flops,
+            y_metric=y_metric, use_flops=use_flops, use_single_step=use_single_step,
             run_step1=run_step1, run_step2=run_step2, run_stacked=run_stacked,
             axes=axes, add_texts=add_texts, plot_compute=plot_compute,
         )
@@ -488,7 +490,7 @@ def run_ladder(
             for data_tuple in resampled_data:
                 futures.append(executor.submit(fit_ladder, 
                     task_name, eval_models, configs, data_tuple[0], data_tuple[1], data_tuple[2], task_key,
-                    y_metric, use_flops, run_step1, run_step2, run_stacked, axes, add_texts, plot_compute,
+                    y_metric, use_flops, use_single_step, run_step1, run_step2, run_stacked, axes, add_texts, plot_compute,
                 ))
             
             results = list(tqdm(
@@ -588,30 +590,53 @@ def fit_ladder(
         task_name, eval_models,
         configs, data_by_name,  data_by_name_step_2, data_by_name_stacked, task_key,
         y_metric='rc_bpb',  # "y_metric" is the metric type
-        use_flops=False,
+        use_flops=False, use_single_step=False,
         run_step1=True, run_step2=True, run_stacked=True,
-        axes=None, add_texts=False, plot_compute=False,
+        axes=None, add_texts=False, plot_compute=False, 
     ):
     ax_i = 0
 
+    if use_flops:
+        # [min(data["fs"]) for data in data_by_name.values()]
+
+        for name, data in data_by_name.items():
+            fs = [float(6*n*d) for n, d in zip(data["ns"], data["ds"])]
+            data_by_name[name]['fs'] = fs
+
+        for name, data in data_by_name_stacked.items():
+            fs = [float(6*n*d) for n, d in zip(data["ns"], data["ds"])]
+            data_by_name_stacked[name]['fs'] = fs
+
+    if use_single_step:
+        assert not run_stacked and not run_step2, 'Single step prediction will only run step 1!'
+
     if run_step1 or run_stacked:
         # Fit step 1
-        if use_flops:
+        if use_single_step:
+            step1_coefficients = fit_single_step(data_by_name, task_name=None, use_flops=use_flops)
+        elif use_flops:
             step1_coefficients, cov = fit_step1_flops(data_by_name, y_metric)
         else:
             step1_coefficients, cov = fit_step1(data_by_name, y_metric)
 
-        if use_flops:
+        if use_single_step:
             (
                 predicted_data_by_name_step_1, plotted_predicted_data,
-                (y, step_1_y_pred, rel_error_step_1), all_rel_errors,
+                (step_1_y, step_1_y_pred, rel_error_step_1),
+            ) = predict_single_step(
+                data_by_name, step1_coefficients, use_flops=use_flops
+            )
+        elif use_flops:
+            (
+                predicted_data_by_name_step_1, plotted_predicted_data,
+                (y, step_1_y_pred, rel_error_step_1), _,
             ) = predict_step1_flops(
                 configs, data_by_name, step1_coefficients, y_metric=y_metric, 
             )
         else:
             (
                 predicted_data_by_name_step_1, plotted_predicted_data,
-                (y, step_1_y_pred, rel_error_step_1), all_rel_errors,
+                (y, step_1_y_pred, rel_error_step_1), _,
             ) = predict_step1(
                 configs, data_by_name, step1_coefficients, y_metric=y_metric, 
             )
@@ -620,7 +645,13 @@ def fit_ladder(
         if axes is not None and run_step1:
             ax = axes[ax_i]
             ax_i += 1
-            if use_flops:
+            if use_single_step:
+                print(data_by_name)
+                plot_single_step(
+                    configs, data_by_name, predicted_data_by_name_step_1, plotted_predicted_data,
+                    task_name, str_combined_fit(step1_coefficients), use_flops, ax,
+                )
+            elif use_flops:
                 plot_step1_flops(
                     configs, data_by_name, predicted_data_by_name_step_1, plotted_predicted_data,
                     task_name, str_chinchilla_flops_fit(step1_coefficients), y_metric,
@@ -767,7 +798,7 @@ def fit_ladder(
     def process_model(eval_models, model_name, target_name):
         if model_name in eval_models:
             if run_step1:
-                process_step(data_by_name, predicted_data_by_name_step_1, target_name, 'xs', step_1_y, step_1_y_pred, rel_error_step_1)
+                process_step(data_by_name, predicted_data_by_name_step_1, target_name, ('xs' if not use_single_step else 'ys'), step_1_y, step_1_y_pred, rel_error_step_1)
             if run_step2:
                 process_step(data_by_name_step_2, predicted_data_by_name_step_2, target_name, 'ys', step_2_y, step_2_y_pred, rel_error_step_2)
             if run_stacked:

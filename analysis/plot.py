@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from typing import List, Tuple
 import math
+
+from scipy import stats
 from dataloader import get_slice
 from utils import get_title_from_task, get_pretty_task_name
 
@@ -208,7 +210,7 @@ def plot_task_scatter(
     ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title=None, 
     category=None, percentage=False, threshold=None,
     invert_x=False, invert_y=False, log_x=False, log_y=False, xlim=None, ylim=None, x_col_b=None, y_col_b=None,
-    xdesc=None, ydesc=None, draw_frontier=True, color=None, zlabel=None, invert_z=False,
+    xdesc=None, ydesc=None, draw_frontier=True, compute_fit=False, color=None, zlabel=None, invert_z=False,
     ):
     points = get_valid_points(df, x_col, y_col, z_col=color)
     if not points:
@@ -300,6 +302,44 @@ def plot_task_scatter(
                 if category_points:
                     cat_xs, cat_ys = zip(*category_points)
                     draw_pareto_frontier(ax, cat_xs, cat_ys, invert_x=invert_x, invert_y=invert_y, color=(CATEGORY_COLORS[category_name] if color is None else color))
+
+        #### Add line of best fit here
+        if compute_fit:
+            # Add line of best fit with confidence interval
+            x_log = np.log10(xs)
+            y_log = np.log10(ys)
+            z = np.polyfit(x_log, y_log, 1)
+            p = np.poly1d(z)
+            x_line = np.logspace(np.log10(min(xs)), np.log10(max(xs)), 100)
+            y_line = 10**p(np.log10(x_line))
+            
+            n = len(xs)
+            y_mean = np.mean(y_log)
+            x_mean = np.mean(x_log)
+            s_err = np.sqrt(np.sum((y_log - p(x_log))**2)/(n-2))
+            x_new = np.log10(x_line)
+            conf = stats.t.ppf(0.975, n-2) * s_err * np.sqrt(1/n + (x_new - x_mean)**2 / np.sum((x_log - x_mean)**2))
+            
+            r = np.corrcoef(x_log, y_log)[0,1]
+            r2 = r**2
+            stderr = s_err * np.sqrt((1-r2)/(n-2))
+            if 'SNR' in xlabel or 'Scaling' in xlabel:
+                background = None
+            else:
+                background = dict(facecolor='white', alpha=0.7, edgecolor='none')
+
+            v_adjust = 0.03 if xdesc is not None else 0
+
+            ax.text(0.01, 0.97-v_adjust, f'R = {r:.3f} ± {stderr:.3f}\nR² = {r2:.3f}', 
+                    transform=ax.transAxes, fontsize=10, verticalalignment='top',
+                    bbox=background)
+        
+        plot_fit = compute_fit # looks odd, i know
+        if plot_fit:
+            assert compute_fit
+            ax.plot(x_line, y_line, '--', color='black', alpha=0.5)
+            print(f"n={n}, s_err={s_err}, x_mean={x_mean}, x_log spread={np.ptp(x_log)}")
+            # ax.fill_between(x_line, y_line-conf, y_line+conf, color='gray', alpha=0.2)
     
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)

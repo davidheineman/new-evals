@@ -417,7 +417,7 @@ def run_analysis(
         warnings.filterwarnings("ignore", category=RuntimeWarning)  # ignore fitting warnings
 
         # Standard error around the ladder prediction
-        rel_errors_step_1, _, rel_errors_stacked = run_ladder(
+        rel_errors_step_1, rel_errors_step_2, rel_errors_stacked = run_ladder(
             df,
             task,
             train_models=ladder_models,
@@ -442,8 +442,10 @@ def run_analysis(
         
         results.update({
             "scaling_margin_of_error:step_1:13B:bpb_to_primary": calc_margin_of_err(rel_errors_step_1), 
+            "scaling_margin_of_error:step_2:13B:bpb_to_primary": calc_margin_of_err(rel_errors_step_2), 
             "scaling_margin_of_error:stacked:13B:bpb_to_primary": calc_margin_of_err(rel_errors_stacked), 
             "scaling_std_dev:step_1:13B:bpb_to_primary": calc_std_dev(rel_errors_step_1), 
+            "scaling_std_dev:step_2:13B:bpb_to_primary": calc_std_dev(rel_errors_step_2), 
             "scaling_std_dev:stacked:13B:bpb_to_primary": calc_std_dev(rel_errors_stacked), 
         })
 
