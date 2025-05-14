@@ -33,13 +33,17 @@ def get_selected_tasks(tasks):
     multitask = multitask_knowledge + multitask_math + multitask_code + bbh # 30
     olmes_all = olmes + mmlu + olmes_gen
 
+    # Re-order tasks so that the title logic works (a bit hacky, yes)
+    olmes_all = ['jeopardy'] + list(set(olmes_all) - {'jeopardy'})
+    multitask = ['boolq'] + list(set(multitask) - {'boolq'})
+
     selected_tasks = \
+        [multitask_math, multitask_code, multitask_knowledge, multitask, olmes_all] + \
         [olmes, minerva, olmes_gen, mmlu, mmlu_pro, agi_eval, bbh] + \
         olmes + olmes_gen + \
         ['mbpp', 'mbppplus', 'codex_humaneval', 'codex_humanevalplus'] + \
         ['autobencher'] + \
-        ["gsm_plus", "gsm_symbolic_main", "gsm_symbolic_p1", "gsm_symbolic_p2", "medmcqa", "minerva_math_500", "aime"] + \
-        [multitask_math, multitask_code, multitask_knowledge, multitask, olmes_all]
+        ["gsm_plus", "gsm_symbolic_main", "gsm_symbolic_p1", "gsm_symbolic_p2", "medmcqa", "minerva_math_500", "aime"]
     
     return selected_tasks
 
@@ -49,6 +53,8 @@ def get_title_from_task(task):
         if len(task) == 1:
             return task[0]
         title_mapping = {
+            'jeopardy': 'olmes_all',
+            'boolq': 'multitask_all',
             'gsm_plus': 'multitask_math',
             'mbpp': 'multitask_code',
             'medmcqa': 'multitask_knowledge',
@@ -122,7 +128,12 @@ def get_pretty_task_name(task):
         'medmcqa': 'MedMCQA',
         'minerva_math_500': 'Minerva MATH 500',
         'mmlu_pro': 'MMLU Pro',
-        'olmes_10_macro_avg': 'OLMES 10 Avg.'
+        'olmes_10_macro_avg': 'OLMES 10 Avg.',
+        'multitask_math': 'Math Tasks',
+        'multitask_code': 'Code Tasks',
+        'multitask_knowledge': 'Knowledge Tasks',
+        'olmes_all': 'OLMES + Gen',
+        'multitask_all': 'All Tasks',
     }
     if task not in mapping:
         print(f"Task does not have pretty name: {task}")
