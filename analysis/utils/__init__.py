@@ -37,13 +37,15 @@ def get_selected_tasks(tasks):
     olmes_all = ['jeopardy'] + list(set(olmes_all) - {'jeopardy'})
     multitask = ['boolq'] + list(set(multitask) - {'boolq'})
 
+    # [minerva, mmlu, mmlu_pro, agi_eval] + \
     selected_tasks = \
-        [multitask_math, multitask_code, multitask_knowledge, multitask, olmes_all] + \
         [olmes, minerva, olmes_gen, mmlu, mmlu_pro, agi_eval, bbh] + \
         olmes + olmes_gen + \
         ['mbpp', 'mbppplus', 'codex_humaneval', 'codex_humanevalplus'] + \
         ['autobencher'] + \
-        ["gsm_plus", "gsm_symbolic_main", "gsm_symbolic_p1", "gsm_symbolic_p2", "medmcqa", "minerva_math_500", "aime"]
+        ["gsm_plus", "gsm_symbolic_main", "gsm_symbolic_p1", "gsm_symbolic_p2", "medmcqa", "minerva_math_500"] # "aime"
+        # [] + \
+        # multitask_math, multitask_code, multitask_knowledge, multitask, olmes_all
     
     return selected_tasks
 
@@ -79,6 +81,9 @@ def get_title_from_task(task):
 
 def get_pretty_task_name(task):
     """Map task names to prettier display names"""
+    # print(task)
+    # if isinstance(task, list):
+    #     return ','.join(task)
     task = get_title_from_task(task)
     mapping = {
         'arc_challenge:mc': 'ARC Challenge MC',

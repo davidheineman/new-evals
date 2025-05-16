@@ -207,7 +207,7 @@ def draw_pareto_frontier(ax, xs, ys, invert_x=False, invert_y=False, color='grey
 
 
 def plot_task_scatter(
-    ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title=None, 
+    ax: plt.Axes, df, x_col, y_col, xlabel, ylabel, title=None, labeled_tasks=None,
     category=None, percentage=False, threshold=None,
     invert_x=False, invert_y=False, log_x=False, log_y=False, xlim=None, ylim=None, x_col_b=None, y_col_b=None,
     xdesc=None, ydesc=None, draw_frontier=True, compute_fit=False, color=None, zlabel=None, invert_z=False,
@@ -330,8 +330,8 @@ def plot_task_scatter(
 
             v_adjust = 0.03 if xdesc is not None else 0
 
-            ax.text(0.01, 0.97-v_adjust, f'R = {r:.3f} ± {stderr:.3f}\nR² = {r2:.3f}', 
-                    transform=ax.transAxes, fontsize=10, verticalalignment='top',
+            ax.text(0.03, 0.97-v_adjust, f'R = {r:.3f} ± {stderr:.3f}\nR² = {r2:.3f}', 
+                    transform=ax.transAxes, fontsize=11, verticalalignment='top',
                     bbox=background)
         
         plot_fit = compute_fit # looks odd, i know
@@ -379,7 +379,10 @@ def plot_task_scatter(
         ylim = ax.get_ylim()
         if ((xlim[0] <= x <= xlim[1]) if not ax.xaxis_inverted() else (xlim[1] <= x <= xlim[0])) and \
            ((ylim[0] <= y <= ylim[1]) if not ax.yaxis_inverted() else (ylim[1] <= y <= ylim[0])):
-            texts += [ax.text(x, y, get_pretty_task_name(get_title_from_task(task)), fontsize=7, clip_on=True)] # fontsize=5
+            task_name = get_title_from_task(task)
+            if labeled_tasks is None or task_name in labeled_tasks:
+                text = ax.text(x, y, get_pretty_task_name(task_name), fontsize=(7 if labeled_tasks is None else 10), clip_on=True, ha='right')
+                texts += [text] 
         
     adjustText(ax, texts)
 
@@ -799,16 +802,18 @@ def setup_plot_grid(metric_names: List[str], plotted_tasks: List[str], num_rows:
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(4.5*num_cols, 2.5*num_rows))
     return fig, axes.flatten()
 
-def plot_single_run(ax: plt.Axes, metric_data: pd.DataFrame, task_label: str):
+def plot_single_run(ax: plt.Axes, metric_data: pd.DataFrame, task_label: str, inset_only=False, noise_label='noise', inset_legend=True):
     """Plot single run with inset showing step noise"""
     first_run = metric_data['run_name'].unique()[0]
     run_data = metric_data[metric_data['run_name'] == first_run]
     
-    # Main plot
-    ax.plot(run_data['step'], run_data['value'], linewidth=0.5)
+    if inset_only is False:
+        # Main plot
+        ax.plot(run_data['step'], run_data['value'], linewidth=0.5)
     
     # Inset
-    ax_inset = ax.inset_axes([0.5, 0.1, 0.45, 0.45])
+    # ax_inset = ax.inset_axes([0.5, 0.1, 0.45, 0.45])
+    ax_inset = ax.inset_axes([0.5, 0.05, 0.45, 0.35])
     ax_inset.plot(run_data['step'], run_data['value'], linewidth=0.5)
     
     # Set inset zoom region
@@ -828,12 +833,15 @@ def plot_single_run(ax: plt.Axes, metric_data: pd.DataFrame, task_label: str):
     ax_inset.set_xticklabels([])
     
     # Add bracket showing step noise
-    add_bracket(ax_inset, run_data, 'noise', inset=True)
+    add_bracket(ax_inset, run_data, noise_label, inset=True)
     
-    ax.indicate_inset_zoom(ax_inset, edgecolor="black")
-    ax.legend([ax.plot([], [], color='grey')[0]], ['1B Run'], loc='upper left', fontsize=8)
+    if inset_only is False:
+        ax.indicate_inset_zoom(ax_inset, edgecolor="black")
+    
+    if inset_legend is False:
+        ax.legend([ax.plot([], [], color='grey')[0]], ['1B Run'], loc='upper left', fontsize=8)
 
-def plot_random_seeds(ax: plt.Axes, metric_data: pd.DataFrame, label: str, emw_width=20, plot_inset=True):
+def plot_random_seeds(ax: plt.Axes, metric_data: pd.DataFrame, label: str, emw_width=20, plot_inset=True, inset_legend=True):
     """Plot multiple random seeds with inset showing seed noise"""
     num_runs = len(metric_data['run_name'].unique())
     blues = plt.cm.Blues(np.linspace(0.3, 0.9, num_runs))
@@ -850,7 +858,7 @@ def plot_random_seeds(ax: plt.Axes, metric_data: pd.DataFrame, label: str, emw_w
     if plot_inset:
         # Add inset
         ax_inset = ax.inset_axes([0.5, 0.1, 0.45, 0.45])
-        plot_inset_seeds(ax_inset, metric_data, blues, label=label)
+        plot_inset_seeds(ax_inset, metric_data, blues, label=label, inset_legend=inset_legend)
         ax.indicate_inset_zoom(ax_inset, edgecolor="black")
 
     legend_loc = 'upper left'
@@ -858,32 +866,54 @@ def plot_random_seeds(ax: plt.Axes, metric_data: pd.DataFrame, label: str, emw_w
     if label == 'total variation':
         label = 'seed + data order' # rename for TV
 
-        # Add total variation bracket across full x-range
+        # # Add total variation bracket across full x-range
+        # x_min = metric_data['step'].min()
+        # x_max = metric_data['step'].max()
+        # y_max = metric_data['value'].max()
+        
+        # # Draw the bracket
+        # bracket_y = y_max * 1.02  # Place slightly above max y value
+        # ax.plot([x_min, x_max], [bracket_y, bracket_y], color='black', linewidth=1)
+        # ax.plot([x_min, x_min], [bracket_y, bracket_y - 0.005], color='black', linewidth=1) 
+        # ax.plot([x_max, x_max], [bracket_y, bracket_y - 0.005], color='black', linewidth=1)
+
+        # ylim = ax.get_ylim()
+        
+        # # Add label
+        # ax.text((x_min + x_max)/2, bracket_y + (ylim[1]-ylim[0])*0.02, 'total variation', 
+        #         horizontalalignment='center', verticalalignment='bottom')
+        
+        # # Increase ylim
+        # ax.set_ylim(ylim[0], ylim[1] + (ylim[1]-ylim[0])*0.08)
+
+        # legend_loc = 'lower right'
+
+
+        # Add total variation bracket along y-axis
         x_min = metric_data['step'].min()
         x_max = metric_data['step'].max()
+        y_min = metric_data['value'].min()
         y_max = metric_data['value'].max()
         
         # Draw the bracket
-        bracket_y = y_max * 1.02  # Place slightly above max y value
-        ax.plot([x_min, x_max], [bracket_y, bracket_y], color='black', linewidth=1)
-        ax.plot([x_min, x_min], [bracket_y, bracket_y - 0.005], color='black', linewidth=1) 
-        ax.plot([x_max, x_max], [bracket_y, bracket_y - 0.005], color='black', linewidth=1)
+        bracket_x = x_max * 1.02  # Place slightly right of max x value
+        ax.plot([bracket_x, bracket_x], [y_min, y_max], color='black', linewidth=1)
+        ax.plot([bracket_x, bracket_x - 0.005*x_max], [y_min, y_min], color='black', linewidth=1)
+        ax.plot([bracket_x, bracket_x - 0.005*x_max], [y_max, y_max], color='black', linewidth=1)
 
-        ylim = ax.get_ylim()
+        xlim = ax.get_xlim()
         
         # Add label
-        ax.text((x_min + x_max)/2, bracket_y + (ylim[1]-ylim[0])*0.02, 'total variation', 
-                horizontalalignment='center', verticalalignment='bottom')
+        ax.text(bracket_x + (xlim[1]-xlim[0])*0.02, (y_min + y_max)/2, 'total variation',
+                rotation=90, horizontalalignment='left', verticalalignment='center')
         
-        # Increase ylim
-        ax.set_ylim(ylim[0], ylim[1] + (ylim[1]-ylim[0])*0.08)
-
-        legend_loc = 'lower right'
+        # Increase xlim
+        ax.set_xlim(xlim[0], xlim[1] + (xlim[1]-xlim[0])*0.08)
     
     ax.grid(True, alpha=0.3)
     ax.legend([ax.plot([], [], color='grey')[0]], [f'1B Run (varying {label})'], loc=legend_loc, fontsize=8)
 
-def plot_inset_seeds(ax_inset: plt.Axes, metric_data: pd.DataFrame, colors, label):
+def plot_inset_seeds(ax_inset: plt.Axes, metric_data: pd.DataFrame, colors, label, inset_legend=True):
     """Plot the inset for random seeds visualization"""
     final_values = []
     for idx, run_name in enumerate(metric_data['run_name'].unique()):
@@ -905,7 +935,7 @@ def plot_inset_seeds(ax_inset: plt.Axes, metric_data: pd.DataFrame, colors, labe
         y_min_zoom = run_data['value'].max() - 0.15 * y_range
     else:
         raise ValueError()
-    
+        
     x_max_zoom = run_data['step'].max()*1.045
     y_max_zoom = run_data['value'].max()*1.02
 
@@ -922,6 +952,10 @@ def plot_inset_seeds(ax_inset: plt.Axes, metric_data: pd.DataFrame, colors, labe
     bracket_label = f'{label} noise'.replace(' ', '\n')
     
     add_bracket(ax_inset, run_data, bracket_label, final_values, inset=True)
+
+    if inset_legend is True:
+        ax_inset.legend([ax_inset.plot([], [], color='grey')[0]], [f'1B Run'], loc='lower right', fontsize=8)
+
 
 def plot_datasets(ax: plt.Axes, plotted_task: str, metric: str, mixes: List[str], seed: int, df: pd.DataFrame):
     """Plot different datasets"""
